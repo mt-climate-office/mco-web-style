@@ -463,7 +463,18 @@ body {
    points up ("expand upward"). */
 .mco-panel-toggle svg { transition: transform var(--transition); transform: rotate(180deg); }
 .mco-panel-toggle[aria-expanded="false"] svg { transform: none; }
-.mco-panel-body { padding: 0 0.75rem 0.75rem; }
+/* Collapse is animated (slide + fade — ported from mesonet-status), then
+   MCO.initCollapsible sets [hidden] so collapsed content leaves the tab
+   order. The max-height cap comfortably fits house panels; raise it locally
+   for an unusually tall one. Reduced motion clamps the transition. */
+.mco-panel-body {
+  padding: 0 0.75rem 0.75rem;
+  max-height: 500px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height var(--transition), opacity var(--transition);
+}
+.mco-panel-body.is-collapsing { max-height: 0; opacity: 0; }
 
 /* Scrim behind off-canvas drawers on compact viewports. Pair with a panel at
    --z-drawer; the scrim sits one tier below it. */

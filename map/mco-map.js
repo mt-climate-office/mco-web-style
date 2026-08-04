@@ -265,7 +265,7 @@
       // accent blue — the state line frames the data, it isn't data.
       stateLine: { 'line-color': dark ? '#e8ecf0' : '#1a1a2e', 'line-width': 2, 'line-opacity': 0.55 },
       countiesLine: { 'line-color': textMuted, 'line-width': 0.6, 'line-opacity': 0.5 },
-      tribalFill: { 'fill-color': dark ? '#b88a5e' : '#9b6b3e', 'fill-opacity': dark ? 0.18 : 0.15 },
+      tribalFill: { 'fill-color': dark ? '#b88a5e' : '#9b6b3e', 'fill-opacity': dark ? 0.18 : 0.10 },
       tribalLine: { 'line-color': dark ? '#d6a06f' : '#7a4f24', 'line-width': 1, 'line-opacity': dark ? 0.65 : 0.55 },
       tribalLabelPaint: {
         'text-color': dark ? '#d6a06f' : '#6a4520',

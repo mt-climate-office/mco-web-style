@@ -108,6 +108,13 @@ Because `.btn-label` sheds below 1400 px, **any button that relies on it for
 its name must carry a permanent `aria-label`** — otherwise the button becomes
 nameless at laptop widths (the kit's axe audit fails exactly this).
 
+The subtitle shed at ≤750 px is a default, not a mandate: an app whose navbar
+wraps to two rows instead (mesonet-status) may opt out with one override rule
+— note the choice in a comment. The brand title may be the page's `<h1>`
+(status does this; good for document outline) as long as it carries
+`.brand-title`. Panel collapse (`.mco-panel-body` + `MCO.initCollapsible`)
+animates by default and then removes collapsed content from the tab order.
+
 **Compact** is `(max-width: 640px), (max-height: 560px)` — note the height
 clause: a short landscape phone is compact too. This string exists in exactly
 two places (CSS §6 comment and `MCO.viewport.COMPACT_MQ`) and they must stay in

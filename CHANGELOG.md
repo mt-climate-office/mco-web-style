@@ -4,6 +4,29 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [0.3.0] — 2026-08-03
+
+Back-ports from the mesonet-status migration review — the first
+adopt/override/back-port pass with a real consumer.
+
+### Added
+- Animated panel collapse: `.mco-panel-body` slides + fades (ported from
+  mesonet-status), then `MCO.initCollapsible` sets `[hidden]` so collapsed
+  content leaves the tab order — fixing the latent focusable-while-collapsed
+  bug the original implementation had. API unchanged.
+- `MCO.fetchJSON(url, {timeoutMs, cache})` — cache-mode passthrough for
+  polling loops (`'no-store'`).
+- `snippets/head.html`: commented OG/Twitter social-card block (explorer +
+  status precedent).
+
+### Changed
+- `MCO.createLiveRegion()` regions are now `aria-atomic="true"`
+  (mesonet-status's improvement).
+- `overlayPaints().tribalFill` light-theme opacity corrected 0.15 → **0.10**
+  (mesonet-status was the design source; 0.15 was a transcription error).
+- HOUSE-STYLE §3: subtitle-shed documented as a default with an opt-out;
+  `<h1 class="brand-title">` blessed; panel-animation behavior noted.
+
 ## [0.2.0] — 2026-08-03
 
 ### Added

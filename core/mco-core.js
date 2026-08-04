@@ -100,7 +100,10 @@
 
   MCO.fetchJSON = function (url, opts) {
     var timeoutMs = (opts && opts.timeoutMs) || 60000;
-    return fetch(url, { signal: AbortSignal.timeout(timeoutMs) }).then(function (res) {
+    var init = { signal: AbortSignal.timeout(timeoutMs) };
+    // Cache mode passthrough — polling loops want 'no-store'.
+    if (opts && opts.cache) init.cache = opts.cache;
+    return fetch(url, init).then(function (res) {
       if (!res.ok) throw new Error('API error ' + res.status);
       return res.json();
     });
@@ -268,6 +271,7 @@
     var el = document.createElement('div');
     el.className = 'sr-only';
     el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-atomic', 'true');   // announce replacements whole
     document.body.appendChild(el);
     return {
       element: el,
@@ -319,22 +323,52 @@
       collapsed = true;
     }
 
-    function apply(persist) {
-      body.hidden = collapsed;
+    // Collapse animates (slide + fade via .is-collapsing in mco-theme.css),
+    // THEN sets [hidden] so collapsed content leaves the tab order and the
+    // accessibility tree. The timeout is a fallback in case transitionend
+    // never fires (display flips, interrupted transitions).
+    var ANIM_FALLBACK_MS = 300;
+    function apply(persist, animate) {
       toggle.setAttribute('aria-expanded', String(!collapsed));
       if (persist && storageKey) MCO.lsSet(storageKey, collapsed ? '1' : '0');
+      if (collapsed) {
+        body.classList.add('is-collapsing');
+        if (animate) {
+          var done = false;
+          var finish = function () {
+            if (done) return;
+            done = true;
+            if (collapsed) body.hidden = true;   // unless re-expanded mid-animation
+          };
+          body.addEventListener('transitionend', function h(e) {
+            if (e.target !== body) return;
+            body.removeEventListener('transitionend', h);
+            finish();
+          });
+          setTimeout(finish, ANIM_FALLBACK_MS);
+        } else {
+          body.hidden = true;
+        }
+      } else {
+        body.hidden = false;
+        if (animate) {
+          body.classList.add('is-collapsing');
+          void body.offsetHeight;                // reflow: start from collapsed
+        }
+        body.classList.remove('is-collapsing');
+      }
       if (onChange) onChange(collapsed);
     }
     toggle.addEventListener('click', function () {
       collapsed = !collapsed;
-      apply(true);
+      apply(true, true);
     });
-    apply(false);
+    apply(false, false);
 
     return {
       isCollapsed: function () { return collapsed; },
-      collapse: function () { collapsed = true; apply(true); },
-      expand: function () { collapsed = false; apply(true); },
+      collapse: function () { collapsed = true; apply(true, true); },
+      expand: function () { collapsed = false; apply(true, true); },
     };
   };
 
