@@ -82,6 +82,13 @@
 
   // Everything map.setStyle() wipes gets re-added here (theme switch — §4).
   function addCustomLayers() {
+    // The CARTO basemaps draw their own dashed county boundaries from z9
+    // (layer 'boundary_county') — hide them so the kit-styled counties are
+    // the single treatment at every zoom (§7).
+    if (map.getLayer('boundary_county')) {
+      map.setLayoutProperty('boundary_county', 'visibility', 'none');
+    }
+
     // Topography first so boundaries and data stack above it (§7). Paints
     // re-derive from the current theme on every call.
     MCO.map.addHillshade(map);

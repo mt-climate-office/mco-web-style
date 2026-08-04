@@ -262,7 +262,11 @@ boundary needs an outline on light basemaps.
   Thin boundary/data layers may sit above labels (family convention).
 - Montana framing: `MCO.map.MT_FIT_BOUNDS` / `FIT_OPTS`. Overlays: the shared
   boundary GeoJSONs (`map/data/`) painted by `MCO.map.overlayPaints()` +
-  `TRIBAL_LABEL_LAYOUT`; re-apply after every `setStyle`.
+  `TRIBAL_LABEL_LAYOUT`; re-apply after every `setStyle`. Apps that draw the
+  county layer must hide the CARTO basemap's own `boundary_county` layer
+  (dashed, appears at z9 — pale orange on Positron) in `addCustomLayers()`:
+  `map.setLayoutProperty('boundary_county', 'visibility', 'none')` — otherwise
+  the map shows two county treatments above zoom 9.
 - The map container gets `role="application"` and an `aria-label`.
 - Vendoring exception: `data.climate.umt.edu` resolves to a private IP on
   campus (Chrome LNA blocks public→private fetches) — vendor data files into
