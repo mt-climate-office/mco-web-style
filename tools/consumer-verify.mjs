@@ -24,9 +24,12 @@ const CONFIG = {
   // localStorage seeded before load — suppress first-visit modals etc.
   initLocalStorage: { 'mco-<app>-seen-intro': '1' },
   // Render evidence: a predicate evaluated in-page; the page counts as
-  // rendered when it returns true (NEVER rely on networkidle). Example for
-  // an app with an sr-table twin:
-  renderEvidence: "document.querySelectorAll('#sr-station-table tbody tr').length > 100",
+  // rendered when it returns true (NEVER rely on networkidle). Keep it a
+  // FUNCTION, not a string — Playwright eval()s a string predicate in-page,
+  // and the meta CSP this playbook adds has no 'unsafe-eval', so a string
+  // fails with "Evaluating a string as JavaScript violates the following
+  // Content Security Policy directive". Example for an app with an sr-table:
+  renderEvidence: () => document.querySelectorAll('#sr-station-table tbody tr').length > 100,
   settleMs: 4000,               // extra time for tiles/hillshade after evidence
   screenshotDir: './verify-out',
 };

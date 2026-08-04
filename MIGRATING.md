@@ -135,6 +135,16 @@ for kit calls:
 - **MapLibre paints can't read CSS variables** — resolve tokens with
   `getComputedStyle(document.documentElement).getPropertyValue('--x')`,
   after the kit stylesheet has loaded.
+- **`connect-src` needs every scheme MapLibre *fetches*, not just hosts.**
+  MapLibre loads an `image` source's `url` through `fetch()`, so a page that
+  feeds canvas-generated photos/rasters to `addSource`/`updateImage` needs
+  `data:` (or `blob:`) in **`connect-src`** — `img-src` does not cover it. Get
+  this wrong and the layer silently never paints while the console fills with
+  "Refused to connect". Cost the photos migration a full verify cycle.
+- **Vendor the logo BEFORE writing the CSP.** A hot-linked
+  `climate.umt.edu` logo dies the moment `img-src` is enumerated — including
+  inside a canvas PNG export, where the failure is a missing card rather than a
+  console error.
 - **`initCollapsible` persists `'1'`/`'0'`** — if the app previously stored
   other encodings (status used `'collapsed'`/`'expanded'`), map legacy values
   into `startCollapsed` so returning users keep their state.
