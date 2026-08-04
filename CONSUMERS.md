@@ -3,11 +3,16 @@
 Adoption status of every MCO web property, from the 2026-08 org-wide census.
 Update this file as apps migrate. Migration mechanics are at the bottom.
 
+## Migrated
+
+| Property | Kit version | Notes |
+|---|---|---|
+| **mesonet-status** | **@0.3.1** (2026-08-03) | First consumer; the proof-of-concept migration. All checklist WCAG fixes applied; adopted hillshade, counties, high-contrast, MT time, CSP; overrides the subtitle shed (branding at all widths); back-ported the animated collapse, aria-atomic regions, fetchJSON cache option, tribal 0.10 fill, and the lockup-divider rhythm into the kit (v0.3.0/v0.3.1). Decision record in its migration commit. |
+
 ## Adopt now
 
 | Property | What it is | Notes for migration |
 |---|---|---|
-| mesonet-status | Vanilla MapLibre SPA (single index.html) | Smallest — the proof-of-concept migration. Fix drifted `--text-dim` (#6b7a90 fails AA); add `?kbd=off` to the `/` shortcut; add `viewport-fit=cover` (its `env()` calls are currently inert); de-duplicate the roma palette (defined in CSS *and* JS). |
 | mesonet-explorer | Vanilla MapLibre SPA (index.html + app.js) | Token block is the kit's ancestor — mostly deletions. Remove `Spectral` from the ramp picker (CVD policy). Update CSP for cdn.jsdelivr.net. |
 | mco-mesonet-photos | Vanilla MapLibre SPA (docs/) | Fix focus-restore bug (`lastFocusedEl.focus(); …blur()` drops focus); add `?kbd=off`; README still says the app is D3 (it's MapLibre). Delete dead `docs/mco_logo.png` / `Mesonet_Logo.png`. |
 | mco-snowpack-explorer | Vanilla MapLibre + COG SPA | `cog-protocol.js` now lives in the kit — consume it from there. Add reduced-motion support (hard-coded `animate: true`), touch targets, favicon (has none), a keyboard/touch path to gridded raster values, and USDM category names in the legend (D4 — Exceptional drought · < 2). Stadia/MapTiler keys stay in-app via `themedStyleUrl`; domain-restrict them. |
