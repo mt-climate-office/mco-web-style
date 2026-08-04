@@ -82,6 +82,9 @@
 
   // Everything map.setStyle() wipes gets re-added here (theme switch — §4).
   function addCustomLayers() {
+    // Topography first so boundaries and data stack above it (§7). Paints
+    // re-derive from the current theme on every call.
+    MCO.map.addHillshade(map);
     const paints = MCO.map.overlayPaints();
     if (overlayData.counties && !map.getSource('counties')) {
       map.addSource('counties', { type: 'geojson', data: overlayData.counties });

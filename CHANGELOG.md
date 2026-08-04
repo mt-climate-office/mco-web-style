@@ -4,6 +4,25 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [0.2.0] — 2026-08-03
+
+### Added
+- **Hillshade** (`map/mco-map.js`): `MCO.map.addHillshade(map, opts)`,
+  `MCO.map.hillshadePaints(opts)`, `MCO.map.TERRARIUM_DEM` (keyless AWS
+  terrain tiles), and `MCO.map.firstSymbolLayerId(map)`. Live-shaded
+  topography with the `igor` method and per-theme treatments — cool
+  highlights carry the relief on dark (exaggeration 0.70), soft neutral
+  shadows on light (0.50), brighter highlights on high-contrast (0.80).
+  Inserts beneath the basemap's labels by default. Chosen over Esri World
+  Hillshade/Dark (grays out the dark basemap) and USGS 3DEP (light-only,
+  US-only) in a side-by-side lab.
+- HOUSE-STYLE §7: the map layer-order convention (basemap → hillshade →
+  basemap labels → boundaries → data).
+- The exemplar now renders topography via `addHillshade` (its CSP gains
+  `https://s3.amazonaws.com` in `connect-src`).
+
+Only `map/mco-map.js` changed among published files; its SRI hash is new.
+
 ## [0.1.2] — 2026-08-03
 
 ### Changed

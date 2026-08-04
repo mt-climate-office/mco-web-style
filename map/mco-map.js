@@ -167,6 +167,88 @@
     };
   };
 
+  /* ── Hillshade ─────────────────────────────────────────────────────────────
+     Live-shaded topography from elevation data — the treatment that finally
+     works in every theme, because the colors are derived per theme rather
+     than baked into a raster. Chosen 2026-08 over Esri World Hillshade
+     (dark variant grays out the dark basemap) and USGS 3DEP (light-only,
+     US-only). House shading method: 'igor' (subtle, overlay-friendly).
+     Layer order: basemap → hillshade → boundaries → data. */
+
+  // Keyless global DEM: AWS Terrain Tiles (Mapzen), terrarium encoding.
+  M.TERRARIUM_DEM = {
+    type: 'raster-dem', tileSize: 256, maxzoom: 15, encoding: 'terrarium',
+    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+    attribution: 'Terrain: Mapzen/AWS Open Data',
+  };
+
+  // Themed hillshade paint. On dark themes the basemap is already dark, so
+  // the HIGHLIGHTS carry the relief (cool-tinted to sit with the tokens) and
+  // exaggeration runs higher; light themes use soft neutral shadows + white
+  // highlights at lower exaggeration. House defaults: 0.70 dark / 0.50 light
+  // / 0.80 high-contrast.
+  M.hillshadePaints = function (opts) {
+    opts = opts || {};
+    var theme = document.documentElement.dataset.theme;
+    var hc = theme === 'high-contrast';
+    var dark = theme !== 'light';
+    var exag = opts.exaggeration != null ? opts.exaggeration
+      : (hc ? 0.8 : dark ? 0.7 : 0.5);
+    var p = dark ? {
+      'hillshade-exaggeration': exag,
+      'hillshade-shadow-color': hc ? 'rgba(0,0,0,0.95)' : 'rgba(0,0,0,0.9)',
+      'hillshade-highlight-color': hc ? 'rgba(215,235,255,0.55)' : 'rgba(165,195,230,0.42)',
+      'hillshade-accent-color': hc ? 'rgba(140,190,240,0.30)' : 'rgba(100,150,200,0.22)',
+    } : {
+      'hillshade-exaggeration': exag,
+      'hillshade-shadow-color': 'rgba(55,65,80,0.55)',
+      'hillshade-highlight-color': 'rgba(255,255,255,0.78)',
+      'hillshade-accent-color': 'rgba(90,100,120,0.22)',
+    };
+    var method = 'method' in opts ? opts.method : 'igor';
+    if (method) p['hillshade-method'] = method;
+    return p;
+  };
+
+  // First symbol (label) layer of the current basemap style. Anything that
+  // should sit UNDER the place labels — hillshade, rasters, fills — gets
+  // inserted before this layer; custom layers otherwise land on top of the
+  // whole basemap, labels included.
+  M.firstSymbolLayerId = function (map) {
+    var layers = (map.getStyle() || {}).layers || [];
+    for (var i = 0; i < layers.length; i++) {
+      if (layers[i].type === 'symbol') return layers[i].id;
+    }
+    return undefined;
+  };
+
+  // One-line topography. By default it slots BENEATH the basemap's labels
+  // (firstSymbolLayerId) so place names stay legible; pass beforeId to
+  // override. Add it in your addCustomLayers() so boundaries and data stack
+  // above it; like every custom layer, re-add after map.setStyle() — the
+  // paints re-derive from the current theme automatically.
+  M.addHillshade = function (map, opts) {
+    opts = opts || {};
+    var sourceId = opts.sourceId || 'mco-dem';
+    var layerId = opts.layerId || 'mco-hillshade';
+    var before = 'beforeId' in opts ? opts.beforeId : M.firstSymbolLayerId(map);
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, opts.source || M.TERRARIUM_DEM);
+    }
+    var layer = {
+      id: layerId, type: 'hillshade', source: sourceId,
+      paint: M.hillshadePaints(opts),
+    };
+    try {
+      map.addLayer(layer, before);
+    } catch (e) {
+      // hillshade-method needs MapLibre ≥ 5.2 — fall back to default shading.
+      delete layer.paint['hillshade-method'];
+      map.addLayer(layer, before);
+    }
+    return layerId;
+  };
+
   /* ── Montana overlay paints ────────────────────────────────────────────────
      Theme-aware paint objects for the shared boundary layers (state, county,
      tribal — GeoJSON in map/data/). Call AFTER mco-theme.css has loaded (the

@@ -243,6 +243,16 @@ boundary needs an outline on light basemaps.
 - Controls: `MCO.map.addNavigation` (no compass — rotation is off in these
   apps), `MCO.map.addFitControl` fused into the same group,
   `MCO.map.installZoomFloor` so the region always fills the viewport.
+- **Topography**: `MCO.map.addHillshade(map)` — live-shaded from the keyless
+  AWS terrain DEM, `igor` method, themed paints (highlights carry the relief
+  on dark; exaggeration 0.70 dark / 0.50 light / 0.80 high-contrast). Chosen
+  2026-08 over Esri World Hillshade Dark and USGS 3DEP.
+- **Map layer order** (the WebGL counterpart of the z-index ladder): basemap
+  → hillshade → **basemap labels** → app boundaries → data. Full-coverage
+  layers (hillshade, rasters, fills) insert beneath the basemap's first
+  symbol layer — `addHillshade` does this by default;
+  `MCO.map.firstSymbolLayerId(map)` exposes the hook for anything else.
+  Thin boundary/data layers may sit above labels (family convention).
 - Montana framing: `MCO.map.MT_FIT_BOUNDS` / `FIT_OPTS`. Overlays: the shared
   boundary GeoJSONs (`map/data/`) painted by `MCO.map.overlayPaints()` +
   `TRIBAL_LABEL_LAYOUT`; re-apply after every `setStyle`.
