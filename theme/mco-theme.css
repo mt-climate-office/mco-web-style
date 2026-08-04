@@ -402,8 +402,11 @@ body {
 .info-section p, .info-section ul { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
 .info-section ul { padding-left: 1.1rem; }
 .info-section li { margin-bottom: 0.2rem; }
-.info-section a { color: var(--accent-line); text-decoration: none; }
-.info-section a:hover { text-decoration: underline; }
+/* Links inside prose are underlined, not color-only (WCAG 1.4.1 —
+   link-in-text-block). Color alone fails for CVD users; hover-only
+   underlines don't count. */
+.info-section a { color: var(--accent-line); text-decoration: underline; text-underline-offset: 2px; }
+.info-section a:hover { text-decoration-thickness: 2px; }
 .info-section kbd {
   font-family: var(--font-mono);
   font-size: 0.75em;

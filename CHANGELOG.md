@@ -4,15 +4,22 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
-## [Unreleased]
+## [0.1.1] — 2026-08-03
 
 ### Added
 - `exemplar/` — a complete single-page Mesonet station map built as the
   reference implementation of HOUSE-STYLE.md (live API data, three themes,
   URL state, keyboard station picker, live region + sr-table twin, CSP with
-  pinned inline-script hash, compact-viewport detail dock). Repo content
-  only — no published css/js changed, so v0.1.0 SRI hashes are unaffected.
-  CI now validates and axe-audits it alongside the demo.
+  pinned inline-script hash, compact-viewport detail dock). CI validates and
+  axe-audits it alongside the demo.
+
+### Fixed
+- `.info-section` prose links are now underlined instead of color-only
+  (WCAG 1.4.1 `link-in-text-block`) — caught by the kit's own axe workflow
+  auditing the exemplar. The hover-underline-only style was inherited from
+  mesonet-status, so the fielded apps share this defect until they migrate.
+  Only `theme/mco-theme.css` changed; its SRI hash is new, the JS hashes are
+  unchanged.
 
 ## [0.1.0] — 2026-08-03
 
