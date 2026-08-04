@@ -4,6 +4,13 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [0.3.1] — 2026-08-03
+
+### Changed
+- Navbar brand lockup: the divider pulls in so logo ↔ divider ↔ title sit on
+  the same 0.4rem rhythm as the squared logo edge margins (review feedback
+  from the mesonet-status migration). Only `theme/mco-theme.css` changed.
+
 ## [0.3.0] — 2026-08-03
 
 Back-ports from the mesonet-status migration review — the first
