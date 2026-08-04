@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>MCO Web Style · Demo</title>
+  <meta name="description" content="Living demo of mco-web-style — the Montana Climate Office shared web house style.">
+  <meta name="author" content="Montana Climate Office">
+  <meta name="theme-color" content="#1a6faf" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161b22" media="(prefers-color-scheme: dark)">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+
+  <!-- Anti-flash theme boot (snippets/anti-flash.html) -->
+  <script>
+    (function () {
+      const raw = new URLSearchParams(location.search).get('theme');
+      const url = raw == null ? null : raw.toLowerCase();
+      let saved = null;
+      try { saved = localStorage.getItem('mco-theme'); } catch (e) {}
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const valid = ['dark', 'light', 'high-contrast'];
+      const t = valid.includes(url) ? url
+              : valid.includes(saved) ? saved
+              : (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
+        integrity="sha384-q7EDwLXBfakVimqzBJqFCTxpgy7B18buhebV158qkVMCEVAaUnU3fQTEfWgYz+7g"
+        crossorigin="anonymous">
+  <link rel="stylesheet" href="../theme/mco-theme.css">
+
+  <style>
+    /* Demo-page layout only — nothing here is part of the kit. */
+    main { max-width: 1080px; margin: 0 auto; padding: 1.5rem max(1rem, env(safe-area-inset-right)) 4rem max(1rem, env(safe-area-inset-left)); }
+    main:focus { outline: none; }
+    .demo-section { margin-top: 2.5rem; }
+    .demo-section > h2 {
+      font-size: 0.9rem; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-secondary);
+      border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 1rem;
+    }
+    .demo-section > p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; max-width: 70ch; }
+    .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; }
+    .swatch { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--bg-surface); }
+    .swatch .chip { height: 44px; }
+    .swatch .meta { padding: 0.4rem 0.55rem; }
+    .swatch .name { font-size: 0.7rem; font-weight: 600; color: var(--text-primary); }
+    .swatch .val  { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); overflow-wrap: anywhere; }
+    .demo-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+    #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    #map { width: 100%; height: 100%; }
+    #legend-panel { right: 0.75rem; bottom: 1.75rem; }
+    .legend-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--text-secondary); padding: 3px 0; }
+    .legend-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+    #hover-target {
+      border: 1px dashed var(--ctrl-border); border-radius: var(--radius-md);
+      padding: 1.2rem; text-align: center; font-size: 0.85rem; color: var(--text-muted);
+    }
+    #vp-status, #map-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); }
+    footer { margin-top: 3rem; font-size: 0.75rem; color: var(--text-dim); }
+    footer a { color: var(--accent-line); }
+  </style>
+</head>
+<body>
+
+<a class="mco-skip-link" href="#main">Skip to main content</a>
+
+<header class="mco-navbar">
+  <a href="https://climate.umt.edu" target="_blank" rel="noopener noreferrer"
+     class="logo-link" aria-label="Montana Climate Office">
+    <img class="logo-img" src="../assets/mco-logo.png" alt="" width="40" height="40">
+  </a>
+  <div class="nav-divider" aria-hidden="true"></div>
+  <div class="brand">
+    <p class="brand-title">MCO Web Style</p>
+    <span class="brand-subtitle">A service of the Montana Climate Office</span>
+  </div>
+
+  <div class="controls">
+    <div class="seg-btns" role="group" aria-label="Theme">
+      <button type="button" class="nav-btn seg-btn" data-set-theme="dark" aria-pressed="false">Dark</button>
+      <button type="button" class="nav-btn seg-btn" data-set-theme="light" aria-pressed="false">Light</button>
+      <button type="button" class="nav-btn seg-btn" data-set-theme="high-contrast" aria-pressed="false">High contrast</button>
+    </div>
+  </div>
+
+  <div class="nav-meta">
+    <span class="refresh-status"><span class="dot" aria-hidden="true"></span><span>demo live</span></span>
+    <button type="button" class="nav-btn" id="btn-toast" aria-label="Show a toast">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+      <span class="btn-label">Toast</span>
+    </button>
+    <button type="button" class="nav-btn" id="btn-labels" aria-pressed="false" aria-label="Pressed-state demo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
+      <span class="btn-label">Pressed state</span>
+    </button>
+    <button type="button" class="nav-btn icon-only" id="btn-theme" aria-label="Switch theme">
+      <svg id="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <svg id="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
+    <button type="button" class="nav-btn mco-btn-info" id="btn-info" aria-label="About this demo">?</button>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+
+  <section class="demo-section">
+    <h2>Design tokens</h2>
+    <p>Live values from <code>theme/mco-theme.css</code> for the active theme. Switch themes in the
+       navbar — the whole page, including the map below, re-skins from the same custom properties.</p>
+    <div class="swatches" id="swatches"></div>
+  </section>
+
+  <section class="demo-section">
+    <h2>Viewport &amp; motion</h2>
+    <p>From <code>MCO.viewport</code> (compact = phone width <em>or</em> short landscape; keep in sync
+       with the CSS breakpoint ladder) and the live <code>MCO.reducedMotion()</code> gate.</p>
+    <p id="vp-status" role="status"></p>
+  </section>
+
+  <section class="demo-section">
+    <h2>Map · controls · overlays · collapsible panel</h2>
+    <p>MapLibre GL 5.x with <code>cartoStyleUrl()</code>, house navigation + fit-to-extent controls,
+       the zoom floor, and the Montana boundary overlays painted by <code>overlayPaints()</code>.
+       The legend is an <code>.mco-panel</code> wired with <code>MCO.initCollapsible</code> — on a
+       compact viewport it starts collapsed. Camera and theme round-trip through the URL.</p>
+    <div id="map-wrap">
+      <div id="map" role="application" aria-label="Demo map of Montana"></div>
+      <div class="mco-panel" id="legend-panel">
+        <div class="mco-panel-head">
+          <span class="mco-panel-title" id="legend-title">Overlays</span>
+          <button type="button" class="mco-panel-toggle" id="legend-toggle"
+                  aria-controls="legend-body" aria-label="Collapse overlays panel">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>
+          </button>
+        </div>
+        <div class="mco-panel-body" id="legend-body">
+          <div class="legend-row"><span class="legend-swatch" id="sw-state" aria-hidden="true"></span>State boundary</div>
+          <div class="legend-row"><span class="legend-swatch" id="sw-county" aria-hidden="true"></span>County lines</div>
+          <div class="legend-row"><span class="legend-swatch" id="sw-tribal" aria-hidden="true"></span>Tribal nations</div>
+        </div>
+      </div>
+    </div>
+    <p id="map-note" role="status"></p>
+  </section>
+
+  <section class="demo-section">
+    <h2>Tooltip</h2>
+    <p>The pointer-following <code>.mco-tooltip</code>. It is <code>aria-hidden</code> — hover-only
+       content must also reach assistive tech another way (live region, popup, or table twin).</p>
+    <div id="hover-target">Move the pointer here</div>
+  </section>
+
+  <section class="demo-section">
+    <h2>Modal</h2>
+    <p>Native <code>&lt;dialog class="mco-modal"&gt;</code> wired by <code>MCO.initInfoModal</code>:
+       backdrop click closes, focus returns to the opener. The ? button in the navbar opens it too.</p>
+    <div class="demo-row">
+      <button type="button" class="nav-btn" id="btn-modal"><span class="btn-label">Open modal</span></button>
+    </div>
+  </section>
+
+</main>
+
+<div class="mco-tooltip" id="tooltip" aria-hidden="true"></div>
+
+<dialog class="mco-modal" id="info-modal" aria-labelledby="info-modal-title">
+  <div class="info-modal-box">
+    <div class="info-modal-header">
+      <div>
+        <h2 class="info-modal-title" id="info-modal-title">MCO Web Style demo</h2>
+        <p class="info-modal-subtitle">mco-web-style v0.1.0</p>
+      </div>
+      <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
+    </div>
+    <div class="info-section">
+      <h3>What this page is</h3>
+      <p>A living exercise of every component in the kit — tokens, navbar, buttons, toast, tooltip,
+         modal, collapsible panel, and the MapLibre helpers. It doubles as the target for the
+         automated axe accessibility audit in CI.</p>
+    </div>
+    <div class="info-section">
+      <h3>Try</h3>
+      <ul>
+        <li>Press <kbd>Tab</kbd> from the top of the page — the skip link appears first.</li>
+        <li>Close this dialog with <kbd>Esc</kbd> — focus returns to the button that opened it.</li>
+        <li>Zoom the map out — it snaps back to Montana.</li>
+        <li>Switch to <strong>High contrast</strong> and watch every surface re-derive.</li>
+      </ul>
+    </div>
+    <div class="info-section">
+      <h3>Where the rules live</h3>
+      <p>Design and interaction conventions: <code>HOUSE-STYLE.md</code>. Developer guardrails:
+         <code>AGENTS.md</code>. Adoption status per app: <code>CONSUMERS.md</code>.</p>
+    </div>
+  </div>
+</dialog>
+
+<footer>
+  <p><a href="https://github.com/mt-climate-office/mco-web-style">mco-web-style</a> ·
+     MIT · Montana Climate Office · <a href="https://climate.umt.edu">climate.umt.edu</a></p>
+</footer>
+
+<script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"
+        integrity="sha384-MYTfGytf3SxNyO7ZAu/U0wHCcs3NpqE92Q3wBz5PQhat8kEA/wbwb9qY6H/JLyuR"
+        crossorigin="anonymous"></script>
+<script src="../core/mco-core.js"></script>
+<script src="../map/mco-map.js"></script>
+<script>
+  'use strict';
+
+  /* ── Live region + toast ─────────────────────────────────────────────── */
+  const live = MCO.createLiveRegion();
+  document.getElementById('btn-toast').addEventListener('click', () => {
+    MCO.showToast('Toast: styled by .mco-toast, announced politely.');
+  });
+
+  /* ── aria-pressed demo button ────────────────────────────────────────── */
+  const btnLabels = document.getElementById('btn-labels');
+  btnLabels.addEventListener('click', () => {
+    const on = btnLabels.getAttribute('aria-pressed') !== 'true';
+    btnLabels.setAttribute('aria-pressed', String(on));
+  });
+
+  /* ── Token swatches ──────────────────────────────────────────────────── */
+  const SWATCH_TOKENS = [
+    '--bg-deep', '--bg-surface', '--bg-raised', '--border',
+    '--text-primary', '--text-secondary', '--text-muted', '--text-dim',
+    '--accent', '--accent-line', '--accent-dk', '--selection-ring',
+    '--glass', '--input-bg', '--brand-gradient',
+  ];
+  function renderSwatches() {
+    const style = getComputedStyle(document.documentElement);
+    const host = document.getElementById('swatches');
+    host.innerHTML = '';
+    for (const name of SWATCH_TOKENS) {
+      const val = style.getPropertyValue(name).trim();
+      const card = document.createElement('div');
+      card.className = 'swatch';
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.style.background = val;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const n = document.createElement('div');
+      n.className = 'name'; n.textContent = name;
+      const v = document.createElement('div');
+      v.className = 'val'; v.textContent = val;
+      meta.append(n, v);
+      card.append(chip, meta);
+      host.appendChild(card);
+    }
+  }
+  renderSwatches();
+
+  /* ── Viewport + motion status ────────────────────────────────────────── */
+  function renderVp() {
+    document.getElementById('vp-status').textContent =
+      'compact: ' + MCO.viewport.isCompact() +
+      ' · touch: ' + MCO.viewport.isTouch() +
+      ' · reduced motion: ' + MCO.reducedMotion();
+  }
+  MCO.viewport.onChange(renderVp);
+  renderVp();
+
+  /* ── Modal ───────────────────────────────────────────────────────────── */
+  const modal = MCO.initInfoModal({
+    dialog: document.getElementById('info-modal'),
+    trigger: document.getElementById('btn-info'),
+  });
+  document.getElementById('btn-modal').addEventListener('click', modal.open);
+
+  /* ── Tooltip ─────────────────────────────────────────────────────────── */
+  const tooltip = document.getElementById('tooltip');
+  tooltip.innerHTML =
+    '<span class="tooltip-name">Sample Station</span>' +
+    '<span class="tooltip-sub">demo · .mco-tooltip</span>' +
+    '<span class="tooltip-val">42.0 °F</span>';
+  const hoverTarget = document.getElementById('hover-target');
+  hoverTarget.addEventListener('mousemove', (e) => {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY + 14) + 'px';
+    tooltip.classList.add('visible');
+  });
+  hoverTarget.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+
+  /* ── Collapsible legend panel ────────────────────────────────────────── */
+  MCO.initCollapsible({
+    toggle: document.getElementById('legend-toggle'),
+    body: document.getElementById('legend-body'),
+    storageKey: 'mco-websty-demo-legend',
+    autoCollapseOnCompact: true,
+  });
+
+  /* ── Legend swatches track the overlay paints ────────────────────────── */
+  function paintLegendSwatches() {
+    const p = MCO.map.overlayPaints();
+    document.getElementById('sw-state').style.background = p.stateLine['line-color'];
+    document.getElementById('sw-county').style.background = p.countiesLine['line-color'];
+    document.getElementById('sw-tribal').style.background = p.tribalLine['line-color'];
+  }
+  paintLegendSwatches();
+
+  /* ── Map ─────────────────────────────────────────────────────────────── */
+  const mapNote = document.getElementById('map-note');
+  let map = null;
+  let zoomFloor = null;
+  const overlayData = {};
+
+  function addOverlays() {
+    if (!map) return;
+    const paints = MCO.map.overlayPaints();
+    if (overlayData.state && !map.getSource('state')) {
+      map.addSource('state', { type: 'geojson', data: overlayData.state });
+    }
+    if (overlayData.counties && !map.getSource('counties')) {
+      map.addSource('counties', { type: 'geojson', data: overlayData.counties });
+    }
+    if (overlayData.tribal && !map.getSource('tribal')) {
+      map.addSource('tribal', { type: 'geojson', data: overlayData.tribal });
+    }
+    if (map.getSource('counties') && !map.getLayer('counties-line')) {
+      map.addLayer({ id: 'counties-line', type: 'line', source: 'counties', paint: paints.countiesLine });
+    }
+    if (map.getSource('tribal')) {
+      if (!map.getLayer('tribal-fill')) map.addLayer({ id: 'tribal-fill', type: 'fill', source: 'tribal', paint: paints.tribalFill });
+      if (!map.getLayer('tribal-line')) map.addLayer({ id: 'tribal-line', type: 'line', source: 'tribal', paint: paints.tribalLine });
+      if (!map.getLayer('tribal-label')) {
+        map.addLayer({
+          id: 'tribal-label', type: 'symbol', source: 'tribal', minzoom: 6,
+          layout: MCO.map.TRIBAL_LABEL_LAYOUT, paint: paints.tribalLabelPaint,
+        });
+      }
+    }
+    if (map.getSource('state') && !map.getLayer('state-line')) {
+      map.addLayer({ id: 'state-line', type: 'line', source: 'state', paint: paints.stateLine });
+    }
+  }
+
+  function pushState() {
+    const params = { };
+    const theme = MCO.getTheme();
+    if (theme) params.theme = theme;
+    if (map) Object.assign(params, MCO.map.cameraParams(map));
+    MCO.replaceUrlState(params);
+  }
+
+  try {
+    map = new maplibregl.Map({
+      container: 'map',
+      style: MCO.map.cartoStyleUrl(),
+      ...MCO.map.initialCamera(MCO.urlParams()),
+    });
+    MCO.map.addNavigation(map);
+    MCO.map.addFitControl(map);
+    zoomFloor = MCO.map.installZoomFloor(map);
+
+    map.on('load', () => {
+      zoomFloor.refresh();
+      Promise.all([
+        MCO.fetchJSON('../map/data/mt_state_simple.geojson'),
+        MCO.fetchJSON('../map/data/mt_counties_simple.geojson'),
+        MCO.fetchJSON('../map/data/mt_reservations_simple.geojson'),
+      ]).then(([state, counties, tribal]) => {
+        overlayData.state = state;
+        overlayData.counties = counties;
+        overlayData.tribal = tribal;
+        addOverlays();
+        live.announce('Map loaded with 3 Montana overlays.');
+        mapNote.textContent = 'state + counties + tribal overlays loaded from map/data/';
+      }).catch(() => {
+        mapNote.textContent = 'Overlay GeoJSON failed to load (serve the repo root, not demo/).';
+      });
+    });
+    map.on('moveend', pushState);
+  } catch (err) {
+    mapNote.textContent = 'Map unavailable: ' + err.message;
+  }
+
+  /* ── Theme switching ─────────────────────────────────────────────────── */
+  const segButtons = Array.from(document.querySelectorAll('[data-set-theme]'));
+  function syncSegs() {
+    const t = MCO.getTheme();
+    segButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.setTheme === t)));
+  }
+  function restyle() {
+    renderSwatches();
+    paintLegendSwatches();
+    syncSegs();
+    themeToggle.sync();
+    if (map) {
+      map.setStyle(MCO.map.cartoStyleUrl());
+      map.once('style.load', addOverlays);   // setStyle wipes our sources/layers
+    }
+    live.announce('Theme: ' + MCO.getTheme());
+    pushState();
+  }
+  segButtons.forEach((b) => b.addEventListener('click', () => {
+    MCO.setTheme(b.dataset.setTheme);
+    restyle();
+  }));
+  const themeToggle = MCO.initThemeToggle({
+    button: document.getElementById('btn-theme'),
+    iconSun: document.getElementById('icon-sun'),
+    iconMoon: document.getElementById('icon-moon'),
+    onChange: restyle,
+  });
+  syncSegs();
+</script>
+</body>
+</html>

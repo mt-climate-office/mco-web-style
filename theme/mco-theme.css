@@ -1,0 +1,495 @@
+/* ============================================================================
+   mco-web-style · theme/mco-theme.css · v0.1.0
+   The Montana Climate Office shared web house style.
+
+   Consumed via pinned CDN tag + SRI (see README.md). Rules for using and
+   extending this file live in HOUSE-STYLE.md; guardrails in AGENTS.md.
+
+   Layers, top to bottom:
+     1. Design tokens        — dark (:root), light, high-contrast themes
+     2. Stacking ladder      — z-index tiers for every floating surface
+     3. Reset & accessibility utilities
+     4. MapLibre control polish
+     5. Component shells     — navbar, toast, tooltip, modal, panel, scrim
+     6. Responsive & touch
+
+   Fonts are NOT loaded here — consumers load Outfit + Space Mono themselves
+   (see snippets/head.html); the tokens carry system fallbacks.
+   ========================================================================== */
+
+/* ── 1. Design tokens ─────────────────────────────────────────────────────
+   Dark is the default theme. `data-theme` on <html> switches; the anti-flash
+   snippet (snippets/anti-flash.html) sets it before first paint.
+
+   Contrast contract (enforced by tools/check-contrast.mjs in CI):
+     --text-primary, --text-secondary  ≥ 4.5:1 on deep, surface, AND raised
+     --text-muted,  --text-dim         ≥ 4.5:1 on deep and surface ONLY —
+                                         never use them on --bg-raised
+     --accent-line                     ≥ 3:1 on all three surfaces (1.4.11)
+     --text-on-accent                  ≥ 4.5:1 on --accent
+
+   --accent is the MCO brand blue. On dark surfaces it only clears ~2.3–2.9:1,
+   so it is a FILL color: use it behind --text-on-accent. For borders, icons,
+   or text that must read against a surface, use --accent-line. */
+:root {
+  --font-ui:        'Outfit', system-ui, -apple-system, sans-serif;
+  --font-mono:      'Space Mono', ui-monospace, monospace;
+
+  --bg-deep:        #161b22;
+  --bg-surface:     #1e2530;
+  --bg-raised:      #2c3545;
+  --border:         #3a4558;
+  --border-glass:   rgba(255,255,255,0.08);
+  --text-primary:   #e8ecf0;
+  --text-secondary: #c0cad6;
+  --text-muted:     #8a99b0;
+  --text-dim:       #8494ab;
+  --ctrl-border:    #6a7996;
+  --accent:         #1a6faf;
+  --accent-light:   #5aaee8;
+  --accent-dk:      #114f80;
+  --accent-line:    #5aaee8;
+  --accent-hover:   rgba(26,111,175,0.10);
+  --text-on-accent: #ffffff;
+  --selection-ring: #5aaee8;
+  --brand-gradient: linear-gradient(90deg, var(--accent-dk), var(--accent), var(--accent-light), var(--accent));
+  --glass:          rgba(30,37,48,0.82);
+  --shadow:         0 4px 24px rgba(0,0,0,0.4);
+  --transition:     0.2s cubic-bezier(0.4,0,0.2,1);
+  --radius-sm:      4px;
+  --radius-md:      8px;
+  --radius-lg:      12px;
+  --dot-stroke:     #ffffff;
+  --input-bg:       #232a35;
+  --scrim:          rgba(0,0,0,0.45);
+  --ctrl-icon-filter: invert(1);
+}
+
+[data-theme="light"] {
+  --bg-deep:        #f0f2f5;
+  --bg-surface:     #ffffff;
+  --bg-raised:      #e8ecf0;
+  --border:         #c8cdd5;
+  --border-glass:   rgba(0,0,0,0.08);
+  --text-primary:   #1a1a2e;
+  --text-secondary: #3a3f4b;
+  --text-muted:     #5a6070;
+  --text-dim:       #5f6675;
+  --ctrl-border:    #7e8694;
+  --accent:         #1a6faf;
+  --accent-light:   #1563a0;
+  --accent-dk:      #0d4f7a;
+  --accent-line:    #1563a0;
+  --accent-hover:   rgba(26,111,175,0.08);
+  --text-on-accent: #ffffff;
+  --selection-ring: #1563a0;
+  --brand-gradient: linear-gradient(90deg, #0a4a7a, #1266a8, #0d7fd4, #1266a8, #0a4a7a);
+  --glass:          rgba(255,255,255,0.88);
+  --shadow:         0 4px 24px rgba(0,0,0,0.1);
+  --dot-stroke:     #2a2a3a;
+  --input-bg:       #f4f5f7;
+  --scrim:          rgba(0,0,0,0.35);
+  --ctrl-icon-filter: none;
+}
+
+/* High-contrast: pure-black surfaces, brightened accent, near-white text.
+   Adapted from mco-drought-dashboard (the family's first HC theme), with the
+   accent tints re-derived from THIS theme's accent (#5bb4ff = rgb(91,180,255))
+   rather than the legacy value the dashboard still carries.
+   --text-on-accent flips to black: white fails on the brightened accent. */
+[data-theme="high-contrast"] {
+  --bg-deep:        #000000;
+  --bg-surface:     #000000;
+  --bg-raised:      #121212;
+  --border:         #8a8a8a;
+  --border-glass:   rgba(255,255,255,0.28);
+  --text-primary:   #ffffff;
+  --text-secondary: #f5f5f5;
+  --text-muted:     #dcdcdc;
+  --text-dim:       #bcbcbc;
+  --ctrl-border:    #8a8a8a;
+  --accent:         #5bb4ff;
+  --accent-light:   #93d0ff;
+  --accent-dk:      #2070a8;
+  --accent-line:    #93d0ff;
+  --accent-hover:   rgba(91,180,255,0.15);
+  --text-on-accent: #000000;
+  --selection-ring: #93d0ff;
+  --brand-gradient: linear-gradient(90deg, #2a9aff, #6ec0ff, #a0d8ff, #6ec0ff, #2a9aff);
+  --glass:          rgba(0,0,0,0.96);
+  --shadow:         0 4px 24px rgba(0,0,0,0.7);
+  --dot-stroke:     #ffffff;
+  --input-bg:       #121212;
+  --scrim:          rgba(0,0,0,0.8);
+  --ctrl-icon-filter: invert(1);
+}
+
+/* ── 2. Stacking ladder ───────────────────────────────────────────────────
+   One ladder for every floating surface. Add to a tier — don't invent a
+   number. MapLibre's own .maplibregl-ctrl-* containers ship with z-index 2
+   from the vendor stylesheet, so anything meant to sit over the map controls
+   (notably map popups, which ship with NO z-index) has to be above that.
+   The detail tier stays BELOW the chrome so a docked detail surface can never
+   cover the navbar; <dialog> lives in the browser's top layer and outranks
+   all of these regardless. */
+:root {
+  --z-map-ctrl:      2;   /* vendor .maplibregl-ctrl-* containers          */
+  --z-map-notice:   20;   /* empty-state / error callouts over the map     */
+  --z-map-progress: 30;   /* loading bars and notes                        */
+  --z-map-panel:    40;   /* docked panels (legend, sidebar) + scrim       */
+  --z-detail:       60;   /* docked detail surface (station sheet etc.)    */
+  --z-drawer:       70;   /* off-canvas drawer, over the detail surface    */
+  --z-chrome:       90;   /* secondary chrome bars                         */
+  --z-chrome-top:  100;   /* navbar                                        */
+  --z-flyout:      150;   /* dropdowns / search results                    */
+  --z-cursor:      200;   /* pointer-following tooltip                     */
+  --z-toast:       400;   /* toast — above everything                      */
+}
+
+/* ── 3. Reset & accessibility utilities ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  transition: background var(--transition), color var(--transition);
+}
+
+/* Reduced motion: blanket CSS clamp. Map camera animations are a JS concern —
+   gate them with MCO.reducedMotion() (live-reactive), never a boot snapshot. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration:  0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* The UA's [hidden] { display: none } loses to any rule that sets display
+   explicitly, so flex/grid elements stay visible as empty strips when hidden
+   from JS. Restate it with priority. */
+[hidden] { display: none !important; }
+
+/* Visually-hidden text for screen-reader announcements + skip-link targets. */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important; height: 1px !important;
+  padding: 0 !important; margin: -1px !important;
+  overflow: hidden !important; clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important; border: 0 !important;
+}
+
+/* ONE universal keyboard focus ring. Never enumerate per-selector rules —
+   a new control added later would ship without one. */
+:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+
+/* Skip link (WCAG 2.4.1): first focusable element on the page, jumps past the
+   chrome. Markup in snippets/skip-link.html. */
+.mco-skip-link {
+  position: fixed; left: 0.5rem; top: -100px;
+  z-index: calc(var(--z-toast) + 10);
+  padding: 0.5rem 0.9rem;
+  background: var(--accent); color: var(--text-on-accent);
+  border-radius: var(--radius-md);
+  font-weight: 600; font-size: 0.85rem; text-decoration: none;
+}
+.mco-skip-link:focus { top: 0.5rem; }
+
+/* ── 4. MapLibre control polish ───────────────────────────────────────────
+   Glass treatment for the vendor controls so they read as part of the app
+   chrome. --ctrl-icon-filter inverts the vendor's dark icon glyphs on dark
+   themes. */
+.maplibregl-ctrl-group {
+  background: var(--glass) !important;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--ctrl-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow) !important;
+  transition: background var(--transition), border-color var(--transition);
+}
+.maplibregl-ctrl-group button {
+  background: transparent !important;
+  border-color: var(--ctrl-border) !important;
+  transition: background var(--transition);
+}
+.maplibregl-ctrl-group button:hover { background: var(--accent-hover) !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: var(--ctrl-icon-filter, none); }
+/* Icon for MCO.map.addFitControl()'s "zoom to full extent" button. The
+   stroke is dark like the vendor icons so --ctrl-icon-filter flips it too. */
+.maplibregl-ctrl-fit .maplibregl-ctrl-icon {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23202020' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='4 8 4 4 8 4'/><polyline points='20 8 20 4 16 4'/><polyline points='4 16 4 20 8 20'/><polyline points='20 16 20 20 16 20'/></svg>");
+  background-size: 60% 60%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.maplibregl-ctrl-attrib { background: var(--glass) !important; color: var(--text-muted) !important; }
+.maplibregl-ctrl-attrib a { color: var(--text-secondary) !important; }
+.maplibregl-ctrl-attrib button.maplibregl-ctrl-attrib-button { filter: var(--ctrl-icon-filter, none); }
+/* Vendor default is 2; restated so the whole stacking ladder is greppable.
+   With viewport-fit=cover the corner containers need the safe-area insets
+   themselves, or the attribution lands under the home indicator. NOTE:
+   env() is inert unless the page sets viewport-fit=cover in its viewport
+   meta — see snippets/head.html. */
+.maplibregl-ctrl-top-left, .maplibregl-ctrl-top-right,
+.maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right {
+  z-index: var(--z-map-ctrl);
+}
+.maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.maplibregl-ctrl-top-left, .maplibregl-ctrl-bottom-left { padding-left: env(safe-area-inset-left); }
+.maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-right { padding-right: env(safe-area-inset-right); }
+
+/* ── 5. Component shells ──────────────────────────────────────────────────── */
+
+/* Navbar. Glass bar with the brand-gradient underline. Structure:
+   .mco-navbar > .logo-link + .nav-divider + .brand + .controls + .nav-meta */
+.mco-navbar {
+  flex-shrink: 0;
+  position: relative;
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.4rem max(1rem, env(safe-area-inset-right)) 0.4rem max(1rem, env(safe-area-inset-left));
+  min-height: 52px;
+  background: var(--glass);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap; row-gap: 0.4rem;
+  z-index: var(--z-chrome-top);
+}
+.mco-navbar::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; background: var(--brand-gradient); pointer-events: none;
+}
+.logo-link { display: flex; flex-shrink: 0; }
+.logo-img  { width: 40px; height: 40px; border-radius: 6px; display: block; }
+.nav-divider { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+.brand { display: flex; flex-direction: column; justify-content: center; flex-shrink: 0; line-height: 1.2; }
+.brand-title    { font-size: 0.65rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; margin: 0; }
+.brand-subtitle { font-size: 0.55rem; font-weight: 400; letter-spacing: 0.04em; font-style: italic; color: var(--text-dim); white-space: nowrap; }
+.controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; row-gap: 0.3rem; }
+.nav-meta { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; margin-left: auto; }
+
+/* Buttons. Pressed/hover borders use --accent-line, NOT --accent: the brand
+   blue only clears ~2.3–2.9:1 against dark surfaces (WCAG 1.4.11 needs 3:1). */
+.nav-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; min-height: 34px;
+  border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
+  background: none; color: var(--text-secondary);
+  cursor: pointer; font-size: 0.78rem; font-weight: 500;
+  font-family: inherit; white-space: nowrap; flex-shrink: 0;
+  transition: var(--transition);
+}
+.nav-btn:hover { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+.nav-btn svg { flex-shrink: 0; stroke: currentColor; }
+.nav-btn.icon-only { padding: 0.4rem; min-width: 34px; justify-content: center; }
+.nav-btn[aria-pressed="true"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+.nav-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+.nav-btn[disabled]:hover { background: none; border-color: var(--ctrl-border); color: var(--text-secondary); }
+
+.mco-btn-info {
+  border-radius: 50%; border-color: var(--accent-line);
+  color: var(--accent-line); font-size: 1rem; font-weight: 600;
+  padding: 0; width: 34px; height: 34px; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.mco-btn-info:hover { background: var(--accent); color: var(--text-on-accent); }
+
+/* Segmented buttons: a .nav-btn group with fused borders. Height tracks
+   .nav-btn — a shorter group beside 34px buttons reads as a mistake. */
+.seg-btns { display: flex; gap: 0; }
+.seg-btn {
+  padding: 4px 12px; min-height: 34px; height: 34px;
+  border-radius: 0; border-right-width: 0;
+  font-size: 0.78rem; font-weight: 600;
+}
+.seg-btn:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.seg-btn:last-child  { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-right-width: 1px; }
+.seg-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
+
+/* Refresh/liveness status: read-only, deliberately subordinated. Add .static
+   when the view isn't live (historical modes) to stop the pulse. */
+.refresh-status {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem; color: var(--text-muted);
+  white-space: nowrap;
+  padding: 0 4px;
+}
+.refresh-status .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent-line);
+  box-shadow: 0 0 0 2px var(--accent-hover);
+  animation: mco-refresh-pulse 2.4s ease-in-out infinite;
+}
+@keyframes mco-refresh-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .refresh-status .dot { animation: none; }
+}
+.refresh-status.static .dot { animation: none; box-shadow: none; opacity: 0.55; }
+
+/* Toast. One per page; created for you by MCO.showToast() if absent. */
+.mco-toast {
+  position: fixed; bottom: 1.5rem; left: 50%;
+  transform: translateX(-50%) translateY(0.75rem);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-line);
+  border-radius: 6px; padding: 0.5rem 1rem;
+  font-size: 0.82rem; color: var(--text-primary);
+  opacity: 0; transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none; z-index: var(--z-toast);
+  box-shadow: var(--shadow);
+}
+.mco-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Pointer-following tooltip. Decorative for AT: keep it aria-hidden and route
+   the same content through a live region (see HOUSE-STYLE.md §5). */
+.mco-tooltip {
+  position: fixed;
+  background: var(--glass);
+  border: 1px solid var(--accent-line);
+  border-radius: 5px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem; font-weight: 500;
+  color: var(--text-primary);
+  pointer-events: none;
+  z-index: var(--z-cursor);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.1s;
+  backdrop-filter: blur(8px);
+}
+.mco-tooltip.visible { opacity: 1; }
+.mco-tooltip .tooltip-name { font-size: 0.78rem; font-weight: 600; color: var(--text-primary); line-height: 1.2; }
+.mco-tooltip .tooltip-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.mco-tooltip .tooltip-val {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--accent-line);
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+/* Modal: native <dialog class="mco-modal"> wired by MCO.initInfoModal()
+   (backdrop click closes, focus restores to the opener). */
+.mco-modal { background: transparent; border: none; padding: 1rem; position: fixed; inset: 0; margin: auto; width: fit-content; height: fit-content; max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); }
+.mco-modal::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+.info-modal-box {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 10px; width: min(540px, calc(100vw - 4rem));
+  max-height: calc(100dvh - 4rem); overflow-y: auto;
+  padding: 1.5rem; box-shadow: var(--shadow);
+}
+.info-modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; gap: 1rem; }
+.info-modal-title    { font-size: 1.05rem; font-weight: 700; color: var(--accent-line); margin: 0; }
+.info-modal-subtitle { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
+.modal-close { display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; line-height: 1; flex-shrink: 0; min-width: 34px; min-height: 34px; transition: var(--transition); }
+.modal-close:hover { color: var(--text-primary); border-color: var(--accent-line); }
+.info-section { margin-bottom: 1.25rem; }
+.info-section:last-child { margin-bottom: 0; }
+.info-section h3 { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+.info-section p, .info-section ul { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+.info-section ul { padding-left: 1.1rem; }
+.info-section li { margin-bottom: 0.2rem; }
+.info-section a { color: var(--accent-line); text-decoration: none; }
+.info-section a:hover { text-decoration: underline; }
+.info-section kbd {
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text-primary);
+}
+.info-section code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-raised);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+/* Floating glass panel (legend, filter dock, …). Collapse behavior comes from
+   MCO.initCollapsible(); the toggle carries aria-expanded, the body gets
+   [hidden]. Structure:
+     .mco-panel > .mco-panel-head (> .mco-panel-title + .mco-panel-toggle)
+                + .mco-panel-body */
+.mco-panel {
+  position: absolute;
+  background: var(--glass);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  z-index: var(--z-map-panel);
+  max-width: min(320px, calc(100vw - 2rem));
+}
+.mco-panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+}
+.mco-panel-title {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-secondary);
+}
+.mco-panel-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-dim); cursor: pointer; font-family: inherit;
+  transition: var(--transition);
+}
+.mco-panel-toggle:hover { color: var(--text-primary); border-color: var(--accent-line); }
+.mco-panel-toggle svg { transition: transform var(--transition); }
+.mco-panel-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }
+.mco-panel-body { padding: 0 0.75rem 0.75rem; }
+
+/* Scrim behind off-canvas drawers on compact viewports. Pair with a panel at
+   --z-drawer; the scrim sits one tier below it. */
+.mco-scrim {
+  position: fixed; inset: 0;
+  background: var(--scrim);
+  z-index: var(--z-map-panel);
+}
+
+/* ── 6. Responsive & touch ────────────────────────────────────────────────
+   Breakpoint ladder (HOUSE-STYLE.md §3): 1400 shed button labels · 1060
+   tighten chrome · 750 shed brand subtitle · 640 compact. "Compact" also has
+   a height variant — KEEP IN SYNC with MCO.viewport.COMPACT_MQ in
+   core/mco-core.js: (max-width: 640px), (max-height: 560px). Layout lives in
+   real @media rules (no flash before deferred JS runs); behavior decisions
+   (sheet vs popup, auto-collapse) key off MCO.viewport. */
+@media (max-width: 1400px) {
+  .mco-navbar .btn-label, .mco-navbar .control-label { display: none; }
+}
+@media (max-width: 1060px) {
+  .mco-navbar { padding-left: 0.6rem; padding-right: 0.6rem; gap: 0.5rem; }
+  .nav-meta { gap: 0.3rem; }
+}
+@media (max-width: 750px) {
+  .brand-subtitle { display: none; }
+}
+@media (max-width: 640px) {
+  .refresh-status { display: none; }   /* reclaim space on phones */
+}
+
+/* WCAG 2.5.5 — comfortable touch targets on touch-only devices. */
+@media (hover: none) {
+  .nav-btn, .seg-btn { min-height: 40px; }
+  .nav-btn.icon-only { min-width: 40px; }
+  .mco-btn-info { width: 40px; height: 40px; }
+  .modal-close { min-width: 44px; min-height: 44px; }
+  .mco-panel-toggle { width: 36px; height: 36px; }
+}

@@ -1,0 +1,37 @@
+# Internal-consistency gates for mco-web-style. The kit itself is
+# zero-dependency; anything installed here is ephemeral test tooling.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Syntax-check published JS
+        run: |
+          node --check core/mco-core.js
+          node --check map/mco-map.js
+          node --check map/cog-protocol.js
+
+      - name: Token parity (CSS themes ↔ tokens.json)
+        run: node tools/check-tokens.mjs
+
+      - name: WCAG contrast matrix
+        run: node tools/check-contrast.mjs
+
+      - name: SRI hash freshness
+        run: node tools/check-sri.mjs
+
+      - name: Validate demo HTML
+        run: npx --yes html-validate@9 demo/index.html demo/cdn.html

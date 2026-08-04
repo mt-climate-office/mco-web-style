@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCO Web Style · CDN + SRI self-test</title>
+  <meta name="author" content="Montana Climate Office">
+
+  <!-- Anti-flash theme boot (snippets/anti-flash.html) -->
+  <script>
+    (function () {
+      const raw = new URLSearchParams(location.search).get('theme');
+      const url = raw == null ? null : raw.toLowerCase();
+      let saved = null;
+      try { saved = localStorage.getItem('mco-theme'); } catch (e) {}
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const valid = ['dark', 'light', 'high-contrast'];
+      const t = valid.includes(url) ? url
+              : valid.includes(saved) ? saved
+              : (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+
+  <!-- The point of this page: load every published kit file from the PINNED
+       jsDelivr URL with its SRI hash, exactly as a consumer would. If any
+       byte on the CDN differs from the hash below, the browser refuses the
+       file and the matching row goes red. This is the definitive end-to-end
+       release check (README § Releasing). -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.1.0/theme/mco-theme.css"
+        integrity="sha384-EqPaPLkJkDgWdH2q/Vesg+75C0s8yHrS4c4LDv2mL5MLEzfHlxxlTFcE+nfZ2xVO"
+        crossorigin="anonymous">
+
+  <style>
+    main { max-width: 640px; margin: 0 auto; padding: 2.5rem 1rem; }
+    h1 { font-size: 1.1rem; margin-bottom: 0.4rem; }
+    p.sub { font-size: 0.8rem; color: var(--text-muted, #8a99b0); margin-bottom: 1.5rem; }
+    ul { list-style: none; }
+    li {
+      display: flex; justify-content: space-between; gap: 1rem;
+      padding: 0.55rem 0.75rem; margin-bottom: 0.4rem;
+      border: 1px solid var(--border, #3a4558); border-radius: 8px;
+      font-family: 'Space Mono', ui-monospace, monospace; font-size: 0.78rem;
+    }
+    li.pass .status { color: #4cbb7f; }
+    li.fail .status { color: #ff7777; font-weight: 700; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>mco-web-style · CDN + SRI self-test</h1>
+  <p class="sub">v0.1.0 via cdn.jsdelivr.net · a red row means the published bytes no longer match
+     the pinned integrity hash (or the tag has not propagated yet).</p>
+  <ul id="results">
+    <li id="r-theme"><span>theme/mco-theme.css</span><span class="status">…</span></li>
+    <li id="r-core"><span>core/mco-core.js</span><span class="status">…</span></li>
+    <li id="r-map"><span>map/mco-map.js</span><span class="status">…</span></li>
+    <li id="r-cog"><span>map/cog-protocol.js</span><span class="status">…</span></li>
+  </ul>
+</main>
+
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.1.0/core/mco-core.js"
+        integrity="sha384-bXx4u0gOgyIts+xnhMguj7fuQSJa7hQ3YuLL70nOzd83CmIzGR36zfYzbvjulixG"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.1.0/map/mco-map.js"
+        integrity="sha384-+GtJwAmNz1gpsJzo6bWrRYyqygMoCSybekT4Th4n8NuL2T6d4H5bYYheczJD4+OV"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.1.0/map/cog-protocol.js"
+        integrity="sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm"
+        crossorigin="anonymous"></script>
+<script>
+  'use strict';
+  function mark(id, ok) {
+    const li = document.getElementById(id);
+    li.className = ok ? 'pass' : 'fail';
+    li.querySelector('.status').textContent = ok ? 'loaded ✓' : 'BLOCKED ✗';
+  }
+  // CSS: if the stylesheet loaded, the accent token resolves.
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  mark('r-theme', accent !== '');
+  mark('r-core', !!(window.MCO && MCO.versions && MCO.versions.core));
+  mark('r-map', !!(window.MCO && MCO.map && MCO.versions && MCO.versions.map));
+  mark('r-cog', typeof window.CogProtocol !== 'undefined');
+</script>
+</body>
+</html>

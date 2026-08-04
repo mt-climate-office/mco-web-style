@@ -1,0 +1,27 @@
+<!-- mco-web-style · anti-flash theme boot · v0.1.0
+
+     KEEP THIS INLINE in your <head>, before any stylesheet. Loading it from a
+     CDN would defer it past first paint and reintroduce the flash of the
+     wrong theme it exists to prevent — this snippet is copy-paste by design.
+
+     Precedence: ?theme= URL param → localStorage['mco-theme'] → OS preference.
+     Values are validated against a whitelist because mco-theme is shared by
+     every MCO app on the origin — never trust a persisted value blindly.
+
+     If your page ships a CSP, script-src must carry the sha256 hash of
+     EXACTLY the script element's contents below (whitespace included).
+     Recompute after any edit (see README.md § CSP). -->
+<script>
+  (function () {
+    const raw = new URLSearchParams(location.search).get('theme');
+    const url = raw == null ? null : raw.toLowerCase();
+    let saved = null;
+    try { saved = localStorage.getItem('mco-theme'); } catch (e) {}
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const valid = ['dark', 'light', 'high-contrast'];
+    const t = valid.includes(url) ? url
+            : valid.includes(saved) ? saved
+            : (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>

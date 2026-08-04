@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+# The kit is zero-dependency by policy (see AGENTS.md). CI installs test
+# tooling ephemerally; a committed manifest would invite runtime deps.
+package.json
+package-lock.json

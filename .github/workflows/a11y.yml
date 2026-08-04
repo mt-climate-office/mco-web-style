@@ -1,0 +1,29 @@
+# Axe accessibility audit of the demo page (all three themes).
+# Fails on serious/critical violations. Tooling is installed ephemerally —
+# the kit stays zero-dependency (package.json is gitignored by design).
+name: a11y
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  axe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install audit tooling (ephemeral)
+        run: |
+          npm init -y > /dev/null
+          npm install --no-save playwright @axe-core/playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run axe over demo (dark, light, high-contrast)
+        run: node tools/a11y-audit.mjs
