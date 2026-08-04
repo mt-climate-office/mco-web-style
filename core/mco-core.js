@@ -375,6 +375,77 @@
     };
   };
 
+  /* ── Collapsible search ────────────────────────────────────────────────────
+     Below MCO.SEARCH_COLLAPSE_MQ a navbar search field collapses into a
+     disclosure button and expands as an overlay bar (styling in mco-theme.css
+     §5). Keep this string in sync with the 460px block there.
+
+       var searchCtl = MCO.initSearchCollapse({
+         wrap: document.getElementById('search-wrap'),
+         toggle: document.getElementById('btn-search-toggle'),
+         input: searchInput,
+         onClose: hideSearchDropdown,      // app clears its own suggestions
+       });
+
+     The app keeps control of Esc precedence and of its `/` shortcut:
+       if (searchCtl.isCollapsed()) searchCtl.open(); else input.focus();
+     Returns {isCollapsed, isOpen, open, close, destroy}. */
+  MCO.SEARCH_COLLAPSE_MQ = '(max-width: 460px)';
+
+  MCO.initSearchCollapse = function (opts) {
+    var wrap = opts.wrap;
+    var toggle = opts.toggle;
+    var input = opts.input;
+    var onClose = opts.onClose || null;
+    var mq = window.matchMedia(opts.mq || MCO.SEARCH_COLLAPSE_MQ);
+
+    function isOpen() { return wrap.classList.contains('is-open'); }
+
+    function open() {
+      wrap.classList.add('is-open');
+      toggle.setAttribute('aria-expanded', 'true');
+      if (input) { input.focus(); if (input.select) input.select(); }
+    }
+
+    // restoreFocus: false when something else is about to take focus (a dialog
+    // opening), so we don't yank it back to the toggle first.
+    function close(o) {
+      if (!isOpen()) return;
+      wrap.classList.remove('is-open');
+      toggle.setAttribute('aria-expanded', 'false');
+      if (onClose) onClose();
+      if (input) input.value = '';
+      if (!o || o.restoreFocus !== false) toggle.focus();
+    }
+
+    function onToggle() { if (isOpen()) close(); else open(); }
+    // Pointerdown outside the overlay dismisses it (map, another control).
+    function onDocDown(e) {
+      if (!isOpen()) return;
+      if (wrap.contains(e.target) || toggle.contains(e.target)) return;
+      close({ restoreFocus: false });
+    }
+    // Widening past the breakpoint puts the field back in the bar — drop the
+    // overlay state so aria-expanded can't go stale on a now-hidden toggle.
+    function onMq() { close({ restoreFocus: false }); }
+
+    toggle.addEventListener('click', onToggle);
+    document.addEventListener('pointerdown', onDocDown);
+    mq.addEventListener('change', onMq);
+
+    return {
+      isCollapsed: function () { return mq.matches; },
+      isOpen: isOpen,
+      open: open,
+      close: close,
+      destroy: function () {
+        toggle.removeEventListener('click', onToggle);
+        document.removeEventListener('pointerdown', onDocDown);
+        mq.removeEventListener('change', onMq);
+      },
+    };
+  };
+
   /* ── URL state ─────────────────────────────────────────────────────────────
      Convention (HOUSE-STYLE.md §4): read once at boot with precedence
      URL param > localStorage > default, validating every value; mirror state

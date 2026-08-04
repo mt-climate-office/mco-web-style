@@ -103,6 +103,7 @@ controls must use a tier.
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; **compact mode** begins |
+| ≤ 460px | a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
 its name must carry a permanent `aria-label`** — otherwise the button becomes
@@ -145,6 +146,17 @@ panel auto-collapse, control relocation into a drawer.
   edge-hugging chrome.
 - Segmented button groups that don't fit under 1060 px get a `<select>`
   fallback (photo explorer pattern).
+- A navbar **search field collapses to a disclosure** below 460 px rather than
+  being hidden: `MCO.initSearchCollapse` moves focus into the field on open and
+  back to the button on close, and the app keeps control of Esc precedence and
+  of its own `/` shortcut. Hiding search outright strands the only keyboard
+  route to a named feature — don't.
+
+**Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
+property, never `gap` directly: the brand lockup's divider margin is derived
+from it (`calc(0.4rem - var(--nav-gap))`), so setting `gap` alone desynchronises
+them and squeezes logo/divider/title together. That was a real bug at ≤1060 px,
+fixed in v0.5.0.
 
 ---
 

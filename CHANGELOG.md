@@ -4,6 +4,31 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [0.5.0] — 2026-08-04
+
+### Added
+- **Collapsible search** — `.mco-search-collapse` / `.mco-search-toggle` +
+  `MCO.initSearchCollapse({wrap, toggle, input, onClose})`. Below 460px
+  (`MCO.SEARCH_COLLAPSE_MQ`) a navbar search field collapses into a disclosure
+  button grouped with the other nav buttons and reopens as a full-width overlay
+  bar under the navbar: focus moves into the field on open and back to the
+  button on close, pointerdown outside dismisses, and widening past the
+  breakpoint clears the state so `aria-expanded` can't go stale on a hidden
+  toggle. The app keeps control of Esc precedence and of its own `/` shortcut.
+  Admitted under the ≥2-property rule (mco-mesonet-photos built it first;
+  mesonet-status is the second consumer). The kit owns only the collapse — the
+  search field and its combobox stay app-owned, and the inner selectors are
+  generic (`input[type="search"]`, `kbd`) so app naming doesn't matter.
+
+### Fixed
+- **Brand lockup no longer squeezes at ≤1060px.** The divider's negative margin
+  was hard-coded to `-0.35rem` to compose with the navbar's `0.75rem` gap
+  (giving 0.4rem), but §6 tightens that gap to `0.5rem` at ≤1060px without
+  adjusting the margin — collapsing logo ↔ divider ↔ title to 0.15rem. The gap
+  is now a `--nav-gap` custom property and the margin derives from it
+  (`calc(0.4rem - var(--nav-gap))`), so the 0.4rem rhythm holds at any gap.
+  **Tighten navbar spacing via `--nav-gap`, not `gap`.**
+
 ## [0.4.0] — 2026-08-04
 
 ### Changed

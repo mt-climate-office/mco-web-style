@@ -62,6 +62,24 @@
       border: 1px dashed var(--ctrl-border); border-radius: var(--radius-md);
       padding: 1.2rem; text-align: center; font-size: 0.85rem; color: var(--text-muted);
     }
+    /* Search field styling is APP-owned (the combobox is deliberately not in
+       the kit) — this is the minimum needed to exercise .mco-search-collapse. */
+    .search-wrap { position: relative; display: inline-flex; align-items: center; }
+    .search-wrap input[type="search"] {
+      background-color: var(--input-bg); color: var(--text-primary);
+      border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
+      height: 32px; width: 200px; max-width: 100%; padding: 0 30px 0 10px;
+      font: inherit; font-size: 0.82rem;
+    }
+    .search-wrap input[type="search"]:hover { border-color: var(--accent-line); }
+    .search-kbd {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      font: 600 0.62rem var(--font-mono);
+      background: var(--border-glass); border: 1px solid var(--border);
+      border-radius: 3px; padding: 1px 5px; color: var(--text-muted);
+      pointer-events: none;
+    }
+    @media (hover: none) { .search-wrap input[type="search"] { min-height: 40px; } }
     #vp-status, #map-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); }
     footer { margin-top: 3rem; font-size: 0.75rem; color: var(--text-dim); }
     footer a { color: var(--accent-line); }
@@ -83,6 +101,15 @@
   </div>
 
   <div class="controls">
+    <!-- Collapsible search: below 460px this collapses into .mco-search-toggle
+         below and reopens as an overlay bar (MCO.initSearchCollapse). The field
+         itself is app-owned; only the collapse is the kit's. -->
+    <div class="search-wrap mco-search-collapse" id="search-wrap">
+      <label for="demo-search" class="sr-only">Search (demo)</label>
+      <input type="search" id="demo-search" placeholder="Search…" autocomplete="off">
+      <kbd class="search-kbd" aria-hidden="true">/</kbd>
+    </div>
+
     <div class="seg-btns" role="group" aria-label="Theme">
       <button type="button" class="nav-btn seg-btn" data-set-theme="dark" aria-pressed="false">Dark</button>
       <button type="button" class="nav-btn seg-btn" data-set-theme="light" aria-pressed="false">Light</button>
@@ -92,6 +119,13 @@
 
   <div class="nav-meta">
     <span class="refresh-status"><span class="dot" aria-hidden="true"></span><span>demo live</span></span>
+    <button type="button" class="nav-btn icon-only mco-search-toggle" id="btn-search-toggle"
+            aria-expanded="false" aria-controls="search-wrap" aria-label="Search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </button>
     <button type="button" class="nav-btn" id="btn-toast" aria-label="Show a toast">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
       <span class="btn-label">Toast</span>
@@ -412,6 +446,27 @@
     onChange: restyle,
   });
   syncSegs();
+
+  // Collapsible search (MCO.initSearchCollapse) — narrow the window below
+  // 460px and the field becomes the magnifier button in .nav-meta.
+  const demoSearchInput = document.getElementById('demo-search');
+  const searchCtl = MCO.initSearchCollapse({
+    wrap: document.getElementById('search-wrap'),
+    toggle: document.getElementById('btn-search-toggle'),
+    input: demoSearchInput,
+  });
+  // Esc unwinds the overlay; '/' opens it when collapsed, focuses it otherwise.
+  demoSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && searchCtl.isOpen()) searchCtl.close();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    if (searchCtl.isCollapsed()) searchCtl.open();
+    else { demoSearchInput.focus(); demoSearchInput.select(); }
+  });
 </script>
 </body>
 </html>
