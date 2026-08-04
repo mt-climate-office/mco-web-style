@@ -65,11 +65,14 @@
     return new Intl.DateTimeFormat('en-GB',
       { timeZone: MCO.TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
   };
-  // Shift a 'YYYY-MM-DD' string by whole days. Noon anchor sidesteps DST edges.
+  // Shift a 'YYYY-MM-DD' string by whole days. The noon anchor sidesteps DST
+  // edges; the result is formatted from LOCAL getters, not toISOString(), which
+  // would re-project to UTC and land a day off for viewers at UTC+13/+14 and
+  // UTC-12 (found in the mco-mesonet-photos migration).
   MCO.shiftDate = function (dateStr, deltaDays) {
     var d = new Date(dateStr + 'T12:00:00');
     d.setDate(d.getDate() + deltaDays);
-    return d.toISOString().slice(0, 10);
+    return d.getFullYear() + '-' + MCO.pad2(d.getMonth() + 1) + '-' + MCO.pad2(d.getDate());
   };
   MCO.formatStampMT = function (ms) {
     return new Date(ms).toLocaleString('en-US', {

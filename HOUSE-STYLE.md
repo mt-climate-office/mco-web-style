@@ -99,20 +99,33 @@ controls must use a tier.
 
 | Width | What sheds |
 |---|---|
-| ≤ 1400px | button/control text labels (`.btn-label`, `.control-label`) |
+| ≤ 1400px | button/control text labels (`.btn-label`, `.control-label`) — the buttons then square to 34px (40px on touch) so they match `.icon-only` neighbours; `.mco-btn-info` keeps its circle |
 | ≤ 1060px | chrome padding and gaps tighten |
-| ≤ 750px | brand subtitle |
+| ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; **compact mode** begins |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
 its name must carry a permanent `aria-label`** — otherwise the button becomes
 nameless at laptop widths (the kit's axe audit fails exactly this).
 
-The subtitle shed at ≤750 px is a default, not a mandate: an app whose navbar
-wraps to two rows instead (mesonet-status) may opt out with one override rule
-— note the choice in a comment. The brand title may be the page's `<h1>`
-(status does this; good for document outline) as long as it carries
-`.brand-title`. Panel collapse (`.mco-panel-body` + `MCO.initCollapsible`)
+The brand collapse at ≤750 px is a default, not a mandate: an app whose navbar
+wraps to extra rows instead (mesonet-status) may opt out — note the choice in a
+comment. Opting out takes **two** rules, because the kit hides the lockup and
+the divider separately:
+
+```css
+/* kit-override: branding at all widths */
+@media (max-width: 750px) {
+  .mco-navbar .brand { position: static; width: auto; height: auto;
+                       margin: 0; clip: auto; overflow: visible; }
+  .mco-navbar > .nav-divider { display: block; }
+}
+```
+
+The lockup is *visually* hidden, not removed, so the brand title may be the
+page's `<h1>` (status does this; good for document outline) as long as it
+carries `.brand-title` — the outline survives the mobile collapse, and screen
+readers keep the app name at every width. Panel collapse (`.mco-panel-body` + `MCO.initCollapsible`)
 animates by default and then removes collapsed content from the tab order.
 
 **Compact** is `(max-width: 640px), (max-height: 560px)` — note the height

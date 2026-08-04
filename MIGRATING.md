@@ -63,8 +63,11 @@ hash table are in the kit README (§ "SRI hashes"); pin exactly that version.
   `addCustomLayers`) and the **county layer** where they fit the app's
   purpose (ask if unclear), and always hide the CARTO basemap's own
   `boundary_county` (HOUSE-STYLE §7).
-- The ≤750px subtitle shed is **per-app**: status opted out ("branding at all
-  widths"); photos sheds its whole brand at 750 today. App's call.
+- The ≤750px **brand collapse to the logo badge** is the kit default as of
+  v0.4.0 (title + subtitle + divider, visually hidden so the `<h1>` outline
+  survives). Opting out is per-app and takes two rules — see HOUSE-STYLE §3.
+  mesonet-status opted out ("branding at all widths") and must extend its
+  override when it bumps past 0.3.1.
 - Toast 2800 ms · `showCompass: false` · toast/tooltip/modal/navbar move to
   kit selectors per the CONSUMERS.md selector map.
 - WCAG checklist items (skip link + `<main id="main" tabindex="-1">`,
