@@ -1,5 +1,6 @@
 <!-- ==========================================================================
-     mco-web-style · canonical <head> boilerplate · v0.1.0
+     mco-web-style · canonical <head> boilerplate
+     (version + hashes below are kept current by tools/check-sri.mjs in CI)
 
      Copy what applies; KEEP the pinned versions and integrity attributes.
      Order matters: metas → anti-flash script (snippets/anti-flash.html goes
@@ -78,7 +79,8 @@
 <script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.3.1/map/cog-protocol.js"
         integrity="sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm"
         crossorigin="anonymous"></script>
-<script type="module" src="app.js"></script>
+<script src="app.js"></script>   <!-- classic script — the kit globals need no modules -->
+
 
      mco-map.js: map apps only. cog-protocol.js: COG raster apps only.
      ========================================================================== -->

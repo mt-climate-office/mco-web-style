@@ -157,7 +157,8 @@ sources/layers — re-add them in `map.once('style.load', …)`). Use
 `aria-label`.
 
 **Toasts** (`MCO.showToast`) for transient status, 2800 ms default (canonical —
-three apps had drifted to 2200/2400/2800). **Dialogs** are native `<dialog>`
+three apps had drifted to 2200/2400/2800). Longer explicit per-call durations
+for errors (e.g. 6000 ms) are fine; don't change the default. **Dialogs** are native `<dialog>`
 via `MCO.initInfoModal`: backdrop click closes, focus returns to the opener.
 First-visit info modals auto-open once, gated by an app-prefixed localStorage
 key. **`?export=` convention**: a URL param that forces a theme and triggers

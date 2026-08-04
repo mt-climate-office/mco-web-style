@@ -9,8 +9,13 @@
 
        It consumes the kit via RELATIVE paths so kit edits show up live
        (serve the repo root: python3 -m http.server 8000 → /exemplar/).
-       A real app replaces those tags with the pinned + SRI CDN tags from
-       snippets/head.html.
+
+       ⚠️ NOT a literal consumer template in two respects: a real app (1)
+       replaces the relative kit tags with the pinned + SRI CDN tags from
+       snippets/head.html, and (2) therefore adds https://cdn.jsdelivr.net to
+       script-src AND style-src in the CSP below (absent here because nothing
+       loads from jsDelivr). The sha256 in the CSP is THIS page's anti-flash
+       hash — recompute your own (MIGRATING.md § Gotchas).
        ══════════════════════════════════════════════════════════════════════ -->
 
   <!-- CSP (meta form — GitHub Pages can't set headers). The sha256 pins the

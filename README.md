@@ -10,9 +10,10 @@ files — the same way the apps already load MapLibre.**
 
 - 📐 **[HOUSE-STYLE.md](HOUSE-STYLE.md)** — brand, UX, accessibility, and dev conventions (the rules)
 - 🤖 **[AGENTS.md](AGENTS.md)** — guardrails for developers, human or AI (the sideboards)
-- 🗺 **[CONSUMERS.md](CONSUMERS.md)** — which MCO properties use the kit, and migration checklists
+- 🗺 **[CONSUMERS.md](CONSUMERS.md)** — which MCO properties use the kit, per-app migration intel
+- 🚚 **[MIGRATING.md](MIGRATING.md)** — the migration playbook (start here when converting an existing app)
 - 🧪 **demo/** — a [living demo](demo/index.html) exercising every component (also a CI axe target)
-- 🧭 **exemplar/** — a [complete single-page station map](exemplar/index.html) built the house way; **copy this directory to start a new MCO map app**
+- 🧭 **exemplar/** — a [complete single-page station map](exemplar/index.html) built the house way; **copy this directory to start a new MCO map app** — but swap its relative kit paths for the pinned + SRI CDN tags from `snippets/head.html` (and add `https://cdn.jsdelivr.net` to its CSP), since the exemplar deliberately loads the kit locally for in-repo development
 
 ## Quickstart
 
@@ -31,7 +32,10 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
 Map apps add `map/mco-map.js` (requires MapLibre GL 5.x) and, for COG rasters,
-`map/cog-protocol.js` (exposes `window.CogProtocol`).
+`map/cog-protocol.js` (exposes `window.CogProtocol`). The API surface is
+documented in the source headers and JSDoc-style comments of
+`core/mco-core.js` and `map/mco-map.js` — read them for argument shapes
+rather than guessing.
 
 Non-vanilla consumers (React/Mantine, Tailwind, Quarto, email) read
 [`tokens/tokens.json`](tokens/tokens.json) — the machine-readable mirror of the
@@ -45,7 +49,7 @@ CSS custom properties, kept in lockstep by CI.
 | `core/mco-core.js` | `window.MCO`: storage, Mountain-time, fetch + promise cache, viewport, toast, theme, live region, modal, collapsible, URL state | every page |
 | `map/mco-map.js` | `window.MCO.map`: Montana bounds, basemap URLs, controls, zoom floor, overlay paints | MapLibre apps |
 | `map/cog-protocol.js` | `cog://` raster protocol (`window.CogProtocol`) | COG raster apps |
-| `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) | map apps |
+| `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
 | `assets/` | MCO logo (vendored), favicon set, OG card | every page |
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
@@ -109,10 +113,16 @@ GitHub-Pages meta-tag pattern) need:
   whenever that snippet changes:
 
 ```sh
-# hash exactly the script element's contents (between <script> and </script>)
+# ONLY for the standalone snippet file — see the warning below.
 awk '/<script>/{f=1;next}/<\/script>/{f=0}f' snippets/anti-flash.html \
   | openssl dgst -sha256 -binary | openssl base64 -A
 ```
+
+⚠️ **The hash is per-page, indentation included.** The `awk` recipe above only
+works on the standalone snippet file; on a real `index.html` it drops bytes
+and yields the wrong value. Never copy another app's `sha256-…` — recompute
+from your own page with the python recipe in MIGRATING.md § Gotchas, and
+treat a CSP console error on load as the telltale.
 
 Why jsDelivr and not `data.climate.umt.edu`: the MCO data CDN resolves to a
 private IP on the UMT campus network, and Chrome's Local Network Access policy

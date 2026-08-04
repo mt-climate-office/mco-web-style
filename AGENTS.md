@@ -18,8 +18,11 @@ it from an app. The reasoning behind each rule is in
 3. **`--accent` is fill-only.** Borders, icons, text → `--accent-line`.
 4. **New tokens go in all three theme blocks** (dark, light, high-contrast)
    AND `tokens/tokens.json`. CI enforces parity and sync.
-5. **Admission rule:** nothing enters the kit until ≥ 2 MCO properties need it.
-   One-app code stays in that app.
+5. **Admission rule:** no NEW feature enters the kit until ≥ 2 MCO properties
+   need it — one-app code stays in that app. Migration **back-ports** are
+   different: fixing a defect or reconciling drift in code the kit already
+   owns needs only the one migrating consumer (MIGRATING.md step 3; the
+   mesonet-status migration back-ported five such changes).
 6. **A11y gates are non-negotiable** (HOUSE-STYLE §5): universal focus ring,
    live-region + table-twin for canvas data, reduced-motion via the live gate,
    touch targets, skip link, `aria-pressed` idiom, keyboard twins, `?kbd=off`
@@ -32,6 +35,8 @@ it from an app. The reasoning behind each rule is in
 
 ## Releasing (order matters — SRI)
 
+0. Start from a **clean tree** — land or stash unrelated doc/tool changes
+   first; a release commit contains only the release.
 1. Gates green locally: `node --check` the three JS files, then
    `tools/check-tokens.mjs`, `tools/check-contrast.mjs`; eyeball `demo/` in all
    three themes.
@@ -50,6 +55,10 @@ Version bump rules: PATCH = fix with no observable-contract change · MINOR =
 additive · MAJOR = any rename/removal/default change (yes, a toast duration).
 
 ## When consuming the kit from an app
+
+**Migrating an existing app? Follow [MIGRATING.md](MIGRATING.md)** — process,
+settled precedents, gotchas, and the verification recipe. The rules below
+apply to any consumer, migrated or new.
 
 - Pin `@X.Y.Z` + `integrity` + `crossorigin` on every kit tag. Never `@latest`.
 - Copy `snippets/anti-flash.html` INLINE into `<head>` — never load it from the
