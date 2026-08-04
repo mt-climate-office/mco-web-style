@@ -4,6 +4,36 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [0.6.0] — 2026-08-04
+
+### Changed
+- **Search now collapses at ≤640px, not ≤460px** (breaking default).
+  `MCO.SEARCH_COLLAPSE_MQ` and the matching CSS block both move to the ladder's
+  existing compact edge, rather than the collapse owning a fifth responsive
+  number. Compact is exactly where an inline navbar field stops paying for
+  itself.
+
+  Why: at 460px a control-dense bar still wrapped to a third row. mesonet-status
+  needed 514px of the 516px available at 532px — a 2px margin — so it broke to
+  three rows across roughly 461–527px. Worse, its chip labels carry live station
+  counts, so a count gaining a digit moved the wrap point: the bug drifted with
+  the data. Collapsing at 640px frees the 160px field and leaves ~100px of slack
+  instead of 2px, which removes the drift as well as the extra row.
+
+  Deliberately width-only — unlike `MCO.viewport.COMPACT_MQ` there is no
+  `max-height` clause, because a short landscape window is still wide enough for
+  an inline field.
+
+  **Consumer action:** none in markup or JS, but a consumer that documented
+  "collapses below 460px" should update that copy, and any test asserting the
+  inline field between 461–640px needs its expectation moved.
+
+### Notes
+- Recorded in HOUSE-STYLE §3: a control-dense bar still wraps on a phone even
+  with search collapsed, and the sanctioned next step is relocating `.controls`
+  into an off-canvas drawer (`.mco-scrim`, `--z-drawer`). mesonet-status is the
+  natural first consumer; deferred as its own design pass.
+
 ## [0.5.1] — 2026-08-04
 
 ### Fixed

@@ -24,10 +24,10 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.5.1/theme/mco-theme.css"
-      integrity="sha384-4pkfmY9oEide8dGxbmdM4X3WWNhPH/pib8GtGtUyk/i9W+OaYammaSfzraVtt/p/" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.5.1/core/mco-core.js"
-        integrity="sha384-hfL64718oLYH6thf6wwatzws4QkVAx1uSU3Sxk8zy4KVzfJalV/a27lwE8vV4dn+" crossorigin="anonymous"></script>
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/theme/mco-theme.css"
+      integrity="sha384-bCKsV+qD6GxtndFeAmhumsOdsaznA4xXBh6mfwHgvRbxTMPoOwClDB3HjZuy42fp" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/core/mco-core.js"
+        integrity="sha384-DPbXD2xVhws/XeQ5zgnH5fpba972pw9yafpaHL8phz43iEwktW1RLoID4eqRFYue" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -55,11 +55,11 @@ CSS custom properties, kept in lockstep by CI.
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 
-## SRI hashes — v0.5.1
+## SRI hashes — v0.6.0
 
 ```
-theme/mco-theme.css      sha384-4pkfmY9oEide8dGxbmdM4X3WWNhPH/pib8GtGtUyk/i9W+OaYammaSfzraVtt/p/
-core/mco-core.js         sha384-hfL64718oLYH6thf6wwatzws4QkVAx1uSU3Sxk8zy4KVzfJalV/a27lwE8vV4dn+
+theme/mco-theme.css      sha384-bCKsV+qD6GxtndFeAmhumsOdsaznA4xXBh6mfwHgvRbxTMPoOwClDB3HjZuy42fp
+core/mco-core.js         sha384-DPbXD2xVhws/XeQ5zgnH5fpba972pw9yafpaHL8phz43iEwktW1RLoID4eqRFYue
 map/mco-map.js           sha384-0aF67+MSXmcocGs8r3qiehgDNzgXo9F48olS5OX575wO2llw2cuGcqLpd6+L7D76
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm
 ```

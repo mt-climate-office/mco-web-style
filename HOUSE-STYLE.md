@@ -102,8 +102,7 @@ controls must use a tier.
 | ≤ 1400px | button/control text labels (`.btn-label`, `.control-label`) — the buttons then square to 34px (40px on touch) so they match `.icon-only` neighbours; `.mco-btn-info` keeps its circle |
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
-| ≤ 640px | `.refresh-status`; **compact mode** begins |
-| ≤ 460px | a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar |
+| ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
 its name must carry a permanent `aria-label`** — otherwise the button becomes
@@ -153,11 +152,16 @@ panel auto-collapse, control relocation into a drawer.
   edge-hugging chrome.
 - Segmented button groups that don't fit under 1060 px get a `<select>`
   fallback (photo explorer pattern).
-- A navbar **search field collapses to a disclosure** below 460 px rather than
-  being hidden: `MCO.initSearchCollapse` moves focus into the field on open and
+- A navbar **search field collapses to a disclosure** at compact widths (≤640 px)
+  rather than being hidden: `MCO.initSearchCollapse` moves focus into the field on open and
   back to the button on close, and the app keeps control of Esc precedence and
   of its own `/` shortcut. Hiding search outright strands the only keyboard
   route to a named feature — don't.
+- **A control-dense bar still wraps on a phone even with search collapsed.** The
+  sanctioned next step is relocating `.controls` into an off-canvas drawer
+  (`.mco-scrim`, `--z-drawer`; reference implementation in mesonet-explorer).
+  mesonet-status is the natural first kit consumer of that — deferred 2026-08-04
+  as its own design pass rather than riding along on a breakpoint change.
 
 **Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
 property, never `gap` directly: the brand lockup's divider margin is derived

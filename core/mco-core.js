@@ -378,7 +378,9 @@
   /* ── Collapsible search ────────────────────────────────────────────────────
      Below MCO.SEARCH_COLLAPSE_MQ a navbar search field collapses into a
      disclosure button and expands as an overlay bar (styling in mco-theme.css
-     §5). Keep this string in sync with the 460px block there.
+     §5). Keep this string in sync with the 640px block there. It matches the
+     ladder's compact edge but is width-only: MCO.viewport.COMPACT_MQ also fires
+     on short landscape windows, which are still wide enough for the field.
 
        var searchCtl = MCO.initSearchCollapse({
          wrap: document.getElementById('search-wrap'),
@@ -390,7 +392,7 @@
      The app keeps control of Esc precedence and of its `/` shortcut:
        if (searchCtl.isCollapsed()) searchCtl.open(); else input.focus();
      Returns {isCollapsed, isOpen, open, close, destroy}. */
-  MCO.SEARCH_COLLAPSE_MQ = '(max-width: 460px)';
+  MCO.SEARCH_COLLAPSE_MQ = '(max-width: 640px)';
 
   MCO.initSearchCollapse = function (opts) {
     var wrap = opts.wrap;

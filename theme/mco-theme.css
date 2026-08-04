@@ -488,10 +488,18 @@ body {
 .mco-panel-body.is-collapsing { max-height: 0; opacity: 0; }
 
 /* Collapsible search (MCO.initSearchCollapse) ───────────────────────────────
-   Below 460px a navbar search field costs more width than it earns, but hiding
-   it strands the only keyboard route to a named feature. Instead it collapses
-   into a disclosure button grouped with the other nav buttons and expands as a
-   full-width overlay bar under the navbar.
+   At compact widths a navbar search field costs more width than it earns, but
+   hiding it strands the only keyboard route to a named feature. Instead it
+   collapses into a disclosure button grouped with the other nav buttons and
+   expands as a full-width overlay bar under the navbar.
+
+   The breakpoint is the ladder's existing 640px compact edge rather than a
+   fifth number: compact is exactly where an inline field stops paying for
+   itself. Deliberately width-only — unlike MCO.viewport.COMPACT_MQ it has no
+   max-height clause, because a short landscape window is still wide enough for
+   an inline field. Raised from 460px in v0.6.0: at 460 a control-dense bar
+   (mesonet-status) still wrapped to a third row between 461 and 527px, and the
+   wrap point drifted with live data in the labels.
 
    The kit owns only the COLLAPSE mechanics; the field itself stays app-owned
    (the search combobox is deliberately not in the kit). Add .mco-search-collapse
@@ -502,7 +510,7 @@ body {
    Inner selectors are generic on purpose (input[type=search], kbd), so this
    works whatever the app calls its own parts. */
 .mco-search-toggle { display: none; }
-@media (max-width: 460px) {
+@media (max-width: 640px) {
   .mco-search-toggle { display: flex; }
   .mco-navbar .mco-search-collapse { display: none; }
   .mco-navbar .mco-search-collapse.is-open {
