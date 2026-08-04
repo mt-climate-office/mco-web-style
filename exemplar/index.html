@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- ══════════════════════════════════════════════════════════════════════
+       mco-web-style EXEMPLAR — a complete single-page map app built the
+       house way. Copy this directory to start a new MCO map app; every
+       block below cites the HOUSE-STYLE.md section it demonstrates.
+
+       It consumes the kit via RELATIVE paths so kit edits show up live
+       (serve the repo root: python3 -m http.server 8000 → /exemplar/).
+       A real app replaces those tags with the pinned + SRI CDN tags from
+       snippets/head.html.
+       ══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- CSP (meta form — GitHub Pages can't set headers). The sha256 pins the
+       inline anti-flash script below; recompute it if that script changes
+       (README § CSP). Demonstrates: HOUSE-STYLE §8 / README CSP notes. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'none';
+    script-src 'self' 'sha256-CoyZLTny4Ms0ntaZBXFoDdIGaegMzPM1QXUml5kCP4Q=' https://unpkg.com;
+    worker-src blob:;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
+    font-src https://fonts.gstatic.com;
+    img-src 'self' data: blob:;
+    connect-src 'self' https://mesonet.climate.umt.edu https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com;
+    base-uri 'none';
+    form-action 'none'">
+
+  <!-- viewport-fit=cover so env(safe-area-inset-*) resolves — §3 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mesonet Station Map · MCO Web Style exemplar</title>
+  <meta name="description" content="Reference implementation of an MCO single-page map app using mco-web-style.">
+  <meta name="author" content="Montana Climate Office">
+  <meta name="theme-color" content="#1a6faf" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161b22" media="(prefers-color-scheme: dark)">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+
+  <!-- Anti-flash theme boot (snippets/anti-flash.html) — inline, always. §4 -->
+  <script>
+    (function () {
+      const raw = new URLSearchParams(location.search).get('theme');
+      const url = raw == null ? null : raw.toLowerCase();
+      let saved = null;
+      try { saved = localStorage.getItem('mco-theme'); } catch (e) {}
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const valid = ['dark', 'light', 'high-contrast'];
+      const t = valid.includes(url) ? url
+              : valid.includes(saved) ? saved
+              : (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
+        integrity="sha384-q7EDwLXBfakVimqzBJqFCTxpgy7B18buhebV158qkVMCEVAaUnU3fQTEfWgYz+7g"
+        crossorigin="anonymous">
+  <link rel="stylesheet" href="../theme/mco-theme.css">
+
+  <style>
+    /* App-specific layout ONLY — chrome, tokens, and component shells come
+       from the kit. No raw hexes (§2); anything positional keys off the
+       z-index ladder tiers. */
+
+    /* Full-viewport app frame — §3 (100dvh, never 100vh) */
+    body { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+    main { flex: 1; min-height: 0; position: relative; }
+    main:focus { outline: none; }
+    #map { width: 100%; height: 100%; }
+
+    /* Station picker: the KEYBOARD path to every map feature — §5.8 */
+    .station-select {
+      min-height: 34px; max-width: 220px;
+      padding: 4px 8px;
+      background: var(--input-bg); color: var(--text-primary);
+      border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
+      font-family: inherit; font-size: 0.78rem;
+    }
+
+    /* Legend — an .mco-panel docked bottom-right over the map */
+    #legend-panel { right: 0.75rem; bottom: 1.75rem; }
+    .legend-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.78rem; color: var(--text-secondary); padding: 3px 0;
+    }
+    .legend-swatch {
+      width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+      border: 1.5px solid var(--dot-stroke);
+    }
+    .legend-count { margin-left: auto; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); }
+
+    /* Station detail card — desktop: floats top-left over the map (nav
+       controls live top-right). Compact: docks to the bottom edge (§3
+       bottom-sheet pattern, simplified). --z-detail tier. */
+    #station-card {
+      position: absolute; left: 0.75rem; top: 0.75rem;
+      width: min(320px, calc(100vw - 2rem));
+      z-index: var(--z-detail);
+    }
+    .card-rows { display: grid; grid-template-columns: auto 1fr; gap: 2px 0.8rem; padding: 0 0.75rem 0.6rem; }
+    .card-rows dt { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; align-self: center; }
+    .card-rows dd { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-primary); margin: 0; }
+    .card-links { padding: 0 0.75rem 0.75rem; font-size: 0.8rem; }
+    .card-links a { color: var(--accent-line); text-decoration: none; }
+    .card-links a:hover { text-decoration: underline; }
+    .is-compact #station-card {
+      left: 0; right: 0; top: auto; bottom: 0;
+      width: auto; max-width: none;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Status line under the navbar (loading / error / count) */
+    #app-note {
+      position: absolute; top: 0.5rem; left: 50%; transform: translateX(-50%);
+      z-index: var(--z-map-notice);
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 0.3rem 0.8rem;
+      font-size: 0.78rem; color: var(--text-secondary);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    }
+    #app-note button { margin-left: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<!-- Skip link first — §5.6 (snippets/skip-link.html) -->
+<a class="mco-skip-link" href="#main">Skip to map</a>
+
+<header class="mco-navbar">
+  <a href="https://climate.umt.edu" target="_blank" rel="noopener noreferrer"
+     class="logo-link" aria-label="Montana Climate Office">
+    <img class="logo-img" src="../assets/mco-logo.png" alt="" width="40" height="40">
+  </a>
+  <div class="nav-divider" aria-hidden="true"></div>
+  <div class="brand">
+    <p class="brand-title">Mesonet Station Map</p>
+    <span class="brand-subtitle">A service of the Montana Climate Office</span>
+  </div>
+
+  <div class="controls">
+    <!-- Sub-network filters: aria-pressed IS the styling source of truth — §5.7 -->
+    <div class="seg-btns" role="group" aria-label="Sub-networks">
+      <button type="button" class="nav-btn seg-btn" data-net="HydroMet" aria-pressed="true">
+        HydroMet <span class="net-count" data-count-for="HydroMet"></span>
+      </button>
+      <button type="button" class="nav-btn seg-btn" data-net="AgriMet" aria-pressed="true">
+        AgriMet <span class="net-count" data-count-for="AgriMet"></span>
+      </button>
+    </div>
+    <!-- Keyboard path to any station — §5.8 -->
+    <label class="sr-only" for="station-select">Fly to a station</label>
+    <select id="station-select" class="station-select">
+      <option value="">Fly to a station…</option>
+    </select>
+  </div>
+
+  <div class="nav-meta">
+    <span class="refresh-status static" id="count-status"><span class="dot" aria-hidden="true"></span><span id="count-stamp">loading…</span></span>
+    <button type="button" class="nav-btn" id="btn-share" aria-label="Copy a link to this view">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
+      <span class="btn-label">Share</span>
+    </button>
+    <button type="button" class="nav-btn icon-only" id="btn-theme" aria-label="Switch theme">
+      <svg id="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <svg id="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
+    <button type="button" class="nav-btn mco-btn-info" id="btn-info" aria-label="About this map">?</button>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+  <!-- role=application + label on the map container — §7 -->
+  <div id="map" role="application" aria-label="Map of Montana Mesonet stations"></div>
+
+  <p id="app-note" role="status" hidden></p>
+
+  <div class="mco-panel" id="legend-panel">
+    <div class="mco-panel-head">
+      <span class="mco-panel-title">Stations</span>
+      <button type="button" class="mco-panel-toggle" id="legend-toggle"
+              aria-controls="legend-body" aria-label="Collapse legend">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>
+      </button>
+    </div>
+    <div class="mco-panel-body" id="legend-body">
+      <!-- Swatches are decorative; the text carries the meaning — §5.11 -->
+      <div class="legend-row"><span class="legend-swatch" data-swatch="HydroMet" aria-hidden="true"></span>HydroMet<span class="legend-count" data-count-for="HydroMet"></span></div>
+      <div class="legend-row"><span class="legend-swatch" data-swatch="AgriMet" aria-hidden="true"></span>AgriMet<span class="legend-count" data-count-for="AgriMet"></span></div>
+    </div>
+  </div>
+
+  <!-- Station detail card. NOT a <dialog>: showModal() would trap focus and
+       kill map interaction (the explorer documents this exception — §5.12
+       note). aria-modal=false + focus management in app.js instead. -->
+  <div class="mco-panel" id="station-card" role="dialog" aria-modal="false"
+       aria-labelledby="card-title" tabindex="-1" hidden>
+    <div class="mco-panel-head">
+      <span class="mco-panel-title" id="card-title">Station</span>
+      <button type="button" class="mco-panel-toggle" id="card-close" aria-label="Close station details">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <dl class="card-rows">
+      <dt>ID</dt><dd id="card-id"></dd>
+      <dt>Network</dt><dd id="card-net"></dd>
+      <dt>County</dt><dd id="card-county"></dd>
+      <dt>Elevation</dt><dd id="card-elev"></dd>
+      <dt>Installed</dt><dd id="card-installed"></dd>
+    </dl>
+    <p class="card-links"><a id="card-dash" href="#" target="_blank" rel="noopener noreferrer">Open station dashboard →</a></p>
+  </div>
+</main>
+
+<!-- Screen-reader table twin of the WebGL layer, rebuilt per render — §5.2 -->
+<section class="sr-only" aria-label="Station data">
+  <table id="sr-station-table"></table>
+</section>
+
+<!-- Pointer tooltip is decorative (aria-hidden); the live region + table twin
+     carry the same information for AT — §5.8 -->
+<div class="mco-tooltip" id="tooltip" aria-hidden="true"></div>
+
+<dialog class="mco-modal" id="info-modal" aria-labelledby="info-modal-title">
+  <div class="info-modal-box">
+    <div class="info-modal-header">
+      <div>
+        <h2 class="info-modal-title" id="info-modal-title">Mesonet Station Map</h2>
+        <p class="info-modal-subtitle">mco-web-style exemplar · reference implementation</p>
+      </div>
+      <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
+    </div>
+    <div class="info-section">
+      <h3>What this is</h3>
+      <p>A live map of the <a href="https://climate.umt.edu/mesonet/" target="_blank" rel="noopener noreferrer">Montana
+         Mesonet</a> stations, and the reference implementation of the MCO house style — every
+         convention in <code>HOUSE-STYLE.md</code>, composed in one small real app. Copy the
+         <code>exemplar/</code> directory to start a new map.</p>
+    </div>
+    <div class="info-section">
+      <h3>Using the map</h3>
+      <ul>
+        <li>Click a dot for station details; hover for a quick readout.</li>
+        <li>Keyboard: use the <strong>Fly to a station</strong> picker — every station is reachable without a pointer.</li>
+        <li>Toggle sub-networks with the HydroMet / AgriMet buttons.</li>
+        <li>The URL always holds your full view — copy it (or press Share) to hand someone exactly this map.</li>
+      </ul>
+    </div>
+    <div class="info-section">
+      <h3>Data</h3>
+      <p>Station metadata from the <a href="https://mesonet.climate.umt.edu/api/v2/docs" target="_blank" rel="noopener noreferrer">Montana
+         Mesonet API</a>. Boundaries from the US Census (via the kit's <code>map/data/</code>).
+         Basemap © <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>,
+         © OpenStreetMap contributors.</p>
+    </div>
+  </div>
+</dialog>
+
+<script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"
+        integrity="sha384-MYTfGytf3SxNyO7ZAu/U0wHCcs3NpqE92Q3wBz5PQhat8kEA/wbwb9qY6H/JLyuR"
+        crossorigin="anonymous"></script>
+<script src="../core/mco-core.js"></script>
+<script src="../map/mco-map.js"></script>
+<!-- App logic is an external file so CSP can pin script-src 'self' (the
+     explorer pattern) — no inline app code beyond the anti-flash boot. -->
+<script src="app.js"></script>
+</body>
+</html>

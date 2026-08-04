@@ -11,7 +11,8 @@ files — the same way the apps already load MapLibre.**
 - 📐 **[HOUSE-STYLE.md](HOUSE-STYLE.md)** — brand, UX, accessibility, and dev conventions (the rules)
 - 🤖 **[AGENTS.md](AGENTS.md)** — guardrails for developers, human or AI (the sideboards)
 - 🗺 **[CONSUMERS.md](CONSUMERS.md)** — which MCO properties use the kit, and migration checklists
-- 🧪 **demo/** — a [living demo](demo/index.html) exercising every component (also the CI axe target)
+- 🧪 **demo/** — a [living demo](demo/index.html) exercising every component (also a CI axe target)
+- 🧭 **exemplar/** — a [complete single-page station map](exemplar/index.html) built the house way; **copy this directory to start a new MCO map app**
 
 ## Quickstart
 
@@ -48,6 +49,7 @@ CSS custom properties, kept in lockstep by CI.
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
 | `assets/` | MCO logo (vendored), favicon set, OG card | every page |
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
+| `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 
 ## SRI hashes — v0.1.0
 

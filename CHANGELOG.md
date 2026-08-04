@@ -4,6 +4,16 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [Unreleased]
+
+### Added
+- `exemplar/` — a complete single-page Mesonet station map built as the
+  reference implementation of HOUSE-STYLE.md (live API data, three themes,
+  URL state, keyboard station picker, live region + sr-table twin, CSP with
+  pinned inline-script hash, compact-viewport detail dock). Repo content
+  only — no published css/js changed, so v0.1.0 SRI hashes are unaffected.
+  CI now validates and axe-audits it alongside the demo.
+
 ## [0.1.0] — 2026-08-03
 
 Initial release. Extracted from the MCO web app family (mesonet-explorer,

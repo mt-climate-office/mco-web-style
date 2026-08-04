@@ -39,27 +39,30 @@ const port = server.address().port;
 
 const browser = await chromium.launch();
 const themes = ['dark', 'light', 'high-contrast'];
+const pages = ['/demo/', '/exemplar/'];
 let failed = false;
 
-for (const theme of themes) {
-  // @axe-core/playwright requires pages created from an explicit context.
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await page.goto(`http://127.0.0.1:${port}/demo/?theme=${theme}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1500); // let fonts/controls settle; map isn't awaited
-  const results = await new AxeBuilder({ page }).analyze();
-  const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-  if (bad.length) {
-    failed = true;
-    console.error(`\n[${theme}] ${bad.length} serious/critical violation(s):`);
-    for (const v of bad) {
-      console.error(`  ${v.id} (${v.impact}): ${v.help}`);
-      for (const n of v.nodes.slice(0, 5)) console.error(`    → ${n.target.join(' ')}`);
+for (const path of pages) {
+  for (const theme of themes) {
+    // @axe-core/playwright requires pages created from an explicit context.
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`http://127.0.0.1:${port}${path}?theme=${theme}`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1500); // let fonts/controls settle; map isn't awaited
+    const results = await new AxeBuilder({ page }).analyze();
+    const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    if (bad.length) {
+      failed = true;
+      console.error(`\n[${path} ${theme}] ${bad.length} serious/critical violation(s):`);
+      for (const v of bad) {
+        console.error(`  ${v.id} (${v.impact}): ${v.help}`);
+        for (const n of v.nodes.slice(0, 5)) console.error(`    → ${n.target.join(' ')}`);
+      }
+    } else {
+      console.log(`[${path} ${theme}] OK — 0 serious/critical (${results.violations.length} minor advisories)`);
     }
-  } else {
-    console.log(`[${theme}] OK — 0 serious/critical (${results.violations.length} minor advisories)`);
+    await context.close();
   }
-  await context.close();
 }
 
 await browser.close();
