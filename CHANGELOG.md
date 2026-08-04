@@ -4,6 +4,20 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [0.1.2] — 2026-08-03
+
+### Changed
+- Navbar left padding now matches its vertical padding so the logo badge
+  sits with square margins (the ≤1060px rule no longer re-widens it).
+- Segmented buttons (`.seg-btn`) returned to the compact 30px style — a
+  deliberate step shorter than the 34px nav buttons; touch targets are
+  unaffected (`hover: none` still enforces 40px).
+- Collapsible-panel carets now show the **action**, not the state: down to
+  collapse while expanded, up to expand while collapsed (bottom-docked
+  panel semantics).
+
+Only `theme/mco-theme.css` changed; JS hashes are unchanged.
+
 ## [0.1.1] — 2026-08-03
 
 ### Added

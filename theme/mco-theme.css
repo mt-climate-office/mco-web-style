@@ -249,7 +249,9 @@ body {
   flex-shrink: 0;
   position: relative;
   display: flex; align-items: center; gap: 0.75rem;
-  padding: 0.4rem max(1rem, env(safe-area-inset-right)) 0.4rem max(1rem, env(safe-area-inset-left));
+  /* Left padding matches the vertical padding so the 40px logo badge sits
+     with square margins in the 52px bar (≈6px on all three sides). */
+  padding: 0.4rem max(1rem, env(safe-area-inset-right)) 0.4rem max(0.4rem, env(safe-area-inset-left));
   min-height: 52px;
   background: var(--glass);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
@@ -296,13 +298,14 @@ body {
 }
 .mco-btn-info:hover { background: var(--accent); color: var(--text-on-accent); }
 
-/* Segmented buttons: a .nav-btn group with fused borders. Height tracks
-   .nav-btn — a shorter group beside 34px buttons reads as a mistake. */
+/* Segmented buttons: a .nav-btn group with fused borders. Deliberately a
+   step shorter than the 34px nav buttons — a same-height fused group reads
+   as heavy in the bar; flex centering keeps the baselines aligned. */
 .seg-btns { display: flex; gap: 0; }
 .seg-btn {
-  padding: 4px 12px; min-height: 34px; height: 34px;
+  padding: 4px 10px; min-height: 30px; height: 30px;
   border-radius: 0; border-right-width: 0;
-  font-size: 0.78rem; font-weight: 600;
+  font-size: 0.74rem; font-weight: 600;
 }
 .seg-btn:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
 .seg-btn:last-child  { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-right-width: 1px; }
@@ -455,8 +458,11 @@ body {
   transition: var(--transition);
 }
 .mco-panel-toggle:hover { color: var(--text-primary); border-color: var(--accent-line); }
-.mco-panel-toggle svg { transition: transform var(--transition); }
-.mco-panel-toggle[aria-expanded="false"] svg { transform: rotate(180deg); }
+/* The caret shows the ACTION, not the state (markup glyph is an up-chevron):
+   expanded → points down ("collapse toward the bottom dock"); collapsed →
+   points up ("expand upward"). */
+.mco-panel-toggle svg { transition: transform var(--transition); transform: rotate(180deg); }
+.mco-panel-toggle[aria-expanded="false"] svg { transform: none; }
 .mco-panel-body { padding: 0 0.75rem 0.75rem; }
 
 /* Scrim behind off-canvas drawers on compact viewports. Pair with a panel at
@@ -478,7 +484,7 @@ body {
   .mco-navbar .btn-label, .mco-navbar .control-label { display: none; }
 }
 @media (max-width: 1060px) {
-  .mco-navbar { padding-left: 0.6rem; padding-right: 0.6rem; gap: 0.5rem; }
+  .mco-navbar { padding-right: 0.6rem; gap: 0.5rem; }
   .nav-meta { gap: 0.3rem; }
 }
 @media (max-width: 750px) {
