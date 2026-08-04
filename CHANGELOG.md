@@ -4,6 +4,22 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [0.5.1] — 2026-08-04
+
+### Fixed
+- **`.control-label` no longer strips its input's accessible name below 1400px.**
+  The label shed at ≤1400px used `display: none`, which removes the element from
+  the accessibility tree — so any control named only by a `.control-label`
+  `<label for>` had **no accessible name at all** from 1400px down. It is now
+  hidden visually (the `.sr-only` treatment) instead, so the name survives.
+  Found on mco-mesonet-photos in production: its date input and time select
+  failed axe `label` / `select-name` at every width below 1400px, a bug that
+  predated the kit and that a desktop-only axe run cannot see. `.btn-label` is
+  unchanged — it sits inside its button, and the house rule already requires a
+  permanent `aria-label` there.
+
+  Lesson recorded in HOUSE-STYLE §3: **run axe at a narrow viewport too.**
+
 ## [0.5.0] — 2026-08-04
 
 ### Added

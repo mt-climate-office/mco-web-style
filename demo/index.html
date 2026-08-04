@@ -64,6 +64,16 @@
     }
     /* Search field styling is APP-owned (the combobox is deliberately not in
        the kit) — this is the minimum needed to exercise .mco-search-collapse. */
+    .control-group { display: flex; align-items: center; gap: 0.3rem; }
+    .control-label {
+      font-size: 0.7rem; font-weight: 500; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+    }
+    .demo-select {
+      background: none; color: var(--text-primary);
+      border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
+      height: 32px; padding: 0 0.5rem; font: inherit; font-size: 0.78rem;
+    }
     .search-wrap { position: relative; display: inline-flex; align-items: center; }
     .search-wrap input[type="search"] {
       background-color: var(--input-bg); color: var(--text-primary);
@@ -108,6 +118,17 @@
       <label for="demo-search" class="sr-only">Search (demo)</label>
       <input type="search" id="demo-search" placeholder="Search…" autocomplete="off">
       <kbd class="search-kbd" aria-hidden="true">/</kbd>
+    </div>
+
+    <!-- A .control-label naming a real control: coverage for the ≤1400px label
+         shed, which must keep the accessible name (it used display:none until
+         v0.5.1, leaving this select nameless on any laptop). -->
+    <div class="control-group">
+      <label class="control-label" for="demo-units">Units</label>
+      <select id="demo-units" class="demo-select">
+        <option>Imperial</option>
+        <option>Metric</option>
+      </select>
     </div>
 
     <div class="seg-btns" role="group" aria-label="Theme">

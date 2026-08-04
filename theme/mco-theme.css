@@ -545,7 +545,21 @@ body {
    real @media rules (no flash before deferred JS runs); behavior decisions
    (sheet vs popup, auto-collapse) key off MCO.viewport. */
 @media (max-width: 1400px) {
-  .mco-navbar .btn-label, .mco-navbar .control-label { display: none; }
+  /* .btn-label lives INSIDE its button, so removing it is safe: the house rule
+     is that such a button carries a permanent aria-label (§3). */
+  .mco-navbar .btn-label { display: none; }
+  /* .control-label is usually a <label for> naming a real control, so hide it
+     VISUALLY rather than removing it — display:none takes it out of the
+     accessibility tree and the input it names is left with NO accessible name
+     from 1400px down (axe: label / select-name). Same reasoning as the brand
+     lockup collapse. */
+  .mco-navbar .control-label {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0);
+    white-space: nowrap; border: 0;
+  }
   /* Once the label is gone, the icon is left sitting in label-sized padding
      (6px 12px) — visibly wider than the .icon-only buttons next to it in the
      same bar. Square it up so a mixed row of labelled and icon-only buttons

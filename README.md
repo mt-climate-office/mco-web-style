@@ -24,9 +24,9 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.5.0/theme/mco-theme.css"
-      integrity="sha384-yTfCc/27kQRfLP0rzwYvxO2RwCzUlsGq+vNicipNICYw0NAVWiUH/DCSJMBiAnjZ" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.5.0/core/mco-core.js"
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.5.1/theme/mco-theme.css"
+      integrity="sha384-4pkfmY9oEide8dGxbmdM4X3WWNhPH/pib8GtGtUyk/i9W+OaYammaSfzraVtt/p/" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.5.1/core/mco-core.js"
         integrity="sha384-hfL64718oLYH6thf6wwatzws4QkVAx1uSU3Sxk8zy4KVzfJalV/a27lwE8vV4dn+" crossorigin="anonymous"></script>
 ```
 
@@ -55,10 +55,10 @@ CSS custom properties, kept in lockstep by CI.
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 
-## SRI hashes — v0.5.0
+## SRI hashes — v0.5.1
 
 ```
-theme/mco-theme.css      sha384-yTfCc/27kQRfLP0rzwYvxO2RwCzUlsGq+vNicipNICYw0NAVWiUH/DCSJMBiAnjZ
+theme/mco-theme.css      sha384-4pkfmY9oEide8dGxbmdM4X3WWNhPH/pib8GtGtUyk/i9W+OaYammaSfzraVtt/p/
 core/mco-core.js         sha384-hfL64718oLYH6thf6wwatzws4QkVAx1uSU3Sxk8zy4KVzfJalV/a27lwE8vV4dn+
 map/mco-map.js           sha384-0aF67+MSXmcocGs8r3qiehgDNzgXo9F48olS5OX575wO2llw2cuGcqLpd6+L7D76
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm
