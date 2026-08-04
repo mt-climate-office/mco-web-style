@@ -50,7 +50,7 @@
 <body>
 <main>
   <h1>mco-web-style · CDN + SRI self-test</h1>
-  <p class="sub">v0.1.0 via cdn.jsdelivr.net · a red row means the published bytes no longer match
+  <p class="sub"><span id="pinned-version">…</span> via cdn.jsdelivr.net · a red row means the published bytes no longer match
      the pinned integrity hash (or the tag has not propagated yet).</p>
   <ul id="results">
     <li id="r-theme"><span>theme/mco-theme.css</span><span class="status">…</span></li>
@@ -82,6 +82,12 @@
   mark('r-core', !!(window.MCO && MCO.versions && MCO.versions.core));
   mark('r-map', !!(window.MCO && MCO.map && MCO.versions && MCO.versions.map));
   mark('r-cog', typeof window.CogProtocol !== 'undefined');
+  // Read the pinned tag back out of the script URLs rather than hard-coding it
+  // in prose — the hard-coded copy sat at "v0.1.0" through four releases,
+  // because tools/check-sri.mjs verifies hashes, not marketing text.
+  var pinned = (document.querySelector('script[src*="mco-web-style@"]') || {}).src || '';
+  var m = pinned.match(/mco-web-style@([\d.]+)/);
+  document.getElementById('pinned-version').textContent = m ? 'v' + m[1] : 'unpinned';
 </script>
 </body>
 </html>
