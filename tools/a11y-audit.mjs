@@ -7,7 +7,7 @@
    collapses the brand (750) and collapses search (460), and each shed can strip
    an accessible name. A desktop-only audit is blind to all of it — that is
    exactly how the .control-label display:none bug reached production in
-   mco-mesonet-photos (fixed in v0.5.1).
+   mesonet-photos (fixed in v0.5.1).
 
    Requires (installed ephemerally — NOT kit dependencies; see .gitignore):
      npm init -y && npm i --no-save playwright @axe-core/playwright

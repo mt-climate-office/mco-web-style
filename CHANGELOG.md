@@ -42,7 +42,7 @@ policy in README.md.
   the accessibility tree — so any control named only by a `.control-label`
   `<label for>` had **no accessible name at all** from 1400px down. It is now
   hidden visually (the `.sr-only` treatment) instead, so the name survives.
-  Found on mco-mesonet-photos in production: its date input and time select
+  Found on mesonet-photos in production: its date input and time select
   failed axe `label` / `select-name` at every width below 1400px, a bug that
   predated the kit and that a desktop-only axe run cannot see. `.btn-label` is
   unchanged — it sits inside its button, and the house rule already requires a
@@ -61,7 +61,7 @@ policy in README.md.
   button on close, pointerdown outside dismisses, and widening past the
   breakpoint clears the state so `aria-expanded` can't go stale on a hidden
   toggle. The app keeps control of Esc precedence and of its own `/` shortcut.
-  Admitted under the ≥2-property rule (mco-mesonet-photos built it first;
+  Admitted under the ≥2-property rule (mesonet-photos built it first;
   mesonet-status is the second consumer). The kit owns only the collapse — the
   search field and its combobox stay app-owned, and the inner selectors are
   generic (`input[type="search"]`, `kbd`) so app naming doesn't matter.
@@ -112,7 +112,7 @@ policy in README.md.
   stepper reads as a button that does nothing. `MCO.lastCompleteHourMT`
   inherited the same bug and is fixed with it. No fielded consumer was
   affected — both migrated apps are used from Mountain Time, where the old
-  code was correct. Found during the mco-mesonet-photos migration.
+  code was correct. Found during the mesonet-photos migration.
 
 `theme/mco-theme.css` and `core/mco-core.js` both changed; both SRI hashes are
 new.
@@ -200,7 +200,7 @@ Only `theme/mco-theme.css` changed; JS hashes are unchanged.
 ## [0.1.0] — 2026-08-03
 
 Initial release. Extracted from the MCO web app family (mesonet-explorer,
-mesonet-status, mco-mesonet-photos, mco-snowpack-explorer, the mesonet_app
+mesonet-status, mesonet-photos, mco-snowpack-explorer, the mesonet_app
 maintenance map, mco-data-cdn storage browser, mco-drought-dashboard).
 
 ### Added

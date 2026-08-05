@@ -110,7 +110,7 @@ nameless at laptop widths (the kit's axe audit fails exactly this).
 
 `.control-label` is different: it is normally a `<label for>` naming a real
 control, so the kit hides it **visually** below 1400 px rather than removing it.
-`display: none` would strip the name from the input it labels — mco-mesonet-photos
+`display: none` would strip the name from the input it labels — mesonet-photos
 shipped exactly that, with a nameless date input and time select at every width
 below 1400 px, until v0.5.1. **Run axe at a narrow viewport, not just at desktop:**
 a shed label is invisible to a 1440 px-only audit.
