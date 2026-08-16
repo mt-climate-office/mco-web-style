@@ -176,6 +176,18 @@ quick reference it links back to.
   the dedicated one times out on the same parameters. The date range covering
   today is the real trigger, and that is server-side.
 
+  **Client side is fixed and uniform (2026-08-16).** `fetchObs` now sends
+  `elements=<the active variable's els>` and omits `start_time`/`end_time` for
+  today, for **every** daily variable — no per-variable special-casing. Daily
+  air temperature went from never rendering to **3.5 s**; latest and hourly are
+  unchanged. `ppt` still fails on the identical call (request at 2.7 s, dead at
+  92.9 s), so the remainder is server-side and Kyle is fixing it there.
+  Deliberately still `/observations/grouped/`, NOT `/observations/daily/`:
+  "grouped" is what merges multi-height sensors into the one column the
+  variable registry resolves against (`Wind Speed [mi/h]` vs `@ 10 m` AND
+  `@ 8 ft`), so swapping endpoints would silently break every multi-height
+  variable.
+
   This is also what the explorer suite's one failing check
   (`exports: daily precipitation — NO DOWNLOAD`) reports: the export waits on a
   first render that never lands. **Not a migration regression** — it predates
