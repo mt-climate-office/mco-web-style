@@ -51,6 +51,22 @@ then re-point as a separate reviewed pass.
   WebGL canvas. Thin, and the point is codifying the pattern (one row per
   drawn feature, rebuilt from the same features, never wired to a live region)
   so the next map neither reinvents nor skips it.
+- **`MCO.map.installZoomFloor` hardening** — two generic defects found against
+  mesonet-explorer, whose local version already guards both:
+  1. **Spring-back re-entrancy.** `snapBack()` animates, and an animated
+     `fitBounds` raises further `zoomend` events while still in flight; each
+     re-tests `getZoom() < fitZoom`, which is still true mid-flight, so the
+     snap can re-fire and stutter. Needs explorer's `_springingBack` latch
+     (set on snap, cleared on the following `moveend`) and its `SPRING_EPS`
+     tolerance.
+  2. **Chrome-only resizes move the camera.** A mobile URL bar showing or
+     hiding changes the map container's HEIGHT only, which changes `fitZoom`
+     and triggers a snap-back. Explorer skips a resize whose width is
+     unchanged and whose height moved < 120px. The three consumers already on
+     `installZoomFloor` inherit this until it ships.
+  Also add an `onBeforeSnap` hook returning false to veto — explorer needs it
+  for "don't yank the camera while a station detail is open" and "a sidebar
+  toggle IS the user asking to re-fit", which stay app policy.
 
 ## [0.6.0] — 2026-08-04
 

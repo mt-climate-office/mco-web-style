@@ -127,6 +127,13 @@ quick reference it links back to.
   coordinates fall outside the UMRB grid entirely. The build-status map now
   surfaces this in the station popup instead of rendering an unexplained floating
   dot, but the fix belongs in the registry or the grid geometry.
+- **Live bug in mesonet-explorer (fixed by its migration, 2026-08-16):** its
+  local `shiftDate` is the pre-v0.4.0 form, ending in `toISOString().slice(0,10)`
+  — so the date stepper **does nothing** at UTC+13/+14 (Kiritimati; Auckland
+  during NZDT) and **skips two days** at UTC-12. Reproduced before the fix.
+  Correct in Mountain Time, which is why it went unnoticed. Its
+  `lastCompleteHourMT` calls `shiftDate` and inherited it. This is the third
+  place that bug has been found, and the reason the kit owns these helpers.
 - **Consumer cleanup:** the `MCO.shiftDate` / `MCO.lastCompleteHourMT` UTC bug
   found in the photos migration was **fixed and shipped in v0.4.0**
   (CHANGELOG § 0.4.0; `core/mco-core.js:72` now formats from local getters).
