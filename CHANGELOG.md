@@ -51,6 +51,14 @@ then re-point as a separate reviewed pass.
   WebGL canvas. Thin, and the point is codifying the pattern (one row per
   drawn feature, rebuilt from the same features, never wired to a live region)
   so the next map neither reinvents nor skips it.
+- **Underline `.maplibregl-ctrl-attrib a`** — attribution links are separated
+  from the surrounding credit text by colour alone (1.74:1 on dark, 1.25:1 on
+  high-contrast; WCAG 1.4.1 wants 3:1 or a non-colour cue). It only trips axe
+  once **hillshade** adds its "Terrain: Mapzen/AWS Open Data" credit and turns
+  the attribution bar into a text block — and the kit tells every map app to
+  adopt hillshade, so this is the kit's to fix, not each consumer's. Same remedy
+  the kit already applied to prose links in v0.1.1. Found on mesonet-explorer,
+  which carries a local override until this ships.
 - **`MCO.map.installZoomFloor` hardening** — two generic defects found against
   mesonet-explorer, whose local version already guards both:
   1. **Spring-back re-entrancy.** `snapBack()` animates, and an animated
