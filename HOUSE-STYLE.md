@@ -29,6 +29,44 @@ link and empty `alt` on the image. Do not hot-link the logo from
 beneath it the subtitle line, italic, `--text-dim`:
 **“A service of the Montana Climate Office.”** Every public MCO app carries this.
 
+**Page title.** `<Short name> · <Family>` — one middot, spaces either side.
+Decided 2026-08 across a family that had drifted to four separators (`·`, `—`,
+`|`, none) and two orderings.
+
+- **Short name** is the *shortest distinctive* word or phrase — the thing that
+  tells this app apart from its siblings, not a description of it. “Explorer”,
+  not “Mesonet Explorer”; “Photos”, not “Photo Explorer”. Keep a qualifier only
+  where it carries meaning rather than repeating the family: **“UMRB Build”**
+  keeps UMRB because that is a distinct project; nothing keeps “Mesonet”,
+  because the family half already says it.
+- **Family** has a short and a long form, and *which one you use depends on
+  where the text lands*:
+
+  | | Family form | Used in |
+  |---|---|---|
+  | **Tab** | `MT Mesonet` · `MCO` | `<title>` |
+  | **Card** | `Montana Mesonet` · `Montana Climate Office` | `og:title`, `twitter:title`, `og:site_name` |
+
+  A tab is read at a glance by someone who already knows what they opened, and
+  truncates at ~fifteen characters — so the family half is abbreviated there.
+  A link card is read in Slack or on social by someone who may never have heard
+  of the office, has room for the full name, and is the one surface where an
+  initialism costs you. The **short app name is the same in both**; only the
+  family half changes.
+
+- `og:site_name` takes the **long family alone**, not the app name — that is
+  what the field means, and every app currently gets it wrong by repeating its
+  own title.
+
+Why so short: a tab bar truncates to roughly fifteen characters, and the old
+titles collapsed to near-identical prefixes there (“Station Stat…” vs “Station
+Main…”). The distinctive word has to come first to survive — and with the tab's
+family half abbreviated too, most titles now fit whole.
+
+Target titles per app live in CONSUMERS.md; apply on migration.
+⛔ `mco-drought-dashboard` is excluded from this and every other family-wide
+sweep — see its CONSUMERS.md row.
+
 **Typography.** `--font-ui` — **Outfit** (400/500/600/700) for UI text.
 `--font-mono` — **Space Mono** for numerals, station IDs, timestamps, scale
 labels, `<kbd>`. Loaded from Google Fonts (see `snippets/head.html`); the tokens

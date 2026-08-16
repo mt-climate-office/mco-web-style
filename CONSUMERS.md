@@ -66,6 +66,31 @@ here migrated the same day and have moved up to **Migrated**.
 | native-drought-website | Unmodified third-party template from 2019 ("Design studio one page template") with no drought content — archive or delete. |
 | mtdrought newsletters, frozen report HTMLs, dormant Sphinx docs | Archival fidelity beats restyling. |
 
+## Page titles (apply on migration)
+
+`<Short name> · <Family>` — rule and reasoning in HOUSE-STYLE §1 Naming.
+Decided 2026-08-16 across a family that had drifted to four separators.
+
+**The family half has two forms and the surface picks one:** the tab gets the
+abbreviation (it truncates at ~15 characters and is read by someone who already
+knows what they opened); the link card gets the full name (Slack and social,
+read by someone who may never have heard of the office). The short app name is
+identical in both. `og:site_name` takes the **long family alone**, which every
+app currently gets wrong by repeating its own title.
+
+| Property | `<title>` (tab) | `og:title` / `twitter:title` (card) | `og:site_name` |
+|---|---|---|---|
+| mesonet-explorer | **Explorer · MT Mesonet** | Explorer · Montana Mesonet | Montana Mesonet |
+| mesonet-status | **Status · MT Mesonet** | Status · Montana Mesonet | Montana Mesonet |
+| mesonet-photos | **Photos · MT Mesonet** | Photos · Montana Mesonet | Montana Mesonet |
+| mesonet_app — maintenance | **Maintenance · MT Mesonet** | Maintenance · Montana Mesonet | Montana Mesonet |
+| mesonet_app — status | **UMRB Build · MT Mesonet** | UMRB Build · Montana Mesonet | Montana Mesonet |
+| mesonet-aq | **Air Quality · MT Mesonet** | Air Quality · Montana Mesonet | Montana Mesonet |
+| mesonet-ogc | **Map · MT Mesonet** | Map · Montana Mesonet | Montana Mesonet |
+| mco-snowpack-explorer | **Snowpack · MCO** | Snowpack · Montana Climate Office | Montana Climate Office |
+
+⛔ `mco-drought-dashboard` is **excluded** — hands-off, see its row above.
+
 ## Migration mechanics
 
 **Start with [MIGRATING.md](MIGRATING.md)** — the full playbook (process,
@@ -122,6 +147,15 @@ quick reference it links back to.
   it is one of the four SRI-pinned published files, so changing a byte fails
   `tools/check-sri.mjs` in three documents and would force a version bump for a
   comment. 0.7.0 is now scheduled (see CHANGELOG § Planned), so fold it in there.
+- **Not kit work — API issue, Kyle handling separately (2026-08-16):**
+  mesonet-explorer's **daily mode returns no data**. On production,
+  `?mode=daily` renders zero stations and issues **no `/observations/` request
+  at all** after 35s, with no console errors; `latest` mode works (231 rows).
+  Reproduced for both `var=ppt` and `var=air_temp`, so it is the mode, not the
+  variable. This is what the explorer test suite's single failing check
+  (`exports: daily precipitation — NO DOWNLOAD`) is actually reporting: the
+  export waits on a first render that never lands. **Do not treat that test
+  failure as a migration regression** — it predates the migration.
 - **Data defect, not kit work:** station `acesfork` ("S Fork Smith") is tagged
   `ace_grid = E-9`, but the drawn grid's E row stops at **E-6** and the station's
   coordinates fall outside the UMRB grid entirely. The build-status map now
