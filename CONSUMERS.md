@@ -147,15 +147,41 @@ quick reference it links back to.
   it is one of the four SRI-pinned published files, so changing a byte fails
   `tools/check-sri.mjs` in three documents and would force a version bump for a
   comment. 0.7.0 is now scheduled (see CHANGELOG § Planned), so fold it in there.
-- **Not kit work — API issue, Kyle handling separately (2026-08-16):**
-  mesonet-explorer's **daily mode returns no data**. On production,
-  `?mode=daily` renders zero stations and issues **no `/observations/` request
-  at all** after 35s, with no console errors; `latest` mode works (231 rows).
-  Reproduced for both `var=ppt` and `var=air_temp`, so it is the mode, not the
-  variable. This is what the explorer test suite's single failing check
-  (`exports: daily precipitation — NO DOWNLOAD`) is actually reporting: the
-  export waits on a first render that never lands. **Do not treat that test
-  failure as a migration regression** — it predates the migration.
+- **API issue — Kyle's, not kit work (characterized 2026-08-16):**
+  mesonet-explorer's **daily mode never renders**. The client is behaving: it
+  issues the request at ~3.4 s and allows 150 s. The endpoint hangs ~90 s and
+  the browser gives up with `net::ERR_FAILED`.
+
+  Probed `/observations/daily/` directly. **Any range that includes today
+  times out**; past ranges answer, slowly:
+
+  | Query | Result |
+  |---|---|
+  | `elements=air_temp` (no range) | 200, 0.4–11.7 s |
+  | `elements=air_temp&rm_na=true&tz=…` | 200, 0.4 s |
+  | `…&start_time=2026-08-10&end_time=2026-08-11` (past) | 200, 30.6 s |
+  | `…&start_time=2026-08-10&end_time=2026-08-10` (past, same day) | **404** |
+  | `…&start_time=<today>&end_time=<tomorrow>` ← **what the map sends** | **timeout** |
+  | `…&start_time=<today>&end_time=<today>` | **timeout** |
+  | no `elements=` at all (every element) | **timeout** |
+
+  Two independent triggers, either alone enough: **a range covering today**,
+  and **omitting `elements=`**. `fetchObs` does both. Timings are erratic
+  run-to-run, so these are indicative, not benchmarks.
+
+  Client-side observation for whoever fixes this: `fetchObs` is the only
+  fetcher in the file still on `/observations/grouped/?day=true`; `fetchExtra`
+  and `fetchDerived` already use the dedicated `/observations/daily/` and
+  `/derived/daily/`. But switching endpoints alone would NOT have fixed it —
+  the dedicated one times out on the same parameters. The date range covering
+  today is the real trigger, and that is server-side.
+
+  This is also what the explorer suite's one failing check
+  (`exports: daily precipitation — NO DOWNLOAD`) reports: the export waits on a
+  first render that never lands. **Not a migration regression** — it predates
+  the migration. (An earlier version of this note said no request was issued at
+  all; that was wrong, from counting `response` events, which a hanging request
+  never produces.)
 - **Data defect, not kit work:** station `acesfork` ("S Fork Smith") is tagged
   `ace_grid = E-9`, but the drawn grid's E row stops at **E-6** and the station's
   coordinates fall outside the UMRB grid entirely. The build-status map now
