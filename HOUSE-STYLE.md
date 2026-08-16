@@ -197,9 +197,18 @@ panel auto-collapse, control relocation into a drawer.
   route to a named feature — don't.
 - **A control-dense bar still wraps on a phone even with search collapsed.** The
   sanctioned next step is relocating `.controls` into an off-canvas drawer
-  (`.mco-scrim`, `--z-drawer`; reference implementation in mesonet-explorer).
-  mesonet-status is the natural first kit consumer of that — deferred 2026-08-04
-  as its own design pass rather than riding along on a breakpoint change.
+  (`.mco-scrim`, `--z-drawer`). mesonet-status is the natural first kit consumer
+  of that — deferred 2026-08-04 as its own design pass rather than riding along
+  on a breakpoint change.
+
+  mesonet-explorer is the working reference for the *pattern*, but note it
+  deliberately does **not** use `.mco-scrim` (checked on its 2026-08-16
+  migration): the kit's scrim is viewport-`fixed`, and the explorer's is
+  `absolute` inside its map container so the drawer dims the map without
+  dimming the navbar above it. If a consumer needs that, it wants the
+  explorer's `#sidebar-scrim` rule, not the kit class — and if a second
+  consumer needs it too, the kit should grow a positioning option rather than
+  both hand-rolling it.
 
 **Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
 property, never `gap` directly: the brand lockup's divider margin is derived
