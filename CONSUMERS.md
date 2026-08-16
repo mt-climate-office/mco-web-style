@@ -28,6 +28,41 @@ The category exists because it is a real state and will recur: an app that
 survey turns up another, add it back here rather than filing it under "Adopt
 now" — the distinction is what tells you the work is mostly deletion.
 
+## Adopt now
+
+| Property | What it is | Notes for migration |
+|---|---|---|
+| mco-snowpack-explorer | Vanilla MapLibre + COG SPA | `cog-protocol.js` now lives in the kit — consume it from there. Add reduced-motion support (hard-coded `animate: true`), touch targets, favicon (has none), a keyboard/touch path to gridded raster values, and USDM category names in the legend (D4 — Exceptional drought · < 2). Stadia/MapTiler keys stay in-app via `themedStyleUrl`; domain-restrict them. |
+| mco-drought-dashboard ⛔ **hands-off** | Vanilla OpenLayers SPA (docs/) | **Do not touch unless Kyle asks for this repo by name** (2026-08-16) — it is deliberately different and must be excluded from every cross-cutting sweep (title standardization, token reconciliation, bulk kit adoption). Read-only surveys are fine. Original notes: Most token-mature, deliberately drifted (bg-deep #10141d etc.) — reconcile to kit tokens or record as sanctioned overrides. Its high-contrast theme is now the kit's (with fixed accent tints — its own lines 121-125 still carry stale rgba values). Replace the 25-selector focus-visible list with the universal rule. Fold in `docs/legacy/` copies and the unbranded `methods.html`. |
+| mco-data-cdn (storage browser) | React + Vite | Already drift-free; swap `--mco-*`-prefixed theme.css for kit tokens (or keep the prefix as a local alias of tokens.json values). Natural home stays as-is — the kit ships via jsDelivr because this CDN resolves to a private IP on campus. |
+| mesonet-dashboard (`/dash/` rewrite, `web/`) | React 19 + Mantine 8 + MapLibre 5.24 | The most-linked page in the network, mid-rewrite = cheapest adoption moment. Inject `tokens/tokens.json` into `web/src/lib/theme.ts` (currently stock Mantine blue + system fonts). |
+| mesonet_app Leaflet pages | FastAPI `StaticFiles` mounts: `latest`, `stations`, `funding` — 3 unstyled Leaflet pages | The two MapLibre maps moved to the section above (`status` converted 2026-08-15). The census's "1 MapLibre + 6 Leaflet" is really **2 MapLibre + 3 Leaflet served**: `main.py:372` has `progress` commented out and `Sensor_Map` is never mounted, so both are dead directories on disk — confirm before styling, and consider deleting them. These three: adopt theme/core now; MapLibre migration opportunistically (house library — HOUSE-STYLE §7). |
+| mesonet-db-rds static maps | Active rewrite carrying a stale fork of the same map suite | Adopt the kit here rather than re-forking unstyled pages; its `status/` diverged and `maintenance/` is missing from the copy. |
+| mesonet-aq | Vanilla MapLibre 4.7 SPA (docs/) | Copied the *shape* of the house style with none of the tokens (WordPress-admin blue, no custom properties). Mostly mechanical token swap + MapLibre bump. |
+| mesonet-ogc | Single MapLibre 3.6 landing map | Smallest file, biggest visual win per line. Bump MapLibre to 5.x while in there. Confirm it's actually deployed (nothing references it from the Docker/pygeoapi config). |
+| mco-mailing-lists | Listmonk templates + MJML newsletter | Branding is pending anyway ("NOT yet applied" is its blocking item) — apply the email-safe hex table (HOUSE-STYLE §8): accent #1a6faf, links #114f80, inlined hexes, no webfonts. Corrects the #52adc8 drift. |
+
+## Adopt later
+
+| Property | Why later |
+|---|---|
+| mco-website (climate.umt.edu) | Flagship, Jekyll + remote theme; highest-effort migration. Its `$primary-color: #08729e` becomes kit `#1a6faf` when it goes (one SCSS variable, but the retheme deserves its own effort). |
+| ecorestore | Deliberate, contrast-audited sub-brand (maroon/coral Tailwind) — adopt only the structural layer (footer/logo lockup, a11y utilities); do not overwrite its palette. Its Playwright-a11y setup predates the kit's and is the model it followed. |
+| cskt-air-quality | Tiny jQuery DataTables page, stale, likely embedded in mco-website. Cheap win when touched. |
+| mt-normals | Leaflet atlas mid-migration to the `normals` repo — restyle once its home settles. |
+| pluvio | Observable Framework + Quarto with a deliberate distinct palette; migrate after the operational apps. |
+| technical-guides / MCA / mesonet-qc docs | Quarto properties — wait for a kit Quarto/SCSS brand flavor (v0.2+ candidate). |
+| mesonet-one-pagers | Trivial static gallery; cheap when touched. |
+
+## Retire instead of styling
+
+| Property | Action |
+|---|---|
+| mco-drought-indicators | Superseded by mco-drought-dashboard. Real task: resolve the `drought.climate.umt.edu` CNAME collision (this repo holds the CNAME; the dashboard's README claims the domain). |
+| mco-drought-conus storage-browser | Pre-refactor Amplify sibling of mco-data-cdn's browser — consolidate, don't style. Also fix/remove its 404ing `climate.umt.edu/img/MCO_logo_white.svg` reference. |
+| native-drought-website | Unmodified third-party template from 2019 ("Design studio one page template") with no drought content — archive or delete. |
+| mtdrought newsletters, frozen report HTMLs, dormant Sphinx docs | Archival fidelity beats restyling. |
+
 ## Page titles (apply on migration)
 
 `<Short name> · <Family>` — rule and reasoning in HOUSE-STYLE §1 Naming.
