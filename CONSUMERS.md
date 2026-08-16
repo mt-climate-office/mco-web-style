@@ -106,9 +106,12 @@ quick reference it links back to.
 
 ## Flagged during the census (not kit work — do not lose these)
 
-- **Security:** `mco-data-cdn` has a TLS private key (`data2.climate.umt.edu.key`),
-  CSR/cert, and `terraform.tfstate`/`tfvars` committed at repo root — rotate the
-  key and scrub history, separately and soon.
+- ~~**Security:** `mco-data-cdn` has a TLS private key, CSR/cert and
+  `terraform.tfstate`/`tfvars` committed at repo root.~~ **Resolved** (verified
+  2026-08-16): nothing matching is tracked, nothing matching appears in history,
+  and `137c2e0` moved state to a shared S3 backend. Only
+  `terraform/terraform.tfvars.example` remains, which is fine. Re-check before
+  trusting this line — it was stale for a while.
 - `drought.climate.umt.edu` CNAME collision (see retire table).
 - The photos repo has now been renamed twice — `mesonet-photo-explorer` →
   `mco-mesonet-photos` → **`mesonet-photos`** (2026-08-05). Its `terraform.tfvars`
