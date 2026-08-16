@@ -4,6 +4,54 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [Unreleased]
+
+### Fixed
+- `tools/consumer-verify.mjs` wrote a 200 header before `readFile` could throw,
+  so any request that 404s **by design** — an app whose API isn't running
+  locally, a probe for an optional asset — killed the whole harness with
+  `ERR_HTTP_HEADERS_SENT`. It reads first now. Found running the harness
+  against the mesonet_app maps, whose station feed lives on a backend the
+  static server doesn't have.
+
+### Notes
+- MIGRATING gained four gotchas from the mesonet_app migration, three of which
+  share one root cause worth naming: **kit-owned is a per-selector fact, not a
+  per-section one.** Deleting a whole CSS block on the assumption the kit
+  replaced it silently dropped app-owned palette tokens, the `.tooltip-line` /
+  `.tooltip-rel` classes, and (via a missing `mco-modal` class) the modal's
+  entire positioning. The fourth: `img-src` cannot be enumerated from the
+  markup, because image URLs that arrive in an API response never appear in
+  the HTML.
+
+### Planned for 0.7.0 — absorptions approved 2026-08-16
+Agreed after auditing the two mesonet_app maps; each is code that now exists
+byte-identically in two or more consumers. **Consumers land on @0.6.0 first**,
+then re-point as a separate reviewed pass.
+
+- **`MCO.osTheme()` + `MCO.map.cameraParamsIfDefault(map)`** — the clean-URL
+  default-elision pair, currently identical in mesonet-status's UMRB map, the
+  maintenance map, and mesonet-explorer (3 consumers). Shipping it as
+  `cameraParamsIfDefault` rather than lifting `atDefaultExtent` verbatim
+  collapses the check and the emit into one call, and retires the
+  `MT_FIT_BOUNDS`/`FIT_OPTS` aliases that now exist only to feed it.
+- **`MCO.map.initCursorTooltip({layers, render})`** — element, cursor+14
+  positioning, `.visible` toggle, the mousemove→`queryRenderedFeatures`
+  dispatcher, `cursor: pointer` and mouseleave cleanup. `render(feature)`
+  returns `{name, sub, line}`. Also puts the `.tooltip-*` classes under the
+  same owner as the CSS that styles them.
+- **`MCO.initSearchBox({input, dropdown, items, renderRow, onSelect})`** —
+  takes the search combobox **off** the kit-deferred list below. The two maps'
+  keyboard handling differs only in whitespace; `showSearchDropdown` differs in
+  exactly two lines, both of which are `renderRow`.
+- **`MCO.initLegendToggles({rows, visible, onChange})`** — click-to-toggle,
+  double-click-to-isolate, the click/dblclick timer, and the Shift+Enter
+  keyboard equivalent. `renderLegend` stays app-specific.
+- **`MCO.srTable({tbody, columns, rows})`** — the screen-reader twin of a
+  WebGL canvas. Thin, and the point is codifying the pattern (one row per
+  drawn feature, rebuilt from the same features, never wired to a live region)
+  so the next map neither reinvents nor skips it.
+
 ## [0.6.0] — 2026-08-04
 
 ### Changed

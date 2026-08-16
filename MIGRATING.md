@@ -148,6 +148,24 @@ for kit calls:
   `climate.umt.edu` logo dies the moment `img-src` is enumerated — including
   inside a canvas PNG export, where the failure is a missing card rather than a
   console error.
+- **`img-src` cannot be enumerated from the markup alone.** Image URLs that
+  arrive in an API *response* never appear in `index.html`, so reading the page
+  will not find them — the maintenance map's visit photos are AirTable
+  attachments on `*.airtableusercontent.com`, and the first cut of its CSP
+  allowed only `'self' data: blob:`. Every thumbnail died silently: a CSS
+  `background-image` that is blocked renders as an empty box, not an error.
+  **Grep the app's own fetched data for `http` before writing `img-src`**, and
+  assert in the verify run that the images actually load (count responses from
+  the host; a zero is the bug).
+- **The kit's tooltip does not style every line an app emits.** `.mco-tooltip`
+  covers `.tooltip-name`, `.tooltip-sub` and `.tooltip-val` — where `-val` is a
+  monospace accent *value* ("42°F"). An app with a prose status line
+  (`.tooltip-line`) or a relative-time line (`.tooltip-rel`) must keep those
+  rules locally, scoped under `.mco-tooltip`. Deleting the app's whole tooltip
+  block as "kit-owned" drops their `display: block` and collapses the tooltip
+  onto one row. Same trap as the palette tokens above: **kit-owned is a
+  per-selector fact, not a per-section one** — diff the class names the app
+  actually emits against the ones the kit actually styles.
 - **`initCollapsible` persists `'1'`/`'0'`** — if the app previously stored
   other encodings (status used `'collapsed'`/`'expanded'`), map legacy values
   into `startCollapsed` so returning users keep their state.
@@ -165,6 +183,22 @@ for kit calls:
   AT); don't wire announcements to the tick or it gets chatty.
 - localStorage keys must be `mco-<app>-*`; fix unprefixed legacy keys with a
   read-old/write-new shim.
+- **"Console clean" needs a justified noise allowlist, not a lowered bar.** The
+  verify server is static, so an app whose API lives elsewhere (a FastAPI
+  backend, a proxied endpoint) will 404 by design and fail the check for the
+  wrong reason. Filter those — but **prove each one is pre-existing first**:
+  extract the app's pre-migration page (`git archive HEAD <dir> | tar -x -C
+  <tmp>`), point the same harness at it, and confirm the message appears there
+  too. Anything that appears only after the migration is yours. Never filter a
+  CSP violation; that is the check's entire purpose.
+- **The theme's own tokens are not the app's data colors.** Deleting the inline
+  token block also deletes any app-specific semantic colors that lived in it
+  (status ramps, warning tints, marker colors) — the kit deliberately does not
+  own those (HOUSE-STYLE §6). Diff the token names the app still *uses* against
+  the ones the kit *defines* and re-declare the remainder locally, per theme —
+  including **high-contrast**, which the app almost certainly never had values
+  for. Two silent regressions on the UMRB status map (an amber banner that lost
+  its tint, a station swatch that lost its color) came from exactly this.
 
 ## Verification recipe (all before any push)
 
@@ -202,10 +236,18 @@ tooling ephemerally and keep it out of git (most MCO app repos do NOT ignore
 
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
-Branded PNG export, search combobox, and a `charts/` palettes module are
-known duplication that the kit has **deliberately not absorbed yet** (each
-needs a design pass across its divergent app implementations first). Leave
-the app's versions in place, swapping only their internals onto kit helpers
-where trivial (e.g. the logo asset, MT time). If a migration makes one of
-these converge naturally, propose it as a kit MINOR — that's the intended
-path to absorption.
+Branded PNG export and a `charts/` palettes module are known duplication that
+the kit has **deliberately not absorbed yet** (each needs a design pass across
+its divergent app implementations first). Leave the app's versions in place,
+swapping only their internals onto kit helpers where trivial (e.g. the logo
+asset, MT time). If a migration makes one of these converge naturally, propose
+it as a kit MINOR — that's the intended path to absorption.
+
+**The search combobox left this list on 2026-08-16** — the worked example of
+that path. Two consumers (the UMRB build-status and station-maintenance maps)
+ended up with keyboard handling that differed only in whitespace and a
+`showSearchDropdown` that differed in exactly two lines, both of which were
+the per-row render. That is what "converged naturally" looks like: the
+absorption is approved for 0.7.0 as `MCO.initSearchBox({… renderRow …})`,
+alongside four other candidates listed under **Planned for 0.7.0** in
+CHANGELOG.md. Until that release lands, keep writing these app-local.

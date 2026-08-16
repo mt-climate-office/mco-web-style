@@ -46,8 +46,15 @@ const server = createServer(async (req, res) => {
     if (p.endsWith('/')) p += 'index.html';
     const f = normalize(join(CONFIG.root, p));
     if (!f.startsWith(CONFIG.root)) { res.writeHead(403).end(); return; }
+    // Read BEFORE writing headers. The other order commits a 200 and only then
+    // discovers the file is missing, so the catch tries to write 404 headers
+    // onto an already-sent response and the whole harness dies with
+    // ERR_HTTP_HEADERS_SENT. Any request that 404s BY DESIGN trips it — an app
+    // whose API isn't running locally, a probe for an optional asset — which
+    // is exactly the degradation a verify run wants to exercise.
+    const body = await readFile(f);
     res.writeHead(200, { 'content-type': MIME[extname(f)] || 'application/octet-stream' });
-    res.end(await readFile(f));
+    res.end(body);
   } catch { res.writeHead(404).end(); }
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
