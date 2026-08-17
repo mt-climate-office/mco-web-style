@@ -1,13 +1,84 @@
 # Consumers
 
 Adoption status of every MCO web property, from the 2026-08 org-wide census.
-Update this file as apps migrate. Migration mechanics are at the bottom.
+Update this file as apps migrate. **Returning to this after a break? Read
+"Pick up here" below first.** Migration mechanics are at the bottom.
 
 Consumer repos move without this file noticing — the 2026-08-16 audit found two
 mesonet_app maps and mesonet-explorer already wearing the house style by hand,
 none of it recorded here (all three have since migrated). **Before trusting a
 row, check the repo.** "Looks like the house style" and "consumes the kit" are
 different states, and the first one silently forks the tokens.
+
+---
+
+## Pick up here (state as of 2026-08-16)
+
+**Six consumers on @0.6.0, all deployed and verified live:** mesonet-status,
+mesonet-photos, mesonet-explorer, mco-snowpack-explorer, and both mesonet_app
+maps. Nothing is mid-flight; every repo is pushed and in sync with its remote.
+
+### 1. Cut kit 0.7.0 — the largest piece of work waiting
+
+Seven items are specified in CHANGELOG § *Planned for 0.7.0*, each already
+approved and each existing byte-identically in 2–3 consumers today. Five are
+absorptions (clean-URL pair, cursor tooltip, search box, legend toggles,
+sr-table) and two are defects the migrations exposed:
+
+- `installZoomFloor` re-fires mid-animation and snaps the camera when a mobile
+  URL bar shows/hides. **Four shipped consumers carry both weaknesses now**;
+  mesonet-explorer's local version is the reference for the fix.
+- Attribution links fail WCAG 1.4.1 once hillshade adds its credit — which the
+  kit tells every map app to adopt, so all of them inherit it.
+
+Doing this means: build the seven, release with regenerated SRI hashes (which
+also sweeps up the stale `mco-mesonet-photos` comment in `core/mco-core.js`
+that has been waiting for a hash regeneration), then re-point six consumers.
+
+**Two live kit-overrides are tagged for deletion when it ships** — both in
+mesonet-explorer: the underlined attribution links, and the long-modal sticky
+header + scroll shade. Grep for `0.7.0` in that repo to find them.
+
+The API design is better placed than when this was deferred: the clean-URL pair
+and the tooltip now have three real call sites to design against, not two.
+
+### 2. Next migrations, in the order I would take them
+
+| Property | Why it is next | Shape of the work |
+|---|---|---|
+| **mesonet-dashboard** | Most-linked page in the network and mid-rewrite — the cheapest adoption moment there will be | Different: React 19 + Mantine 8. Inject `tokens/tokens.json` into `web/src/lib/theme.ts`. Tests whether the kit works outside vanilla apps, which it has never had to. |
+| **mesonet_app Leaflet pages** | Same repo, momentum, and the deploy path is already understood | `latest` (1479 lines, the real one), `stations`, `funding`. All Leaflet 1.9.4, no framework. ⚠️ Settle first whether `progress` and `Sensor_Map` should exist at all — both are unmounted dead directories, and `Sensor_Map` is the Leaflet ancestor of the UMRB build map. |
+| **mesonet-aq**, **mesonet-ogc** | Small, mechanical | Token swap + MapLibre bump. mesonet-ogc: confirm it is actually deployed first. |
+
+### 3. Not kit work — owned outside this repo
+
+- 🔑 **Revoke the Stadia and MapTiler keys.** They are out of
+  mco-snowpack-explorer's working tree but remain in its **public git history**.
+  Removing them from HEAD does not retire them. This is the only item here with
+  a security clock on it.
+- **`ppt` in daily mode** still fails server-side on the exact call every other
+  variable now succeeds with — see the API note below.
+- **`acesfork`** is tagged cell `E-9`; the drawn grid stops at `E-6`.
+- **`drought.climate.umt.edu`** CNAME collision, open since the census.
+
+### 4. Process lessons worth not relearning
+
+- **Kit-owned is a per-selector fact, not a per-section one.** Deleting a CSS
+  section wholesale because "the kit owns this" has now broken three apps —
+  palette tokens, tooltip line classes, a modal's positioning, and a navbar that
+  went 52px → 150px. Diff the selectors an app *emits* against the ones the kit
+  *styles*. An orphan-class scan helps but is not sufficient; it found four of
+  six the last time. A computed-layout dump found the rest.
+- **Replace a doc section by matching its own boundaries**, never by splicing
+  between one heading and whatever heading follows. That deleted three sections
+  of this file once already.
+- **Establish a baseline before touching anything**, and re-run it against a
+  pristine checkout before calling a failure a regression. Two "new" test
+  failures on mesonet-explorer turned out to fail *more often* at baseline.
+- **Verify by running, not by reading.** Every real defect this month —
+  the `escapeRe` deletion, the CSP-blocked DEM, the blocked AirTable photos,
+  the 150px navbar — was invisible in the diff and obvious on screen.
+
 
 ## Migrated
 
