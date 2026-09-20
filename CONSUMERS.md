@@ -209,8 +209,10 @@ quick reference it links back to.
   `terraform/terraform.tfvars.example` remains, which is fine. Re-check before
   trusting this line — it was stale for a while.
 - `drought.climate.umt.edu` CNAME collision (see retire table).
-- The photos repo has now been renamed twice — `mesonet-photo-explorer` →
-  `mco-mesonet-photos` → **`mesonet-photos`** (2026-08-05). Its `terraform.tfvars`
+- The photos repo has now been renamed three times — `mesonet-photo-explorer` →
+  `mco-mesonet-photos` → `mesonet-photos` (2026-08-05) → back to
+  **`mesonet-photo-explorer`** (2026-09-20, once it stopped managing photos; its
+  canonical URL is `mesonet.climate.umt.edu/photos/`). Its `terraform.tfvars`
   and `.example` were re-pointed both times. Each rename strands the old absolute
   path in that repo's `.venv` shebangs; harmless, recreate the venv.
 - **Deferred to the next kit release (0.7.0):** `core/mco-core.js` still names
