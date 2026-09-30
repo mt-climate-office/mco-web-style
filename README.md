@@ -24,10 +24,10 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/theme/mco-theme.css"
-      integrity="sha384-bCKsV+qD6GxtndFeAmhumsOdsaznA4xXBh6mfwHgvRbxTMPoOwClDB3HjZuy42fp" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/core/mco-core.js"
-        integrity="sha384-DPbXD2xVhws/XeQ5zgnH5fpba972pw9yafpaHL8phz43iEwktW1RLoID4eqRFYue" crossorigin="anonymous"></script>
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/theme/mco-theme.css"
+      integrity="sha384-ZhJv93Wa+kWlQTfY8SIMNf5nXoVvIF9s/SMQHCimI5xHu7SvscGgts5EpuWSkkdz" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/core/mco-core.js"
+        integrity="sha384-ZOGCREEJsO8sY1wJ7eS/Q7K7NdZAHF+LxSMoO3ZGqBtEVISX3616cGomCW418hXH" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -51,15 +51,16 @@ CSS custom properties, kept in lockstep by CI.
 | `map/cog-protocol.js` | `cog://` raster protocol (`window.CogProtocol`) | COG raster apps |
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
+| `fonts/` | Outfit + Space Mono woff2 (latin + latin-ext; SIL OFL, license texts alongside), declared by `mco-theme.css` | every page (preload the two latin files — `snippets/head.html`) |
 | `assets/` | MCO logo (vendored), favicon set, OG card | every page |
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 
-## SRI hashes — v0.6.0
+## SRI hashes — v0.7.0
 
 ```
-theme/mco-theme.css      sha384-bCKsV+qD6GxtndFeAmhumsOdsaznA4xXBh6mfwHgvRbxTMPoOwClDB3HjZuy42fp
-core/mco-core.js         sha384-DPbXD2xVhws/XeQ5zgnH5fpba972pw9yafpaHL8phz43iEwktW1RLoID4eqRFYue
+theme/mco-theme.css      sha384-ZhJv93Wa+kWlQTfY8SIMNf5nXoVvIF9s/SMQHCimI5xHu7SvscGgts5EpuWSkkdz
+core/mco-core.js         sha384-ZOGCREEJsO8sY1wJ7eS/Q7K7NdZAHF+LxSMoO3ZGqBtEVISX3616cGomCW418hXH
 map/mco-map.js           sha384-0aF67+MSXmcocGs8r3qiehgDNzgXo9F48olS5OX575wO2llw2cuGcqLpd6+L7D76
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm
 ```
@@ -108,9 +109,14 @@ Pages that ship a `Content-Security-Policy` (see mesonet-explorer for the
 GitHub-Pages meta-tag pattern) need:
 
 - `style-src` and `script-src`: add `https://cdn.jsdelivr.net`
+- `font-src`: `https://cdn.jsdelivr.net` — the house fonts are kit-hosted
+  since 0.7.0. Google Fonts is no longer used: drop
+  `https://fonts.googleapis.com` from `style-src` and
+  `https://fonts.gstatic.com` from `font-src`.
 - `img-src`: add `https://cdn.jsdelivr.net` if you hot-link kit assets
 - the inline anti-flash script's **sha256** in `script-src` — recompute it
-  whenever that snippet changes:
+  whenever that snippet changes (it did in 0.7.0, gaining the
+  `.is-compact`/`.is-touch` stamp):
 
 ```sh
 # ONLY for the standalone snippet file — see the warning below.

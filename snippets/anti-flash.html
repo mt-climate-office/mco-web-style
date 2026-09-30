@@ -8,6 +8,12 @@
      Values are validated against a whitelist because mco-theme is shared by
      every MCO app on the origin — never trust a persisted value blindly.
 
+     Since 0.7.0 it also stamps .is-compact / .is-touch on <html>, so CSS keyed
+     on them is right on the FIRST frame. mco-core.js stamps and tracks them
+     too, but it is a classic script at the end of <body> and can land after
+     first paint. The query must match MCO.viewport.COMPACT_MQ in mco-core.js
+     exactly (KEEP IN SYNC).
+
      If your page ships a CSP, script-src must carry the sha256 hash of
      EXACTLY the script element's contents below (whitespace included).
      Recompute after any edit (see README.md § CSP). -->
@@ -22,6 +28,9 @@
     const t = valid.includes(url) ? url
             : valid.includes(saved) ? saved
             : (prefersDark ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', t);
+    const root = document.documentElement;
+    root.setAttribute('data-theme', t);
+    root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
+    root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
   })();
 </script>

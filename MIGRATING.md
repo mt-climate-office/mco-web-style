@@ -234,6 +234,32 @@ tooling ephemerally and keep it out of git (most MCO app repos do NOT ignore
   returns 200 on the live URL, then repeat the console + axe pass against
   production.
 
+## Re-pointing an existing consumer: 0.6.x → 0.7.0
+
+0.7.0 is about first paint. Every consumer on 0.6.0 loaded Google Fonts with
+`display=swap` (so the title painted in the system font and then jumped), and
+`.is-compact` could land after first paint. Per app, in its HTML entry file:
+
+1. Kit tags `@0.6.0` → `@0.7.0`, with the hashes from the README table.
+2. Replace the three Google Fonts lines (two `preconnect` + the `css2`
+   stylesheet) with the two font `preload` lines from `snippets/head.html`.
+3. CSP: drop `https://fonts.googleapis.com` from `style-src`; `font-src`
+   becomes `https://cdn.jsdelivr.net` (was `https://fonts.gstatic.com`).
+4. Replace the inline anti-flash script with the new
+   `snippets/anti-flash.html` body, **then recompute this page's sha256**
+   (python recipe under Gotchas) and swap it into `script-src`. A stale hash
+   blocks the script: the page renders in the stylesheet's default (dark)
+   theme and the only sign is a CSP console error, which the verify pass below
+   catches.
+5. If the app self-hosted the fonts or carried a local override of the ≤750px
+   `.brand` collapse for a lockup outside the navbar, delete them (both are
+   the kit's now).
+
+Verify as below, plus: `document.fonts` reports Outfit and Space Mono
+`loaded`, their `performance` entries come from `cdn.jsdelivr.net`, and
+`document.documentElement.classList` has the right `is-compact`/`is-touch`
+before `mco-core.js` runs (block it in the harness to check).
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export and a `charts/` palettes module are known duplication that

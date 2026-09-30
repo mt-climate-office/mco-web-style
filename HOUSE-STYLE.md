@@ -69,7 +69,9 @@ sweep — see its CONSUMERS.md row.
 
 **Typography.** `--font-ui` — **Outfit** (400/500/600/700) for UI text.
 `--font-mono` — **Space Mono** for numerals, station IDs, timestamps, scale
-labels, `<kbd>`. Loaded from Google Fonts (see `snippets/head.html`); the tokens
+labels, `<kbd>`. Kit-hosted in `fonts/` and declared by `mco-theme.css` with
+`font-display: block`; pages preload the two latin files (`snippets/head.html`)
+so the first frame is already in Outfit — no system-font flash, no swap. The tokens
 carry system fallbacks. Don't add other families — the drought dashboard's Inter
 is drift, not precedent.
 

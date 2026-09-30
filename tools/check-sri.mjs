@@ -32,9 +32,25 @@ for (const file of FILES) {
   }
 }
 
+// Every kit URL in a document must name ONE version, the same in all three.
+// Hashes can't catch a stale @version on a file that isn't hashed — the font
+// preloads (0.7.0) — and a preload on a different tag from the theme CSS
+// fetches a file @font-face never asks for, downloading the font twice.
+const versions = new Map();
+for (const doc of DOCS) {
+  const text = readFileSync(join(root, doc), 'utf8');
+  const found = new Set([...text.matchAll(/mco-web-style@(\d+\.\d+\.\d+)/g)].map(m => m[1]));
+  if (found.size !== 1) errors.push(`${doc} pins ${found.size ? [...found].join(' and ') : 'no'} kit version(s); expected exactly one`);
+  for (const v of found) versions.set(v, [...(versions.get(v) || []), doc]);
+}
+if (versions.size > 1) {
+  errors.push('documents disagree on the kit version: ' +
+    [...versions].map(([v, docs]) => `${v} in ${docs.join(', ')}`).join('; '));
+}
+
 if (errors.length) {
   console.error(`check-sri: ${errors.length} stale/missing hash(es)\n  - ` + errors.join('\n  - ') +
     '\n  Re-run tools/sri.sh and update README.md, snippets/head.html, demo/cdn.html.');
   process.exit(1);
 }
-console.log(`check-sri: OK (${FILES.length} files × ${DOCS.length} documents)`);
+console.log(`check-sri: OK (${FILES.length} files × ${DOCS.length} documents, one kit version: ${[...versions.keys()][0]})`);

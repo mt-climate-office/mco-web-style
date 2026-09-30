@@ -12,15 +12,25 @@ different states, and the first one silently forks the tokens.
 
 ---
 
-## Pick up here (state as of 2026-08-16)
+## Pick up here (state as of 2026-09-30)
 
-**Six consumers on @0.6.0, all deployed and verified live:** mesonet-status,
-mesonet-photos, mesonet-explorer, mco-snowpack-explorer, and both mesonet_app
-maps. Nothing is mid-flight; every repo is pushed and in sync with its remote.
+**Kit 0.7.0 (first paint) is cut; the six consumers re-point in their own
+reviewed passes.** Per app: the MIGRATING.md § "0.6.x → 0.7.0" checklist
+(tags + SRI, font preloads, CSP `font-src`, new anti-flash body + recomputed
+sha256). The Migrated table below records each app's version as it lands.
 
-### 1. Cut kit 0.7.0 — the largest piece of work waiting
+- mesonet-explorer additionally deletes its self-hosted `assets/fonts/` and
+  its `#sb-brand .brand` un-clip (both the kit's now), and keys its
+  first-paint hold on `.is-compact` instead of a duplicated media query.
+- **Drift noted, not fixed:** mco-snowpack-explorer hides `.brand` +
+  `.nav-divider` with `display: none` at ≤1060px — earlier than the kit's
+  750px collapse and by the method the kit avoids (it would drop an `<h1>`;
+  snowpack's title is a `<span>`, so nothing is lost today). Reconcile on its
+  next pass.
 
-Seven items are specified in CHANGELOG § *Planned for 0.7.0*, each already
+### 1. Cut kit 0.8.0 — the largest piece of work waiting
+
+Seven items are specified in CHANGELOG § *Planned for 0.8.0*, each already
 approved and each existing byte-identically in 2–3 consumers today. Five are
 absorptions (clean-URL pair, cursor tooltip, search box, legend toggles,
 sr-table) and two are defects the migrations exposed:
@@ -37,7 +47,8 @@ that has been waiting for a hash regeneration), then re-point six consumers.
 
 **Two live kit-overrides are tagged for deletion when it ships** — both in
 mesonet-explorer: the underlined attribution links, and the long-modal sticky
-header + scroll shade. Grep for `0.7.0` in that repo to find them.
+header + scroll shade. Grep for `0.8.0` in that repo to find them (retagged
+from `0.7.0` when 0.7.0 shipped without them).
 
 The API design is better placed than when this was deferred: the clean-URL pair
 and the tooltip now have three real call sites to design against, not two.

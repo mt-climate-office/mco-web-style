@@ -23,13 +23,16 @@
       const t = valid.includes(url) ? url
               : valid.includes(saved) ? saved
               : (prefersDark ? 'dark' : 'light');
-      document.documentElement.setAttribute('data-theme', t);
+      const root = document.documentElement;
+      root.setAttribute('data-theme', t);
+      root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
+      root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
     })();
   </script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+  <!-- House fonts: kit-hosted, declared in mco-theme.css; a real app preloads the pinned CDN copies (snippets/head.html). -->
+  <link rel="preload" href="../fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="../fonts/space-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
         integrity="sha384-q7EDwLXBfakVimqzBJqFCTxpgy7B18buhebV158qkVMCEVAaUnU3fQTEfWgYz+7g"
         crossorigin="anonymous">

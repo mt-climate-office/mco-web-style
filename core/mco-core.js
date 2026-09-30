@@ -150,8 +150,12 @@
      inside the map: narrow phones AND short/landscape ones. Layout stays in
      real @media rules (no flash before deferred JS runs); these flags drive
      the choices JS has to make — sheet vs. anchored popup, panel auto-collapse.
-     KEEP THE QUERY IN SYNC with the breakpoint comment in mco-theme.css §6.
-     Stamps .is-compact / .is-touch on <html> for CSS hooks. */
+     KEEP THE QUERY IN SYNC in three places: here, the breakpoint comment in
+     mco-theme.css §6, and snippets/anti-flash.html.
+     Stamps .is-compact / .is-touch on <html> for CSS hooks. The inline
+     anti-flash snippet stamps them first (0.7.0), so CSS keyed on them is
+     right from first paint; this script — loaded at the end of <body> —
+     re-stamps on load and keeps them live across resizes. */
   var COMPACT_MQ = '(max-width: 640px), (max-height: 560px)';
   var _compactMq = window.matchMedia(COMPACT_MQ);
   var _touchMq = window.matchMedia('(hover: none)');
@@ -165,7 +169,7 @@
   }
   _compactMq.addEventListener('change', _emitViewport);
   _touchMq.addEventListener('change', _emitViewport);
-  _emitViewport(); // stamp classes before first paint of JS-built UI
+  _emitViewport(); // re-stamp (the snippet did first paint) and notify
 
   MCO.viewport = {
     COMPACT_MQ: COMPACT_MQ,

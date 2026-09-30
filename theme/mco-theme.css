@@ -13,9 +13,47 @@
      5. Component shells     — navbar, toast, tooltip, modal, panel, scrim
      6. Responsive & touch
 
-   Fonts are NOT loaded here — consumers load Outfit + Space Mono themselves
-   (see snippets/head.html); the tokens carry system fallbacks.
+   Fonts ARE loaded here (since 0.7.0): Outfit + Space Mono are kit-hosted
+   in fonts/ and declared at the top of §1, resolved relative to this file so
+   they version with it. Consumers preload the two latin files from
+   snippets/head.html; the tokens carry system fallbacks.
    ========================================================================== */
+
+/* ── Fonts ────────────────────────────────────────────────────────────────
+   Kit-hosted latin + latin-ext subsets of the Google Fonts builds (SIL OFL;
+   license texts in fonts/). url() resolves against THIS stylesheet, so a page
+   pinned to @X.Y.Z gets that tag's fonts. The latin files should be preloaded
+   (snippets/head.html); latin-ext is fetched only when a page actually uses
+   a character in its unicode-range.
+
+   font-display: block, not swap. From Google Fonts with display=swap every
+   MCO app painted its text in the system font and re-set it in Outfit a beat
+   later — the title visibly jumped. Preloaded from the same origin as this
+   render-blocking stylesheet, the fonts normally arrive before first paint;
+   when they don't, block costs a few ms of invisible text rather than a
+   re-set of every line, and the browser still falls back after ~3s if a file
+   never arrives. Outfit is a variable font: one file per subset covers every
+   weight in use (400–700). */
+@font-face {
+  font-family: 'Outfit'; font-style: normal; font-weight: 400 700; font-display: block;
+  src: url(../fonts/outfit-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Outfit'; font-style: normal; font-weight: 400 700; font-display: block;
+  src: url(../fonts/outfit-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Space Mono'; font-style: normal; font-weight: 400; font-display: block;
+  src: url(../fonts/space-mono-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Space Mono'; font-style: normal; font-weight: 400; font-display: block;
+  src: url(../fonts/space-mono-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /* ── 1. Design tokens ─────────────────────────────────────────────────────
    Dark is the default theme. `data-theme` on <html> switches; the anti-flash
@@ -549,7 +587,8 @@ body {
    Breakpoint ladder (HOUSE-STYLE.md §3): 1400 shed button labels · 1060
    tighten chrome · 750 collapse the brand to the badge · 640 compact. "Compact" also has
    a height variant — KEEP IN SYNC with MCO.viewport.COMPACT_MQ in
-   core/mco-core.js: (max-width: 640px), (max-height: 560px). Layout lives in
+   core/mco-core.js and the copy in snippets/anti-flash.html:
+   (max-width: 640px), (max-height: 560px). Layout lives in
    real @media rules (no flash before deferred JS runs); behavior decisions
    (sheet vs popup, auto-collapse) key off MCO.viewport. */
 @media (max-width: 1400px) {
@@ -593,9 +632,14 @@ body {
    app name; sighted users get the badge.
 
    Consumers that keep branding at every width must restore BOTH the lockup's
-   static position and the divider — see mesonet-status. */
+   static position and the divider — see mesonet-status.
+
+   Scoped to the navbar (0.7.0): a lockup an app moves elsewhere — the top of
+   a compact drawer, say (mesonet-explorer) — has room and must stay visible.
+   :where() keeps the specificity at the old bare `.brand`, so an existing
+   consumer override still wins. */
 @media (max-width: 750px) {
-  .brand {
+  :where(.mco-navbar) .brand {
     position: absolute;
     width: 1px; height: 1px;
     padding: 0; margin: -1px;

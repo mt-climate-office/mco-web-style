@@ -4,13 +4,13 @@
 
      Copy what applies; KEEP the pinned versions and integrity attributes.
      Order matters: metas → anti-flash script (snippets/anti-flash.html goes
-     right here, inline) → fonts → stylesheets.
+     right here, inline) → font preloads → stylesheets.
 
      The kit's JS files are classic scripts. Load them near the end of <body>,
      after maplibre-gl.js and before your app script (tags at the bottom of
      this file).
 
-     SRI hashes below are for v0.6.0 exactly. Bumping the @version without
+     SRI hashes below are for v0.7.0 exactly. Bumping the @version without
      recomputing hashes (tools/sri.sh) will hard-fail in the browser — that is
      the point. CI keeps this file honest via tools/check-sri.mjs.
      ========================================================================== -->
@@ -56,14 +56,26 @@
 
 
 <!-- Favicons / app icons (kit-hosted; or vendor them into your repo) -->
-<link rel="icon" type="image/png" sizes="32x32" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/assets/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/assets/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/assets/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/assets/apple-touch-icon.png">
 
-<!-- House fonts -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+<!-- House fonts — kit-hosted since 0.7.0; the @font-face rules live in
+     mco-theme.css. These preloads start both latin files in parallel with the
+     stylesheet instead of after it has been parsed, so the first frame is
+     already in Outfit (no system-font flash, no swap).
+     - Same @version as the theme CSS, or the preload fetches a different file
+       from the one @font-face asks for and the font downloads twice.
+     - `crossorigin` is REQUIRED on font preloads (fonts are always fetched in
+       CORS mode); without it the preload is discarded and fetched again.
+     - No `integrity`: @font-face fetches carry none, so an integrity'd preload
+       would never match and would double-download. Fonts are inert data, and
+       the tag is immutable on jsDelivr.
+     CSP: font-src https://cdn.jsdelivr.net (README § CSP notes). -->
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/fonts/outfit-latin.woff2"
+      as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/fonts/space-mono-latin.woff2"
+      as="font" type="font/woff2" crossorigin>
 
 <!-- MapLibre GL 5.x — map apps only. The house map library (HOUSE-STYLE.md §7). -->
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
@@ -71,8 +83,8 @@
       crossorigin="anonymous">
 
 <!-- mco-web-style theme -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/theme/mco-theme.css"
-      integrity="sha384-bCKsV+qD6GxtndFeAmhumsOdsaznA4xXBh6mfwHgvRbxTMPoOwClDB3HjZuy42fp"
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/theme/mco-theme.css"
+      integrity="sha384-ZhJv93Wa+kWlQTfY8SIMNf5nXoVvIF9s/SMQHCimI5xHu7SvscGgts5EpuWSkkdz"
       crossorigin="anonymous">
 
 <!-- ==========================================================================
@@ -81,13 +93,13 @@
 <script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"
         integrity="sha384-MYTfGytf3SxNyO7ZAu/U0wHCcs3NpqE92Q3wBz5PQhat8kEA/wbwb9qY6H/JLyuR"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/core/mco-core.js"
-        integrity="sha384-DPbXD2xVhws/XeQ5zgnH5fpba972pw9yafpaHL8phz43iEwktW1RLoID4eqRFYue"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/core/mco-core.js"
+        integrity="sha384-ZOGCREEJsO8sY1wJ7eS/Q7K7NdZAHF+LxSMoO3ZGqBtEVISX3616cGomCW418hXH"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/map/mco-map.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/map/mco-map.js"
         integrity="sha384-0aF67+MSXmcocGs8r3qiehgDNzgXo9F48olS5OX575wO2llw2cuGcqLpd6+L7D76"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.6.0/map/cog-protocol.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.0/map/cog-protocol.js"
         integrity="sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm"
         crossorigin="anonymous"></script>
 <script src="app.js"></script>   <!-- classic script — the kit globals need no modules -->

@@ -13,8 +13,9 @@
        ⚠️ NOT a literal consumer template in two respects: a real app (1)
        replaces the relative kit tags with the pinned + SRI CDN tags from
        snippets/head.html, and (2) therefore adds https://cdn.jsdelivr.net to
-       script-src AND style-src in the CSP below (absent here because nothing
-       loads from jsDelivr). The sha256 in the CSP is THIS page's anti-flash
+       script-src, style-src AND font-src in the CSP below (absent here
+       because nothing loads from jsDelivr; font-src is 'self' for the same
+       reason). The sha256 in the CSP is THIS page's anti-flash
        hash — recompute your own (MIGRATING.md § Gotchas).
        ══════════════════════════════════════════════════════════════════════ -->
 
@@ -23,10 +24,10 @@
        (README § CSP). Demonstrates: HOUSE-STYLE §8 / README CSP notes. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'none';
-    script-src 'self' 'sha256-CoyZLTny4Ms0ntaZBXFoDdIGaegMzPM1QXUml5kCP4Q=' https://unpkg.com;
+    script-src 'self' 'sha256-o+rXj9Jy2CUuPoewBVeBz2GYT71qiUGzjc3SklYSaSw=' https://unpkg.com;
     worker-src blob:;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
-    font-src https://fonts.gstatic.com;
+    style-src 'self' 'unsafe-inline' https://unpkg.com;
+    font-src 'self';
     img-src 'self' data: blob:;
     connect-src 'self' https://mesonet.climate.umt.edu https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://s3.amazonaws.com;
     base-uri 'none';
@@ -55,13 +56,17 @@
       const t = valid.includes(url) ? url
               : valid.includes(saved) ? saved
               : (prefersDark ? 'dark' : 'light');
-      document.documentElement.setAttribute('data-theme', t);
+      const root = document.documentElement;
+      root.setAttribute('data-theme', t);
+      root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
+      root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
     })();
   </script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+  <!-- House fonts: kit-hosted, declared in mco-theme.css; a real app preloads the pinned CDN copies
+       (snippets/head.html) and sets font-src https://cdn.jsdelivr.net. §1 -->
+  <link rel="preload" href="../fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="../fonts/space-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
         integrity="sha384-q7EDwLXBfakVimqzBJqFCTxpgy7B18buhebV158qkVMCEVAaUnU3fQTEfWgYz+7g"
         crossorigin="anonymous">

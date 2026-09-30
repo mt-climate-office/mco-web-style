@@ -6,27 +6,10 @@ policy in README.md.
 
 ## [Unreleased]
 
-### Fixed
-- `tools/consumer-verify.mjs` wrote a 200 header before `readFile` could throw,
-  so any request that 404s **by design** — an app whose API isn't running
-  locally, a probe for an optional asset — killed the whole harness with
-  `ERR_HTTP_HEADERS_SENT`. It reads first now. Found running the harness
-  against the mesonet_app maps, whose station feed lives on a backend the
-  static server doesn't have.
-
-### Notes
-- MIGRATING gained four gotchas from the mesonet_app migration, three of which
-  share one root cause worth naming: **kit-owned is a per-selector fact, not a
-  per-section one.** Deleting a whole CSS block on the assumption the kit
-  replaced it silently dropped app-owned palette tokens, the `.tooltip-line` /
-  `.tooltip-rel` classes, and (via a missing `mco-modal` class) the modal's
-  entire positioning. The fourth: `img-src` cannot be enumerated from the
-  markup, because image URLs that arrive in an API response never appear in
-  the HTML.
-
-### Planned for 0.7.0 — absorptions approved 2026-08-16
+### Planned for 0.8.0 — absorptions approved 2026-08-16
+Moved from 0.7.0, which shipped the first-paint work alone (2026-09-30).
 Agreed after auditing the two mesonet_app maps; each is code that now exists
-byte-identically in two or more consumers. **Consumers land on @0.6.0 first**,
+byte-identically in two or more consumers. **Consumers land on @0.7.0 first**,
 then re-point as a separate reviewed pass.
 
 - **`MCO.osTheme()` + `MCO.map.cameraParamsIfDefault(map)`** — the clean-URL
@@ -75,6 +58,70 @@ then re-point as a separate reviewed pass.
   Also add an `onBeforeSnap` hook returning false to veto — explorer needs it
   for "don't yank the camera while a station detail is open" and "a sidebar
   toggle IS the user asking to re-fit", which stay app policy.
+
+## [0.7.0] — 2026-09-30
+
+First paint. Every consumer painted its text in the system font and re-set it
+in Outfit a beat later, and CSS keyed on `.is-compact` could be wrong on the
+first frame. Both came from what the kit told apps to do, so the fixes are
+the kit's. Found and proven on mesonet-explorer (throttled CDP screencast:
+Outfit from the first painted frame; before, system font then swap).
+
+### Added
+- **Kit-hosted fonts** in `fonts/`: Outfit (variable, 400–700) and Space Mono,
+  latin + latin-ext subsets of the Google Fonts builds, with their SIL OFL
+  license texts. `mco-theme.css` declares them (`@font-face`, `url(../fonts/…)`
+  — relative to the stylesheet, so a pinned tag gets that tag's fonts) with
+  `font-display: block`; latin-ext downloads only when a page uses one of its
+  characters.
+- `snippets/head.html`: two `rel="preload"` font lines (latin only) replace the
+  Google Fonts preconnects + stylesheet. `crossorigin` is required; there is
+  deliberately no `integrity` (an `@font-face` fetch carries none, so the
+  preload would never match and the font would download twice).
+- `snippets/anti-flash.html` now also stamps `.is-compact` / `.is-touch` on
+  `<html>`, so CSS keyed on them is right from first paint. `mco-core.js`
+  still stamps and tracks them after load; the query is kept in sync in three
+  places (core, theme §6 comment, snippet).
+- `demo/cdn.html`: a fonts row — `document.fonts.load()` per family against
+  the CDN copy, so the release check proves the fonts propagated.
+- `tools/check-sri.mjs`: every kit URL in README, head snippet and CDN demo
+  must name one version, the same in all three — hashes can't catch a stale
+  `@version` on an unhashed file such as a font preload.
+
+### Changed
+- **The ≤750px `.brand` collapse is scoped to the navbar**
+  (`:where(.mco-navbar) .brand`), so a lockup an app places elsewhere — the top
+  of a compact drawer (mesonet-explorer) — is no longer clipped to 1px.
+  `:where()` keeps specificity at the old bare `.brand`; no consumer puts a
+  `.brand` outside the navbar today, so nothing else moves.
+- `demo/` and `exemplar/` load the kit fonts; the exemplar's CSP is
+  `font-src 'self'` (a real app: `https://cdn.jsdelivr.net`) and its
+  anti-flash hash is recomputed.
+
+### Consumer re-point (0.6.x → 0.7.0) — MIGRATING.md has the checklist
+- CSP: drop `https://fonts.googleapis.com` from `style-src`; `font-src`
+  becomes `https://cdn.jsdelivr.net`.
+- Swap the Google Fonts lines for the two preloads.
+- Replace the inline anti-flash script **and recompute its sha256** — the
+  script changed, so every consumer's hash changes.
+
+### Fixed
+- `tools/consumer-verify.mjs` wrote a 200 header before `readFile` could throw,
+  so any request that 404s **by design** — an app whose API isn't running
+  locally, a probe for an optional asset — killed the whole harness with
+  `ERR_HTTP_HEADERS_SENT`. It reads first now. Found running the harness
+  against the mesonet_app maps, whose station feed lives on a backend the
+  static server doesn't have.
+
+### Notes
+- MIGRATING gained four gotchas from the mesonet_app migration, three of which
+  share one root cause worth naming: **kit-owned is a per-selector fact, not a
+  per-section one.** Deleting a whole CSS block on the assumption the kit
+  replaced it silently dropped app-owned palette tokens, the `.tooltip-line` /
+  `.tooltip-rel` classes, and (via a missing `mco-modal` class) the modal's
+  entire positioning. The fourth: `img-src` cannot be enumerated from the
+  markup, because image URLs that arrive in an API response never appear in
+  the HTML.
 
 ## [0.6.0] — 2026-08-04
 
