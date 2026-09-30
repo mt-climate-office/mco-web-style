@@ -26,12 +26,9 @@ Fonts stylesheet) is gone with the stylesheet.
 - mesonet-explorer additionally deleted its self-hosted `assets/fonts/` and
   its `#sb-brand .brand` un-clip (both the kit's now), and keys its
   first-paint hold on `.is-compact` instead of a duplicated media query.
-- **Follow-up worth a PATCH:** under a throttled connection the kit fonts can
-  land just after first paint; `font-display: block` keeps the text invisible
-  rather than wrong, but invisible text still lays out at the fallback's
-  width, so a navbar item beside the title shifts once Outfit arrives
-  (reproduced on mesonet-status). A metric-matched fallback `@font-face`
-  (`local()` system face + `size-adjust`/`ascent-override`) would remove it.
+- **0.7.1 (same day) added metric-matched fallback faces**, removing the
+  navbar shift when the fonts land after first paint (16.6px → 0.1px;
+  maintenance 11.9px → 5.2px). Re-point per MIGRATING § 0.7.0 → 0.7.1.
 - **Pre-existing, not from 0.7.0:** mco-snowpack-explorer logs ~16
   `[cog] OffscreenCanvas has no rendering context` errors at 390px in both its
   old and new versions.

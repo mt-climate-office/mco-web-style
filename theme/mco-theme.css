@@ -55,6 +55,63 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Metric-matched fallbacks (0.7.1). During the block period text is invisible
+   but still LAID OUT — in the next family in the stack. Plain Arial sets the
+   navbar title ~6% wider and its line box 3px shorter than Outfit, so items
+   beside the title shifted when the webfont landed (seen on mesonet-status
+   under a throttled connection). These faces rescale a local metric-stable
+   font (Arial; Helvetica and Liberation Sans share its metrics) to Outfit's
+   proportions, so the layout reserved during the block period is the one
+   Outfit then fills.
+   - size-adjust: Outfit/Arial advance-width ratio over a corpus of real MCO UI
+     strings, measured in Chrome per weight, because Outfit's advances move
+     with its weight axis and Arial only has 400 and 700.
+   - ascent/descent/line-gap-override: Outfit's own metrics (1.000 / 0.260 /
+     0, Space Mono 1.120 / 0.361 / 0) divided by size-adjust, which scales the
+     overrides too. Line boxes then match exactly (verified: 15px vs 15px,
+     where plain Arial gave 12px).
+   - The ITALIC face is fitted to the one italic string in the house style,
+     the lockup subtitle ("A service of the Montana Climate Office", §1 —
+     every public MCO app carries it),
+     which sets the lockup's width in most apps: 169.3px vs Outfit's 169.4px
+     (letter-spacing excluded from the fit, since size-adjust doesn't scale
+     it). Outfit has no italic, so the real face is a synthesized oblique of
+     the upright — same advances as upright.
+   Line boxes match exactly in every face. Widths: upright text lands within a
+   few percent either way, since no single scale turns Arial's letterforms
+   into Outfit's — uppercase Outfit is ~6% narrower than Arial capitals, so an
+   uppercase title (weight 500) still reserves ~3–5% too much. Measured on
+   all six consumers under a throttled connection (150 ms, 200 KB/s), the
+   navbar item beside the lockup moved 16.6px when Outfit landed with plain
+   Arial and 0.1px with these faces; mesonet-maintenance, whose uppercase
+   title is wider than the subtitle, 11.9px → 5.2px. Space Mono vs Courier
+   New is exact (both monospaced: 0.612em vs 0.600em advance). */
+@font-face {
+  font-family: 'Outfit Fallback'; font-style: normal; font-weight: 400 500;
+  src: local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans');
+  size-adjust: 98.80%; ascent-override: 101.21%; descent-override: 26.32%; line-gap-override: 0.00%;
+}
+@font-face {
+  font-family: 'Outfit Fallback'; font-style: normal; font-weight: 600;
+  src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Liberation Sans Bold');
+  size-adjust: 95.06%; ascent-override: 105.20%; descent-override: 27.35%; line-gap-override: 0.00%;
+}
+@font-face {
+  font-family: 'Outfit Fallback'; font-style: normal; font-weight: 700;
+  src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Liberation Sans Bold');
+  size-adjust: 96.64%; ascent-override: 103.48%; descent-override: 26.90%; line-gap-override: 0.00%;
+}
+@font-face {
+  font-family: 'Outfit Fallback'; font-style: italic; font-weight: 400 500;
+  src: local('Arial Italic'), local('Arial-ItalicMT'), local('Helvetica Oblique'), local('Liberation Sans Italic');
+  size-adjust: 100.58%; ascent-override: 99.42%; descent-override: 25.85%; line-gap-override: 0.00%;
+}
+@font-face {
+  font-family: 'Space Mono Fallback'; font-style: normal; font-weight: 400;
+  src: local('Courier New'), local('CourierNewPSMT'), local('Liberation Mono');
+  size-adjust: 101.98%; ascent-override: 109.83%; descent-override: 35.40%; line-gap-override: 0.00%;
+}
+
 /* ── 1. Design tokens ─────────────────────────────────────────────────────
    Dark is the default theme. `data-theme` on <html> switches; the anti-flash
    snippet (snippets/anti-flash.html) sets it before first paint.
@@ -70,8 +127,8 @@
    so it is a FILL color: use it behind --text-on-accent. For borders, icons,
    or text that must read against a surface, use --accent-line. */
 :root {
-  --font-ui:        'Outfit', system-ui, -apple-system, sans-serif;
-  --font-mono:      'Space Mono', ui-monospace, monospace;
+  --font-ui:        'Outfit', 'Outfit Fallback', system-ui, -apple-system, sans-serif;
+  --font-mono:      'Space Mono', 'Space Mono Fallback', ui-monospace, monospace;
 
   --bg-deep:        #161b22;
   --bg-surface:     #1e2530;

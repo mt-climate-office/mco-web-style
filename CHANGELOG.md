@@ -59,6 +59,41 @@ then re-point as a separate reviewed pass.
   for "don't yank the camera while a station detail is open" and "a sidebar
   toggle IS the user asking to re-fit", which stay app policy.
 
+## [0.7.1] — 2026-09-30
+
+### Fixed
+- **Layout shift when the kit fonts land after first paint.** `font-display:
+  block` (0.7.0) keeps text invisible rather than wrong, but invisible text is
+  still laid out — in plain Arial, which sets the navbar lockup ~6% wider and
+  its line boxes shorter than Outfit. On a throttled connection the navbar
+  item beside the lockup jumped 16.6px when Outfit arrived. `mco-theme.css`
+  now declares metric-matched local fallbacks, **`Outfit Fallback`** (faces
+  for 400–500, 600, 700 and italic) and **`Space Mono Fallback`**: Arial /
+  Helvetica / Liberation Sans and Courier New / Liberation Mono rescaled with
+  `size-adjust` and `ascent-`/`descent-`/`line-gap-override` to Outfit's and
+  Space Mono's metrics. Measured across all six consumers under the same
+  throttle: 16.6px → 0.1px (mesonet-maintenance, whose uppercase title is
+  wider than the subtitle: 11.9px → 5.2px). Line boxes match exactly; the
+  italic face is fitted to the house subtitle, the upright faces to a corpus of
+  real MCO UI strings measured per weight. The same faces are what a reader
+  sees if the webfonts never arrive.
+
+### Changed
+- `--font-ui` / `--font-mono` gain the fallback family second in the stack
+  (`'Outfit', 'Outfit Fallback', system-ui, …`). A PATCH despite touching a
+  token value: nothing renders differently once the webfonts have loaded, and
+  the change only narrows what the invisible block-period text reserves.
+  `tokens/tokens.json` mirrors it.
+
+### Consumer re-point (0.7.0 → 0.7.1)
+- Kit tags `@0.7.0` → `@0.7.1` (font preloads included); only the
+  `mco-theme.css` hash changes. The anti-flash script is unchanged — no CSP
+  hash to recompute.
+- The fallback reaches text styled through the tokens only. CSS that names
+  `'Outfit'` or `'Space Mono'` directly (`font-family: 'Space Mono',
+  monospace`) skips it: switch those to `var(--font-ui)` / `var(--font-mono)`.
+  Canvas `ctx.font` strings can stay — exports draw after the fonts load.
+
 ## [0.7.0] — 2026-09-30
 
 First paint. Every consumer painted its text in the system font and re-set it

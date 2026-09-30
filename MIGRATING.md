@@ -260,6 +260,14 @@ Verify as below, plus: `document.fonts` reports Outfit and Space Mono
 `document.documentElement.classList` has the right `is-compact`/`is-touch`
 before `mco-core.js` runs (block it in the harness to check).
 
+### 0.7.0 → 0.7.1
+
+Tags `@0.7.0` → `@0.7.1` everywhere (the two font preloads too) and the new
+`mco-theme.css` hash; nothing else in `<head>` changes. Then grep the app's
+own CSS for `'Outfit'` / `'Space Mono'` in `font-family`/`font` and switch
+them to `var(--font-ui)` / `var(--font-mono)` — the metric-matched fallback
+only reaches text styled through the tokens.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export and a `charts/` palettes module are known duplication that
