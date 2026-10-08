@@ -355,6 +355,125 @@
     };
   };
 
+  /* ── Notice (0.8.0) ────────────────────────────────────────────────────────
+     A persistent banner that can hold an action: load failures with Retry,
+     data caveats, outages (.mco-notice in mco-theme.css). The toast is for
+     transient status; a notice stays until it is resolved or dismissed.
+
+       var n = MCO.notice({
+         tone: 'danger',                     // info (default) | warning | danger | success
+         text: 'Station data failed to load.',
+         action: { label: 'Retry', onClick: function () { n.close(); load(); } },
+         container: mapWrap, place: 'over',  // float over a map; omit to stay in flow
+         dismissKey: 'mco-explorer-outage-2026-10',  // optional; remembered for the session
+       });
+
+     - The tone word ("Error", "Warning", …) is visible text, so color is
+       never the only channel. Pass toneLabel to change it.
+     - The text is announced through MCO.announce (assertive for danger,
+       polite otherwise) rather than by giving the element a live role: a
+       role=status inserted together with its message is often not read.
+     - dismissible (default true) adds a × button. dismissKey remembers a
+       dismissal in sessionStorage; it must be app-prefixed (mco-<app>-…). A
+       notice already dismissed this session is not shown: the handle's
+       element is null.
+     - Dismissing moves focus to opts.returnFocus or #main when focus was in
+       the notice, so it never falls to <body>.
+     Returns {element, close()}. close() runs opts.onClose. */
+  var NOTICE_TONES = { info: 'Note', warning: 'Warning', danger: 'Error', success: 'Done' };
+  var NOTICE_ICONS = {
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/>',
+    warning: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17v.01"/>',
+    danger: '<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/>',
+    success: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/>',
+  };
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function ssGet(key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } }
+  function ssSet(key, v) { try { sessionStorage.setItem(key, v); } catch (e) {} }
+
+  MCO.notice = function (opts) {
+    opts = opts || {};
+    var tone = NOTICE_TONES[opts.tone] ? opts.tone : 'info';
+    var dismissKey = opts.dismissKey || null;
+    if (dismissKey && !/^mco-[a-z0-9]+(-[a-z0-9]+)*-/.test(dismissKey)) {
+      throw new Error('MCO.notice: dismissKey must be app-prefixed, mco-<app>-…');
+    }
+    if (dismissKey && ssGet(dismissKey) === '1') {
+      return { element: null, close: function () {} };
+    }
+
+    var el = document.createElement('div');
+    el.className = 'mco-notice';
+    el.dataset.tone = tone;
+    if (opts.place === 'over') el.dataset.place = 'over';
+
+    var icon = document.createElementNS(SVG_NS, 'svg');
+    icon.setAttribute('class', 'mco-notice-icon');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('fill', 'none');
+    icon.setAttribute('stroke', 'currentColor');
+    icon.setAttribute('stroke-width', '2');
+    icon.setAttribute('stroke-linecap', 'round');
+    icon.setAttribute('stroke-linejoin', 'round');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = NOTICE_ICONS[tone];     // static, kit-authored markup
+
+    var p = document.createElement('p');
+    p.className = 'mco-notice-text';
+    var word = document.createElement('strong');
+    word.className = 'mco-notice-tone';
+    var toneLabel = opts.toneLabel || NOTICE_TONES[tone];
+    word.textContent = toneLabel;
+    p.append(word, document.createTextNode(String(opts.text || '')));
+    el.append(icon, p);
+
+    if (opts.action) {
+      var actions = document.createElement('div');
+      actions.className = 'mco-notice-actions';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'nav-btn';
+      btn.textContent = opts.action.label;
+      btn.addEventListener('click', opts.action.onClick);
+      actions.appendChild(btn);
+      el.appendChild(actions);
+    }
+
+    var closed = false;
+    function close() {
+      if (closed) return;
+      closed = true;
+      var hadFocus = el.contains(document.activeElement);
+      el.remove();
+      if (hadFocus) {
+        var to = opts.returnFocus || document.getElementById('main');
+        if (to && to.focus) to.focus();
+      }
+      if (opts.onClose) opts.onClose();
+    }
+
+    if (opts.dismissible !== false) {
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'modal-close';
+      x.setAttribute('aria-label', 'Dismiss ' + toneLabel.toLowerCase());
+      x.textContent = '×';
+      x.addEventListener('click', function () {
+        if (dismissKey) ssSet(dismissKey, '1');
+        close();
+      });
+      el.appendChild(x);
+    }
+
+    var host = opts.container || document.getElementById('main') || document.body;
+    host.insertBefore(el, host.firstChild);
+    MCO.announce(toneLabel + ': ' + (opts.text || ''),
+      { politeness: tone === 'danger' ? 'assertive' : 'polite' });
+
+    return { element: el, close: close };
+  };
+
   /* ── Info modal (native <dialog>) ──────────────────────────────────────────
      Opener-captured focus restore (works with multiple openers), backdrop
      click to close, [data-close-modal] delegation for close buttons. */

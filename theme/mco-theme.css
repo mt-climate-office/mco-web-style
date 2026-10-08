@@ -489,6 +489,46 @@ body {
 }
 .mco-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* Notice (0.8.0): the persistent, actionable twin of the toast — a load
+   failure with Retry, a data caveat, an outage. The toast is text-only and
+   pointer-events: none, so it can't hold a button. Built by MCO.notice() or
+   written in markup:
+     <div class="mco-notice" data-tone="warning">
+       <svg class="mco-notice-icon" aria-hidden="true">…</svg>
+       <p class="mco-notice-text"><strong class="mco-notice-tone">Warning</strong> …</p>
+       <div class="mco-notice-actions"><button class="nav-btn">Retry</button></div>
+       <button class="modal-close" aria-label="Dismiss">×</button>
+     </div>
+   data-tone: info (default) | warning | danger | success. The tone WORD is
+   always present (.mco-notice-tone), so color is never the only channel.
+   In flow by default; data-place="over" floats it at the top of the nearest
+   positioned ancestor (a map container) on the --z-map-notice tier.
+   .mco-empty is the same shell with no tone: the empty-state callout. */
+.mco-notice, .mco-empty {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.85rem;
+  background: var(--bg-surface); color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem; line-height: 1.5;
+}
+.mco-notice { border-left: 3px solid var(--notice-edge, var(--accent-line)); }
+.mco-notice-icon { flex-shrink: 0; width: 16px; height: 16px; color: var(--notice-edge, var(--accent-line)); }
+.mco-notice-text { flex: 1; min-width: 0; margin: 0; }
+.mco-notice-tone { font-weight: 600; color: var(--notice-tone, var(--text-primary)); margin-right: 0.35rem; }
+.mco-notice-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.mco-notice-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+.mco-notice[data-tone="danger"]  { --notice-edge: var(--danger);  --notice-tone: var(--danger);  background: var(--danger-fill);  color: var(--text-on-danger); }
+.mco-notice[data-tone="warning"] { --notice-edge: var(--warning); --notice-tone: var(--warning); background: var(--warning-fill); color: var(--text-on-warning); }
+.mco-notice[data-tone="success"] { --notice-edge: var(--success); --notice-tone: var(--success); background: var(--success-fill); color: var(--text-on-success); }
+.mco-notice[data-place="over"], .mco-empty[data-place="over"] {
+  position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: min(34rem, calc(100% - 1.5rem));
+  box-shadow: var(--shadow);
+  z-index: var(--z-map-notice);
+}
+.mco-empty { justify-content: center; text-align: center; padding: 0.9rem 1.1rem; }
+
 /* Pointer-following tooltip. Decorative for AT: keep it aria-hidden and route
    the same content through a live region (see HOUSE-STYLE.md §5). */
 .mco-tooltip {

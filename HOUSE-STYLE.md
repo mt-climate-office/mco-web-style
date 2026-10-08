@@ -250,6 +250,15 @@ sources/layers — re-add them in `map.once('style.load', …)`). Use
 `MCO.initThemeToggle`; it maintains the icon swap and the button's
 `aria-label`.
 
+**Notices** (`MCO.notice`, `.mco-notice`, 0.8.0) for anything that must
+persist or offer an action: a failed load with Retry, a data caveat, an
+outage. `data-tone` is info, warning, danger or success, built on the status
+tokens (§2), and the tone word is always visible text. Over a map, use
+`place: 'over'` (`data-place="over"`), which sits on the `--z-map-notice` tier.
+Never invent a `calc(var(--z-map-notice) + 1)`. `.mco-empty` is the same shell
+for an empty state. `role=alert` semantics (an assertive announcement) are for
+failures only. Dismissal keys are app-prefixed and session-scoped.
+
 **Toasts** (`MCO.showToast`) for transient status, 2800 ms default (canonical —
 three apps had drifted to 2200/2400/2800). Longer explicit per-call durations
 for errors (e.g. 6000 ms) are fine; don't change the default. **Dialogs** are native `<dialog>`
