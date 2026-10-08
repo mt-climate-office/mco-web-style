@@ -12,7 +12,7 @@ different states, and the first one silently forks the tokens.
 
 ---
 
-## Pick up here (state as of 2026-09-30)
+## Pick up here (state as of 2026-10-08)
 
 **All six consumers are on @0.7.1 (first paint + metric-matched fallback
 fonts), deployed and verified live 2026-09-30.** Each followed the MIGRATING.md § "0.6.x → 0.7.0" checklist (tags
@@ -41,30 +41,28 @@ Fonts stylesheet) is gone with the stylesheet.
   snowpack's title is a `<span>`, so nothing is lost today). Reconcile on its
   next pass.
 
-### 1. Cut kit 0.8.0 — the largest piece of work waiting
+### 1. Re-point the six consumers to 0.8.0 (cut 2026-10-08)
 
-Seven items are specified in CHANGELOG § *Planned for 0.8.0*, each already
-approved and each existing byte-identically in 2–3 consumers today. Five are
-absorptions (clean-URL pair, cursor tooltip, search box, legend toggles,
-sr-table) and two are defects the migrations exposed:
+0.8.0 shipped everything that was planned for it, plus the dashboard
+proposals' 0.8.0 set (#1, #2, #8, #12, #15, #16, #19–#21, #24, #30, #32, #35).
+**The urgent half is MapLibre 6**: every map consumer still runs 5.18.0, which
+carries the critical attribution-control XSS (GHSA-jrc7-96c5-q579). Exposure
+is CARTO's attribution strings, so all of them are affected, not only those
+that call `setHTML`. Follow MIGRATING § 0.7.x → 0.8.0: **pass 1** (tags, import
+map, CSP `worker-src blob: https://unpkg.com`, `loadMapLibre`) for all six
+first, then **pass 2** one deletion at a time.
 
-- `installZoomFloor` re-fires mid-animation and snaps the camera when a mobile
-  URL bar shows/hides. **Four shipped consumers carry both weaknesses now**;
-  mesonet-explorer's local version is the reference for the fix.
-- Attribution links fail WCAG 1.4.1 once hillshade adds its credit — which the
-  kit tells every map app to adopt, so all of them inherit it.
+- **maint first in pass 2**: its raw `p.thumb` in a `style=` string is
+  attribute injection from an API response, not a kit-blocked change.
+- **status, maint and umrb** fix a shipped WCAG 1.4.3 failure by moving to
+  `.mco-legend-row` (their `.legend-row.off { opacity }`).
+- **explorer** deletes both 0.8.0-tagged kit-overrides (attribution underline,
+  long-modal header/shade), `#sidebar-scrim`, its local zoom-floor guards, and
+  `color: #fff` on `--accent` (`#scale-apply` → `.nav-btn.is-primary`).
+- Record each app's `tools/conformance.mjs` score before and after.
 
-Doing this means: build the seven, release with regenerated SRI hashes (which
-also sweeps up the stale `mco-mesonet-photos` comment in `core/mco-core.js`
-that has been waiting for a hash regeneration), then re-point six consumers.
-
-**Two live kit-overrides are tagged for deletion when it ships** — both in
-mesonet-explorer: the underlined attribution links, and the long-modal sticky
-header + scroll shade. Grep for `0.8.0` in that repo to find them (retagged
-from `0.7.0` when 0.7.0 shipped without them).
-
-The API design is better placed than when this was deferred: the clean-URL pair
-and the tooltip now have three real call sites to design against, not two.
+Still open from the 0.8.x line: **#27 logo assets**, which waits on brand-owner
+sign-off for a `currentColor` wordmark.
 
 ### 2. Next migrations, in the order I would take them
 

@@ -5,7 +5,7 @@
    Classic script (no ESM, no build, zero dependencies) — load it with a
    pinned, SRI-hashed <script> tag BEFORE your app script; everything lands
    on window.MCO. Extracted from the mesonet-explorer / mesonet-status /
-   mco-mesonet-photos / mco-snowpack-explorer family; canonical behaviors
+   mesonet-photo-explorer / mco-snowpack-explorer family; canonical behaviors
    documented in HOUSE-STYLE.md.
 
    Contents: constants · storage · strings · Mountain-time helpers · fetch ·
@@ -68,7 +68,8 @@
   // Shift a 'YYYY-MM-DD' string by whole days. The noon anchor sidesteps DST
   // edges; the result is formatted from LOCAL getters, not toISOString(), which
   // would re-project to UTC and land a day off for viewers at UTC+13/+14 and
-  // UTC-12 (found in the mco-mesonet-photos migration).
+  // UTC-12 (found in the mesonet-photo-explorer migration, then named
+  // mco-mesonet-photos).
   MCO.shiftDate = function (dateStr, deltaDays) {
     var d = new Date(dateStr + 'T12:00:00');
     d.setDate(d.getDate() + deltaDays);

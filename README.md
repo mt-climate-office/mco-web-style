@@ -12,6 +12,7 @@ files — the same way the apps already load MapLibre.**
 - 🤖 **[AGENTS.md](AGENTS.md)** — guardrails for developers, human or AI (the sideboards)
 - 🗺 **[CONSUMERS.md](CONSUMERS.md)** — which MCO properties use the kit, per-app migration intel
 - 🚚 **[MIGRATING.md](MIGRATING.md)** — the migration playbook (start here when converting an existing app)
+- ✅ **[CONFORMANCE.md](CONFORMANCE.md)** — the per-app checklist; `node tools/conformance.mjs <repo>` scores the automatic half
 - 🧪 **demo/** — a [living demo](demo/index.html) exercising every component (also a CI axe target)
 - 🧭 **exemplar/** — a [complete single-page station map](exemplar/index.html) built the house way; **copy this directory to start a new MCO map app** — but swap its relative kit paths for the pinned + SRI CDN tags from `snippets/head.html` (and add `https://cdn.jsdelivr.net` to its CSP), since the exemplar deliberately loads the kit locally for in-repo development
 
@@ -48,8 +49,8 @@ CSS custom properties, kept in lockstep by CI.
 | File | What | Who needs it |
 |---|---|---|
 | `theme/mco-theme.css` | Tokens (dark / light / high-contrast), z-index ladder, reset + a11y utilities, MapLibre control polish, component shells | every page |
-| `core/mco-core.js` | `window.MCO`: storage, Mountain-time, fetch + promise cache, viewport, toast, theme, live region, modal, collapsible, URL state | every page |
-| `map/mco-map.js` | `window.MCO.map`: Montana bounds, basemap URLs, controls, zoom floor, overlay paints | MapLibre apps |
+| `core/mco-core.js` | `window.MCO`: storage, Mountain-time, fetch + promise cache, viewport, announcer (`announce`) + toast, notice, theme, modal, collapsible, sr-table twin, legend toggles, search combobox + model, URL state (replace / push / restore) | every page |
+| `map/mco-map.js` | `window.MCO.map`: MapLibre 6 loader, Montana bounds, basemap URLs + failure watch, controls, zoom floor, DOM popups, cursor tooltip, hillshade, overlay paints | MapLibre apps |
 | `map/cog-protocol.js` | `cog://` raster protocol (`window.CogProtocol`) | COG raster apps |
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
@@ -57,6 +58,7 @@ CSS custom properties, kept in lockstep by CI.
 | `assets/` | MCO logo (vendored), favicon set, OG card | every page |
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
+| `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
 ## SRI hashes — v0.7.1
 

@@ -275,6 +275,76 @@ own CSS for `'Outfit'` / `'Space Mono'` in `font-family`/`font` and switch
 them to `var(--font-ui)` / `var(--font-mono)` — the metric-matched fallback
 only reaches text styled through the tokens.
 
+## Re-pointing an existing consumer: 0.7.x → 0.8.0
+
+0.8.0 is the largest release yet. It moves to **MapLibre 6** for the
+critical attribution-control XSS (GHSA-jrc7-96c5-q579, fixed only in 6.4.1+),
+and absorbs the code six consumers had each hand-rolled. Do it in two passes,
+as with 0.7.0. **Pass 1 is required and mechanical**; pass 2 deletes local
+copies one feature at a time, each verified on its own. Score the app with
+`node tools/conformance.mjs <repo>` before and after, and record the number in
+CONSUMERS.md.
+
+**Pass 1 — the bump (map apps: also MapLibre 6)**
+1. Kit tags `@0.7.1` → `@0.8.0` everywhere (font preloads too), with the
+   README hashes. Non-map apps stop here and go to pass 2.
+2. Delete the two MapLibre 5 tags (`maplibre-gl@5.x` css + js). From
+   `snippets/head.html` paste the **one-line import map**, the two
+   `modulepreload`s and the 6.11.2 CSS link into `<head>`, before any module
+   script. Copy the import map byte for byte: its CSP hash depends on it.
+3. CSP: add the import map hash
+   `'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI='` to `script-src`,
+   and make `worker-src` **`blob: https://unpkg.com`** (Gotchas).
+4. Map construction waits for the library:
+   `MCO.map.loadMapLibre().then(initMap, onLibraryFail)`. Wire the rest of
+   the UI before it. Code that ran at the top level and touched `maplibregl`
+   moves inside `initMap`. snowpack's `app.js` is an ES module, so it can also
+   `await MCO.map.loadMapLibre()`.
+5. MapLibre 6 behavior changes to check in the app:
+   - WebGL2 is required (`GPUInitializationError` otherwise).
+   - Nested GeoJSON properties now arrive as objects, so a `JSON.parse` of
+     one now throws.
+   - `styleimagemissing` can no longer supply the image; use
+     `map.setMissingStyleImageResolver`.
+   - The `zoomLevelsToOverscale` default changes rendering and
+     `queryRenderedFeatures` results slightly.
+   - `GeoJSONSource.setData` no longer returns the source, so don't chain
+     on it.
+   Grep for each.
+6. Verify (below) with the CSP live: the map must draw its **data**, not just
+   the basemap. A worker blocked by CSP leaves the basemap up and nothing on
+   it.
+
+**Pass 2 — delete what the kit now owns** (each is its own commit + verify)
+- `#sr-announce` + its helpers → `MCO.announce`. Where a toast repeats an
+  announcement: `MCO.showToast(msg, ms, {announce: false})` (snowpack).
+- Hand-built sr tables → `MCO.srTable` (snowpack: its first twin, the HUC
+  zones).
+- Search comboboxes and their ~90 lines of CSS → `MCO.initSearchBox` +
+  `.mco-search` (explorer, status, photos, maint, umrb).
+- Legend rows → `.mco-legend-row` + `MCO.initLegendToggles`. This **fixes
+  the 1.4.3 legend failure in status, maint and umrb** (`.legend-row.off {
+  opacity }`).
+- Tooltip dispatchers → `MCO.map.initCursorTooltip`.
+- `osTheme` / `atDefaultExtent` → `MCO.osTheme` /
+  `MCO.map.cameraParamsIfDefault`. Rename `pushState()` wrappers to what
+  they are (`writeUrl`), and use `MCO.pushUrlState` for station-open
+  drill-down (HOUSE-STYLE §4).
+- Every map: `MCO.map.watchBasemap(map)`, and re-add layers on every
+  `style.load`, not once.
+- Popup `setHTML` → `popup.setDOMContent(MCO.map.popupContent(…))`. Delete
+  the local popup-shell CSS (status's `!important` block; maint and umrb's
+  identical blocks). **maint: fix the raw `p.thumb` in a `style=` string
+  first.** It is attribute injection from an API response.
+- `--c-warn` / `--warn-bg` → `--warning` / `--warning-fill`. `#data-banner` /
+  error cards → `MCO.notice` / `.mco-empty` (maint, umrb, explorer).
+- `color: #fff` on `--accent` → `.nav-btn.is-primary` (explorer `#scale-apply`).
+- explorer: `#sidebar-scrim` → `.mco-scrim[data-scope="container"]`. Also
+  delete the two 0.8.0-tagged kit-overrides: attribution underline and
+  long-modal header/shade.
+- A local copy of `installZoomFloor`'s guards (explorer) → the kit's; app
+  policy moves into `onBeforeSnap`.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export and a `charts/` palettes module are known duplication that
