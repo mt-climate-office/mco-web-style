@@ -262,6 +262,13 @@
   MCO.getTheme = function () {
     return document.documentElement.dataset.theme || 'dark';
   };
+  // The theme a visitor with no saved or URL choice gets: the OS preference,
+  // as the anti-flash snippet resolves it. Compare against it to keep a
+  // default theme out of the URL — write ?theme= only when the current theme
+  // differs (0.8.0; was identical copies in three consumers).
+  MCO.osTheme = function () {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
   MCO.setTheme = function (theme, opts) {
     document.documentElement.dataset.theme = theme;
     if (!opts || opts.persist !== false) MCO.lsSet(MCO.THEME_KEY, theme);
@@ -643,7 +650,11 @@
   /* ── URL state ─────────────────────────────────────────────────────────────
      Convention (HOUSE-STYLE.md §4): read once at boot with precedence
      URL param > localStorage > default, validating every value; mirror state
-     back with replaceUrlState() on every mutation and map moveend. */
+     back on every mutation and map moveend. Two writers (0.8.0):
+       replaceUrlState — view adjustments: camera, filters, theme, date.
+       pushUrlState    — drill-down, where Back should undo: a station detail
+                         opening from a "no detail" state, a section switch.
+     onUrlState(fn) is the read side for Back/Forward. */
 
   MCO.urlParams = function () { return new URLSearchParams(location.search); };
 
@@ -658,11 +669,58 @@
       : raw.split(/[,\s]+/).filter(Boolean).map(function (s) { return s.toLowerCase(); });
   };
 
-  // Mirror state into the query string without touching history. Emits a
-  // clean pathname (no '?') when params is empty so an all-defaults view has
-  // a tidy URL.
-  MCO.replaceUrlState = function (params) {
+  // The URL for params: a clean pathname (no '?') when params is empty, so an
+  // all-defaults view has a tidy URL. keepHash carries the current #fragment
+  // over (a tab kept in the hash); without it the hash is dropped, as before
+  // 0.8.0 — the default flips to keeping it in 1.0.0.
+  function urlFor(params, opts) {
     var qs = new URLSearchParams(params).toString();
-    history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+    return location.pathname + (qs ? '?' + qs : '') + (opts && opts.keepHash ? location.hash : '');
+  }
+
+  // Mirror state into the query string without adding a history entry.
+  // history.state is kept (0.8.0; it used to be nulled), so a replace while a
+  // pushed detail is open doesn't erase what pushUrlState stored. Pass
+  // {state} to set it.
+  MCO.replaceUrlState = function (params, opts) {
+    var state = opts && 'state' in opts ? opts.state : history.state;
+    history.replaceState(state, '', urlFor(params, opts));
+  };
+
+  // A new history entry, so Back undoes it (0.8.0). For drill-down only: push
+  // on the FIRST step from a "no detail" state and replace while the detail
+  // stays open, or every station click floods the history (§4). {state} is
+  // stored on the entry — mark it ({mcoDetail: id}) so a close button can
+  // tell it may history.back() instead of leaving a dead entry behind.
+  MCO.pushUrlState = function (params, opts) {
+    history.pushState(opts && 'state' in opts ? opts.state : null, '', urlFor(params, opts));
+  };
+
+  // Back/Forward: fn(URLSearchParams, hash, state) whenever the URL changes
+  // under the app — popstate, and hashchange for a hand-edited fragment. One
+  // navigation fires both events in some browsers; fn runs once per distinct
+  // URL. The app re-applies its state from the params, closes or opens its
+  // detail, and announces the restored view (§5.1). Note the skip link
+  // changes the hash to #main: ignore hashes that aren't yours. Returns an
+  // unsubscribe function.
+  MCO.onUrlState = function (fn) {
+    // A fragment navigation fires popstate, then hashchange, for one URL:
+    // remember what popstate delivered and skip only that paired hashchange.
+    var popped = null;
+    function deliver() {
+      fn(new URLSearchParams(location.search), location.hash, history.state);
+    }
+    function onPop() { popped = location.href; deliver(); }
+    function onHash() {
+      var paired = popped === location.href;
+      popped = null;
+      if (!paired) deliver();
+    }
+    window.addEventListener('popstate', onPop);
+    window.addEventListener('hashchange', onHash);
+    return function () {
+      window.removeEventListener('popstate', onPop);
+      window.removeEventListener('hashchange', onHash);
+    };
   };
 })();

@@ -200,7 +200,11 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
 
   /* ── Station detail card (docked panel, not <dialog> — see index.html) ─── */
 
-  function openStation(id, { fly = false } = {}) {
+  // url: 'auto' pushes the first open from "no detail" and replaces after
+  // that; 'replace' for a deep link at boot (its entry is the page's own, so
+  // closing must never history.back() off the site); 'none' when Back/Forward
+  // already moved the URL.
+  function openStation(id, { fly = false, url = 'auto' } = {}) {
     const s = stationById.get(id);
     if (!s) return;
     selectedId = id;
@@ -220,15 +224,19 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
 
     map.getLayer('stations-selected') &&
       map.setFilter('stations-selected', ['==', ['get', 'id'], id]);
+    // Drill-down: the first open from "no detail" gets its own history entry,
+    // so Back closes it; switching stations while one is open replaces — §4.
+    if (url === 'auto' && !(history.state && history.state.mcoDetail)) writeUrl({ push: true });
+    else if (url !== 'none') writeUrl();
     if (fly) {
       // Camera animation gated on the LIVE reduced-motion flag — §5.3
       map.flyTo({ center: [s.longitude, s.latitude], zoom: Math.max(map.getZoom(), 8),
                   animate: !MCO.reducedMotion() });
     }
-    pushState();
   }
 
-  function closeCard() {
+  // fromHistory: Back/Forward already moved the URL; just reflect it.
+  function closeCard({ fromHistory = false } = {}) {
     if (card.hidden) return;
     card.hidden = true;
     selectedId = null;
@@ -236,9 +244,14 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
       map.setFilter('stations-selected', ['==', ['get', 'id'], '']);
     if (_cardOpener && _cardOpener.focus) _cardOpener.focus();  // restore — §5.12
     _cardOpener = null;
-    pushState();
+    live.announce('Station closed.');
+    if (fromHistory) return;
+    // Our own pushed entry: step back off it rather than leave a dead entry
+    // that would re-open the card on Back — §4.
+    if (history.state && history.state.mcoDetail) history.back();
+    else writeUrl();
   }
-  document.getElementById('card-close').addEventListener('click', closeCard);
+  document.getElementById('card-close').addEventListener('click', () => closeCard());
   document.addEventListener('keydown', (e) => {
     // Esc is always live (no opt-out needed: it's not a printable-key
     // shortcut, so WCAG 2.1.4 / §5.9 doesn't apply).
@@ -247,18 +260,32 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
 
   /* ── URL state (§4): mirror every mutation; clean URL at defaults ──────── */
 
-  function pushState() {
+  // replaceUrlState for view adjustments; {push: true} for the drill-down
+  // that opens the station card. Defaults are elided so the default view has
+  // no query string at all.
+  function writeUrl({ push = false } = {}) {
     const p = {};
     if (activeNets.size !== NETS.length) {
       p.net = [...activeNets].map((n) => n.toLowerCase()).join(' ');
     }
     if (selectedId) p.station = selectedId;
     const theme = MCO.getTheme();
-    if (theme) p.theme = theme;
-    Object.assign(p, MCO.map.cameraParams(map));
-    MCO.replaceUrlState(p);
+    if (theme !== MCO.osTheme()) p.theme = theme;
+    Object.assign(p, MCO.map.cameraParamsIfDefault(map));
+    if (push) MCO.pushUrlState(p, { state: { mcoDetail: selectedId } });
+    else MCO.replaceUrlState(p);
   }
-  map.on('moveend', pushState);
+  map.on('moveend', () => writeUrl());
+
+  // Back/Forward: the station param is the only drill-down state — §4.
+  MCO.onUrlState((p) => {
+    const id = p.get('station');
+    if (id && stationById.has(id)) {
+      if (id !== selectedId) openStation(id, { url: 'none' });
+    } else {
+      closeCard({ fromHistory: true });
+    }
+  });
 
   /* ── Network filter chips (§5.7: aria-pressed drives the styling) ──────── */
 
@@ -279,7 +306,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
       MCO.lsSet(LS_NETS, JSON.stringify([...activeNets]));
       if (selectedId && !activeNets.has(stationById.get(selectedId)?.sub_network)) closeCard();
       render();
-      pushState();
+      writeUrl();
     });
   });
 
@@ -326,7 +353,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     onChange: () => {
       map.setStyle(MCO.map.cartoStyleUrl());
       map.once('style.load', () => { addCustomLayers(); render(); });
-      pushState();
+      writeUrl();
     },
   });
 
@@ -403,7 +430,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
 
       // Deep-linked station — validated against real data before use (§4).
       if (selectedId && stationById.has(selectedId)) {
-        openStation(selectedId, { fly: !params.has('lng') });
+        openStation(selectedId, { fly: !params.has('lng'), url: 'replace' });
       } else {
         selectedId = null;
       }

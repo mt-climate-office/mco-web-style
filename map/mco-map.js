@@ -122,6 +122,32 @@
     };
   };
 
+  // The clean-URL half (0.8.0): cameraParams(map), or {} when the camera is
+  // where a fresh load would put it — so a default view writes no lng/lat/zoom
+  // at all. "Where a fresh load would put it" is cameraForBounds(bounds,
+  // fitOpts): the same answer fitBounds acts on, so it stays right as the
+  // container resizes (a collapsed sidebar means a wider map and a different
+  // fit). Pass the SAME bounds/fitOpts as initialCamera and the fit control.
+  // Tolerance: 0.02 zoom, 0.01° — under the URL's own precision.
+  // Was atDefaultExtent(), copied into three consumers.
+  M.cameraParamsIfDefault = function (map, opts) {
+    opts = opts || {};
+    var bounds = opts.bounds || M.MT_FIT_BOUNDS;
+    var fitOpts = opts.fitOpts || M.FIT_OPTS;
+    var fo = typeof fitOpts === 'function' ? fitOpts() : fitOpts;
+    var want = null;
+    try { want = map.cameraForBounds(bounds, fo); } catch (e) {}
+    if (want) {
+      var wc = maplibregl.LngLat.convert(want.center);
+      var c = map.getCenter();
+      if (Math.abs(map.getZoom() - want.zoom) < 0.02 &&
+          Math.abs(c.lng - wc.lng) < 0.01 && Math.abs(c.lat - wc.lat) < 0.01) {
+        return {};
+      }
+    }
+    return M.cameraParams(map);
+  };
+
   /* ── Controls ──────────────────────────────────────────────────────────── */
 
   // House default: zoom buttons, no compass (rotation is off in these apps;

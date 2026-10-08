@@ -236,10 +236,32 @@ fixed in v0.5.0.
 **URL is the primary state.** Read once at boot with precedence
 **URL param > localStorage > default**, validating every value against a
 whitelist (helpers: `MCO.getParamLower`, `MCO.splitTokens`). Mirror state back
-with `MCO.replaceUrlState()` on every mutation and on map `moveend`
-(`MCO.map.cameraParams` for the canonical precision). All-defaults views emit a
-clean URL. Share buttons copy `location.href` — the URL must already be the
-complete view.
+on every mutation and on map `moveend`. Share buttons copy `location.href`, so
+the URL must already be the complete view.
+
+**Replace vs push** (0.8.0):
+- **`MCO.replaceUrlState(params)`** is for *view adjustments*: camera,
+  filters, theme, variable, date scrubbing.
+- **`MCO.pushUrlState(params, {state})`** is for *drill-down*, where a user
+  expects Back to undo it: opening a station detail or sheet, switching a
+  top-level section, opening a shareable gallery item. Push only on the
+  **first** step from a "no detail" state, and replace while the detail stays
+  open. Pushing on every station click floods the history.
+- **Back closes the detail.** It does not re-open the previous station's
+  camera. A close button on a pushed detail calls `history.back()` (mark the
+  entry with `{state: {mcoDetail: id}}` so it can tell), and
+  `MCO.onUrlState(fn)` applies the result. On Back/Forward the app announces
+  the restored view (“Station closed”, “Ag tab”, §5.1) and moves focus to the
+  restored surface's heading, or to `#main`.
+- Name app wrappers for what they do (`writeUrl`). Three apps called a
+  `replaceUrlState` wrapper `pushState`, which is now a different thing.
+- **Clean URLs:** an all-defaults view has no query string. Write the camera
+  with `MCO.map.cameraParamsIfDefault(map)` (it returns `{}` at the default
+  extent) and `theme` only when it differs from `MCO.osTheme()`.
+- Write the URL at most once per task. A hash that carries state (a tab) needs
+  `{keepHash: true}` on both writers until 1.0.0 makes it the default.
+- `?kbd=off` is re-emitted by both writers and stays out of share links
+  (§5.9).
 
 **localStorage namespace.** `mco-theme` is deliberately shared org-wide on an
 origin — a theme choice follows the user between apps. Everything else is
