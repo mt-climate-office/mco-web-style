@@ -313,9 +313,18 @@ themes.
    A toast is itself `role=status`. When the same words already went through
    `MCO.announce`, show the toast with `MCO.showToast(msg, ms, {announce:
    false})` or screen readers hear it twice.
-2. **Hidden-table twin.** Every canvas/WebGL data layer has an `.sr-only`
-   `<table>` rebuilt per render, with `scope`d headers and textual state
-   (“no data”, “(stale)”). *(mesonet-explorer `#sr-station-table` — best in family)*
+2. **Hidden-table twin.** Every canvas/WebGL data layer has a hidden table
+   rebuilt per render from the same features the canvas drew, with a caption,
+   `scope`d headers, a row-header column and textual state (“no data”,
+   “(stale)”). Build it with **`MCO.srTable`** (0.8.0). It puts `.sr-only` on a
+   wrapping `div` (a `<table>` ignores `height: 1px`), uses textContent
+   only, caps at 500 rows with a closing “…and N more” row, and rebuilds only
+   when the rows change. `selectable: true` makes the twin the map's keyboard
+   route: one Tab stop, arrows/Home/End, Enter selects, `aria-current` on the
+   selection *(the dashboard's map twin)*. Give the canvas an `aria-label`
+   ending “The data is in the table that follows.” Never wire the table to a
+   live region: announcements say what changed (rule 1), and the table is
+   what is there.
 3. **Reduced motion, two layers.** The CSS blanket comes with the kit; JS
    camera moves and paced reveals gate on `MCO.reducedMotion()` — which is
    live, not a boot snapshot.

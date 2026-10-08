@@ -199,7 +199,7 @@
 
 <main id="main" tabindex="-1">
   <!-- role=application + label on the map container — §7 -->
-  <div id="map" role="application" aria-label="Map of Montana Mesonet stations"></div>
+  <div id="map" role="application" aria-label="Map of Montana Mesonet stations. The data is in the table that follows."></div>
 
   <p id="app-note" role="status" hidden></p>
 
@@ -240,10 +240,9 @@
   </div>
 </main>
 
-<!-- Screen-reader table twin of the WebGL layer, rebuilt per render — §5.2 -->
-<section class="sr-only" aria-label="Station data">
-  <table id="sr-station-table"></table>
-</section>
+<!-- Screen-reader table twin of the WebGL layer: MCO.srTable builds it in
+     here (its own .sr-only wrapper), rebuilt per render — §5.2 -->
+<section id="sr-twin" aria-label="Station data"></section>
 
 <!-- Pointer tooltip is decorative (aria-hidden); the live region + table twin
      carry the same information for AT — §5.8 -->

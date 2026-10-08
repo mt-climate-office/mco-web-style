@@ -58,7 +58,22 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
   const selectEl = document.getElementById('station-select');
   const tooltip = document.getElementById('tooltip');
   const card = document.getElementById('station-card');
-  const srTable = document.getElementById('sr-station-table');
+  // Selectable twin: one Tab stop, arrows move, Enter opens the station —
+  // a keyboard route to every dot on the map (§5.2, §5.8).
+  const srTable = MCO.srTable({
+    container: document.getElementById('sr-twin'),
+    caption: 'Montana Mesonet stations currently shown on the map',
+    rowKey: (s) => s.station,
+    columns: [
+      { label: 'Station', rowHeader: true, value: (s) => `${s.name} (${s.station})` },
+      { label: 'Network', key: 'sub_network' },
+      { label: 'County', key: 'county' },
+      { label: 'Elevation', value: (s) => `${Math.round(s.elevation)} m` },
+      { label: 'Installed', value: (s) => (s.date_installed ? MCO.formatDateMT(s.date_installed) : '') },
+    ],
+    selectable: true,
+    onSelect: (s) => openStation(s.station, { fly: true }),
+  });
   let _cardOpener = null;
 
   // The page's one announcer, for everything a sighted user learns from the
@@ -180,25 +195,9 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     }
     countStamp.textContent = `${visible.length} stations`;
 
-    renderSRTable(visible);
+    srTable.render(visible, { selected: selectedId });
     // Announce what the canvas now shows — §5.1
     live.announce(`${visible.length} stations shown: ${[...activeNets].join(' and ') || 'none'}.`);
-  }
-
-  // Hidden-table twin of the WebGL layer, rebuilt each render — §5.2
-  function renderSRTable(visible) {
-    const rows = visible.map((s) =>
-      `<tr><th scope="row">${MCO.escapeHTML(s.name)} (${MCO.escapeHTML(s.station)})</th>` +
-      `<td>${MCO.escapeHTML(s.sub_network)}</td>` +
-      `<td>${MCO.escapeHTML(s.county || '—')}</td>` +
-      `<td>${Math.round(s.elevation)} m</td>` +
-      `<td>${s.date_installed ? MCO.formatDateMT(s.date_installed) : '—'}</td></tr>`).join('');
-    srTable.innerHTML =
-      '<caption>Montana Mesonet stations currently shown on the map</caption>' +
-      '<thead><tr><th scope="col">Station</th><th scope="col">Network</th>' +
-      '<th scope="col">County</th><th scope="col">Elevation</th>' +
-      '<th scope="col">Installed</th></tr></thead>' +
-      `<tbody>${rows}</tbody>`;
   }
 
   /* ── Station detail card (docked panel, not <dialog> — see index.html) ─── */
@@ -227,6 +226,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
 
     map.getLayer('stations-selected') &&
       map.setFilter('stations-selected', ['==', ['get', 'id'], id]);
+    srTable.render(visibleStations(), { selected: id });
     // Drill-down: the first open from "no detail" gets its own history entry,
     // so Back closes it; switching stations while one is open replaces — §4.
     if (url === 'auto' && !(history.state && history.state.mcoDetail)) writeUrl({ push: true });

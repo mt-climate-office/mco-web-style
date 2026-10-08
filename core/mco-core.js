@@ -483,6 +483,163 @@
     return { element: el, close: close };
   };
 
+  /* ── Hidden-table twin (0.8.0) ─────────────────────────────────────────────
+     The screen-reader twin of a canvas or WebGL layer (HOUSE-STYLE §5.2): one
+     row per drawn feature, rebuilt from the same features the canvas drew,
+     never wired to a live region (MCO.announce says what changed; the table
+     is what's there).
+
+       var twin = MCO.srTable({
+         container: mapFrame,                 // the kit adds <div class="sr-only"><table>
+         caption: 'Stations shown on the map',
+         columns: [{ key: 'name', label: 'Station', rowHeader: true },
+                   { key: 'net', label: 'Network' }],
+         maxRows: 500, overflowText: function (n) { return '…and ' + n + ' more rows; download for the full data.'; },
+         rowKey: function (row) { return row.id; },   // default row.id
+         selectable: false,   // true → each row header is a button: one Tab stop
+                              // (roving tabindex), arrows/Home/End move, Enter
+                              // selects (onSelect), focus previews (onFocus),
+                              // aria-current marks the selection
+       });
+       twin.render(rows, { selected: id });
+
+     - The wrapper div carries .sr-only, not the <table>: a table ignores
+       height: 1px, so .sr-only on it leaks a visible sliver.
+     - Cells take textContent only. A column's value is row[key], or
+       column.value(row); null or '' reads as "—".
+     - render() rebuilds the rows only when the set of row keys (or a
+       non-selectable row's content) changes, so focus survives a selection.
+     - The caption ends with the row count.
+     - Pair the canvas with role="img" (or role="application" for a map) and
+       an aria-label ending "…The data is in the table that follows."
+     Returns {element, render}. */
+  MCO.srTable = function (opts) {
+    var columns = opts.columns || [];
+    var maxRows = opts.maxRows || 500;
+    var overflowText = opts.overflowText || function (n) {
+      return '…and ' + n + ' more ' + (n === 1 ? 'row' : 'rows') + '.';
+    };
+    var rowKey = opts.rowKey || function (r) { return r.id; };
+    var selectable = opts.selectable === true;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'sr-only';
+    var table = document.createElement('table');
+    var caption = document.createElement('caption');
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    columns.forEach(function (c) {
+      var th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = c.label;
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    var tbody = document.createElement('tbody');
+    table.append(caption, thead, tbody);
+    wrap.appendChild(table);
+    (opts.container || document.getElementById('main') || document.body).appendChild(wrap);
+
+    var shown = null;       // signature of the rendered set
+    var rowsByKey = new Map();
+
+    function text(c, row) {
+      var v = c.value ? c.value(row) : row[c.key];
+      return v == null || v === '' ? '—' : String(v);
+    }
+    function buttons() { return Array.prototype.slice.call(tbody.querySelectorAll('button[data-key]')); }
+    function setRoving(selected) {
+      var all = buttons();
+      var current = all.filter(function (b) { return b.dataset.key === selected; })[0] || all[0];
+      all.forEach(function (b) {
+        b.tabIndex = b === current ? 0 : -1;
+        if (selected != null && b.dataset.key === selected) b.setAttribute('aria-current', 'true');
+        else b.removeAttribute('aria-current');
+      });
+    }
+
+    if (selectable) {
+      tbody.addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-key]');
+        if (b && opts.onSelect) opts.onSelect(rowsByKey.get(b.dataset.key));
+      });
+      tbody.addEventListener('focusin', function (e) {
+        var b = e.target.closest('button[data-key]');
+        if (b && opts.onFocus) opts.onFocus(rowsByKey.get(b.dataset.key));
+      });
+      table.addEventListener('focusout', function (e) {
+        if (!table.contains(e.relatedTarget) && opts.onFocus) opts.onFocus(null);
+      });
+      tbody.addEventListener('keydown', function (e) {
+        var all = buttons();
+        var i = all.indexOf(document.activeElement);
+        if (i < 0) return;
+        var to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: all.length - 1 }[e.key];
+        if (to === undefined) return;
+        e.preventDefault();
+        var next = all[Math.max(0, Math.min(all.length - 1, to))];
+        all.forEach(function (b) { b.tabIndex = b === next ? 0 : -1; });
+        next.focus();
+      });
+    }
+
+    function render(rows, o) {
+      rows = rows || [];
+      var selected = o && o.selected != null ? String(o.selected) : null;
+      caption.textContent = (opts.caption || 'Data shown') + ' (' + rows.length + ')';
+      var kept = rows.slice(0, maxRows);
+      // Selectable twins key on row identity alone (focus must survive);
+      // read-only twins also notice content changes (a value that updated).
+      var sig = kept.map(function (r) {
+        return selectable ? String(rowKey(r)) : columns.map(function (c) { return text(c, r); }).join('\u0001');
+      }).join('\u0002') + '\u0003' + rows.length;
+      if (sig !== shown) {
+        shown = sig;
+        var active = document.activeElement;
+        var focusedKey = active && table.contains(active) ? active.dataset.key : undefined;
+        rowsByKey = new Map();
+        var trs = kept.map(function (r) {
+          var key = String(rowKey(r));
+          rowsByKey.set(key, r);
+          var tr = document.createElement('tr');
+          columns.forEach(function (c) {
+            var cell = document.createElement(c.rowHeader ? 'th' : 'td');
+            if (c.rowHeader) cell.scope = 'row';
+            if (selectable && c.rowHeader) {
+              var b = document.createElement('button');
+              b.type = 'button';
+              b.dataset.key = key;
+              b.textContent = text(c, r);
+              cell.appendChild(b);
+            } else {
+              cell.textContent = text(c, r);
+            }
+            tr.appendChild(cell);
+          });
+          return tr;
+        });
+        if (rows.length > kept.length) {
+          var more = document.createElement('tr');
+          var td = document.createElement('td');
+          td.colSpan = columns.length;
+          td.textContent = overflowText(rows.length - kept.length);
+          more.appendChild(td);
+          trs.push(more);
+        }
+        tbody.replaceChildren.apply(tbody, trs);
+        if (selectable && focusedKey !== undefined) {
+          var again = buttons().filter(function (b) { return b.dataset.key === focusedKey; })[0];
+          // Removing the focused button fires no focusout in Chrome.
+          if (again) again.focus();
+          else if (opts.onFocus) opts.onFocus(null);
+        }
+      }
+      if (selectable) setRoving(selected);
+    }
+
+    return { element: wrap, render: render };
+  };
+
   /* ── Info modal (native <dialog>) ──────────────────────────────────────────
      Opener-captured focus restore (works with multiple openers), backdrop
      click to close, [data-close-modal] delegation for close buttons. */
