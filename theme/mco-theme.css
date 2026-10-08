@@ -755,6 +755,64 @@ body {
 .mco-legend-row[aria-pressed="false"] .mco-legend-label { text-decoration: line-through; text-decoration-thickness: 1px; }
 @media (hover: none) { .mco-legend-row { min-height: 40px; } }
 
+/* Search combobox (0.8.0) — MCO.initSearchBox. Field, icon and listbox are
+   the kit's now; five apps carried ~90 lines each of this, plus the same
+   search-icon data URI stroked in a banned drift value (%237a8190). The icon
+   is a CSS mask, so it takes currentColor (--text-dim) in every theme.
+     .mco-search > .mco-search-icon + input.mco-search-input + .mco-search-list
+   The active option is marked by an inset --accent-line bar as well as the
+   tint, the current one by ✓ (alt text empty, so it isn't read), so neither
+   is color alone. The list sits on the --z-flyout tier. */
+.mco-search { position: relative; display: inline-flex; align-items: center; }
+.mco-search-icon {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  width: 14px; height: 14px; pointer-events: none;
+  color: var(--text-dim); background: currentColor;
+  -webkit-mask: var(--mco-search-glyph) center / contain no-repeat;
+          mask: var(--mco-search-glyph) center / contain no-repeat;
+  --mco-search-glyph: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='m20 20-3.6-3.6'/></svg>");
+}
+.mco-search-input {
+  background-color: var(--input-bg); color: var(--text-primary);
+  border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
+  height: 32px; width: 220px; max-width: 100%;
+  padding: 0 10px 0 29px;
+  font: inherit; font-size: 0.82rem;
+  transition: border-color var(--transition);
+}
+.mco-search-input:hover { border-color: var(--accent-line); }
+.mco-search-input::placeholder { color: var(--text-dim); opacity: 1; }
+.mco-search-list {
+  position: absolute; top: calc(100% + 4px); left: 0;
+  min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 1.5rem));
+  max-height: min(340px, 60vh); overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow);
+  z-index: var(--z-flyout);
+}
+.mco-search-group {
+  padding: 6px 8px 2px;
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.mco-search-option {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
+  min-height: 32px; padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem; color: var(--text-primary); cursor: pointer;
+}
+.mco-search-option:hover { background: var(--accent-hover); }
+.mco-search-option[aria-selected="true"] { background: var(--accent-hover); box-shadow: inset 3px 0 0 var(--accent-line); }
+.mco-search-option.is-current { font-weight: 600; }
+.mco-search-option.is-current > :first-child::before { content: "\2713\00a0"; content: "\2713\00a0" / ""; }
+.mco-search-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
+.mco-search-note { padding: 6px 8px; font-size: 0.75rem; color: var(--text-secondary); cursor: default; }
+@media (hover: none) {
+  .mco-search-input { min-height: 40px; }
+  .mco-search-option { min-height: 40px; align-items: center; }
+}
+
 /* Collapsible search (MCO.initSearchCollapse) ───────────────────────────────
    At compact widths a navbar search field costs more width than it earns, but
    hiding it strands the only keyboard route to a named feature. Instead it
@@ -769,10 +827,11 @@ body {
    (mesonet-status) still wrapped to a third row between 461 and 527px, and the
    wrap point drifted with live data in the labels.
 
-   The kit owns only the COLLAPSE mechanics; the field itself stays app-owned
-   (the search combobox is deliberately not in the kit). Add .mco-search-collapse
-   to your existing search wrapper and .mco-search-toggle to the button:
-     <div class="search-wrap mco-search-collapse" id="search-wrap"> … </div>
+   This is the COLLAPSE mechanics only; the field is .mco-search +
+   MCO.initSearchBox above (0.8.0), or still an app's own. Add
+   .mco-search-collapse to the search wrapper and .mco-search-toggle to the
+   button:
+     <div class="mco-search mco-search-collapse" id="search-wrap"> … </div>
      <button class="nav-btn icon-only mco-search-toggle"
              aria-expanded="false" aria-controls="search-wrap"> … </button>
    Inner selectors are generic on purpose (input[type=search], kbd), so this
@@ -803,6 +862,8 @@ body {
   /* A "press /" hint is a physical-keyboard affordance; in the overlay it would
      sit on top of the text being typed. */
   .mco-navbar .mco-search-collapse.is-open kbd { display: none; }
+  /* The overlay's padding moves the field in; the kit icon follows it. */
+  .mco-navbar .mco-search-collapse.is-open .mco-search-icon { left: calc(max(0.75rem, env(safe-area-inset-left)) + 9px); }
 }
 
 /* Scrim behind off-canvas drawers on compact viewports. Pair with a panel at

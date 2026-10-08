@@ -74,8 +74,6 @@
       border: 1px dashed var(--ctrl-border); border-radius: var(--radius-md);
       padding: 1.2rem; text-align: center; font-size: 0.85rem; color: var(--text-muted);
     }
-    /* Search field styling is APP-owned (the combobox is deliberately not in
-       the kit) — this is the minimum needed to exercise .mco-search-collapse. */
     .control-group { display: flex; align-items: center; gap: 0.3rem; }
     .control-label {
       font-size: 0.7rem; font-weight: 500; letter-spacing: 0.05em;
@@ -86,14 +84,8 @@
       border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
       height: 32px; padding: 0 0.5rem; font: inherit; font-size: 0.78rem;
     }
-    .search-wrap { position: relative; display: inline-flex; align-items: center; }
-    .search-wrap input[type="search"] {
-      background-color: var(--input-bg); color: var(--text-primary);
-      border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
-      height: 32px; width: 200px; max-width: 100%; padding: 0 30px 0 10px;
-      font: inherit; font-size: 0.82rem;
-    }
-    .search-wrap input[type="search"]:hover { border-color: var(--accent-line); }
+    /* The "/" hint is app-owned; field, icon and list are the kit's .mco-search. */
+    .mco-search .mco-search-input { padding-right: 30px; }
     .search-kbd {
       position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
       font: 600 0.62rem var(--font-mono);
@@ -101,7 +93,6 @@
       border-radius: 3px; padding: 1px 5px; color: var(--text-muted);
       pointer-events: none;
     }
-    @media (hover: none) { .search-wrap input[type="search"] { min-height: 40px; } }
     #vp-status, #map-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); }
     footer { margin-top: 3rem; font-size: 0.75rem; color: var(--text-dim); }
     footer a { color: var(--accent-line); }
@@ -123,13 +114,15 @@
   </div>
 
   <div class="controls">
-    <!-- Collapsible search: below 460px this collapses into .mco-search-toggle
-         below and reopens as an overlay bar (MCO.initSearchCollapse). The field
-         itself is app-owned; only the collapse is the kit's. -->
-    <div class="search-wrap mco-search-collapse" id="search-wrap">
-      <label for="demo-search" class="sr-only">Search (demo)</label>
-      <input type="search" id="demo-search" placeholder="Search…" autocomplete="off">
+    <!-- Search combobox (MCO.initSearchBox) over the 56 counties. Below 640px
+         it collapses into .mco-search-toggle and reopens as an overlay bar
+         (MCO.initSearchCollapse). -->
+    <div class="mco-search mco-search-collapse" id="search-wrap">
+      <span class="mco-search-icon" aria-hidden="true"></span>
+      <label for="demo-search" class="sr-only">Search counties</label>
+      <input type="search" id="demo-search" class="mco-search-input" placeholder="Search counties…">
       <kbd class="search-kbd" aria-hidden="true">/</kbd>
+      <div class="mco-search-list" id="demo-search-list" hidden></div>
     </div>
 
     <!-- A .control-label naming a real control: coverage for the ≤1400px label
@@ -582,17 +575,48 @@
   });
   syncSegs();
 
-  // Collapsible search (MCO.initSearchCollapse) — narrow the window below
-  // 460px and the field becomes the magnifier button in .nav-meta.
+  // Search combobox (MCO.initSearchBox) over the counties, grouped A–M / N–Z
+  // to exercise role=group. Selecting one fits the map to it.
   const demoSearchInput = document.getElementById('demo-search');
+  let currentCounty = null;
+  const searchBox = MCO.initSearchBox({
+    input: demoSearchInput,
+    listbox: document.getElementById('demo-search-list'),
+    label: 'Counties',
+    items: () => (overlayData.counties ? overlayData.counties.features : []).map((f) => ({
+      id: f.properties.GEOID,
+      label: f.properties.NAME.replace(/ County$/, ''),
+      meta: f.properties.GEOID,
+      group: f.properties.NAME < 'N' ? 'A–M' : 'N–Z',
+      keywords: [f.properties.NAME],
+    })),
+    value: () => currentCounty,
+    onSelect: (id) => {
+      const f = overlayData.counties.features.find((x) => x.properties.GEOID === id);
+      if (!f) return;
+      currentCounty = id;
+      MCO.announce(`${f.properties.NAME} selected.`);
+      if (map) {
+        const pts = f.geometry.coordinates.flat(f.geometry.type === 'MultiPolygon' ? 2 : 1);
+        const lngs = pts.map((p) => p[0]), lats = pts.map((p) => p[1]);
+        map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+          { padding: 40, animate: !MCO.reducedMotion() });
+      }
+    },
+  });
+  // Collapsible search (MCO.initSearchCollapse) — narrow the window below
+  // 640px and the field becomes the magnifier button in .nav-meta.
   const searchCtl = MCO.initSearchCollapse({
     wrap: document.getElementById('search-wrap'),
     toggle: document.getElementById('btn-search-toggle'),
     input: demoSearchInput,
+    onClose: searchBox.close,
   });
-  // Esc unwinds the overlay; '/' opens it when collapsed, focuses it otherwise.
+  // Esc unwinds one layer at a time: the combobox consumes the first presses
+  // (preventDefault), then this closes the overlay. '/' opens it when
+  // collapsed, focuses it otherwise.
   demoSearchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && searchCtl.isOpen()) searchCtl.close();
+    if (e.key === 'Escape' && !e.defaultPrevented && searchCtl.isOpen()) searchCtl.close();
   });
   window.addEventListener('keydown', (e) => {
     if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;

@@ -204,6 +204,13 @@ panel auto-collapse, control relocation into a drawer.
   edge-hugging chrome.
 - Segmented button groups that don't fit under 1060 px get a `<select>`
   fallback (photo explorer pattern).
+- **Search is `MCO.initSearchBox`** (0.8.0) on `.mco-search`: the APG
+  combobox with `aria-activedescendant`, a disabled `role=option` for “No
+  matches”, polite result counts, and Esc that closes, then clears, then passes
+  through (stopping propagation, so the next layer out only closes on a later
+  press). Ranking is the dashboard's model (`MCO.searchModel`). Accent- and
+  typo-tolerant, so “bozman” finds Bozeman. Five hand-rolled copies retire
+  with it.
 - A navbar **search field collapses to a disclosure** at compact widths (≤640 px)
   rather than being hidden: `MCO.initSearchCollapse` moves focus into the field on open and
   back to the button on close, and the app keeps control of Esc precedence and

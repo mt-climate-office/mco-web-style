@@ -906,6 +906,357 @@
     };
   };
 
+  /* ── Search model (0.8.0) ──────────────────────────────────────────────────
+     Pure filtering + ranking for MCO.initSearchBox, ported from the
+     mesonet-dashboard's comboboxModel (unit-tested there). No DOM.
+       items: [{id, label, group?, keywords?, meta?}]
+       MCO.searchModel.filter(items, q, limit) → {groups, flat, total, best}
+     Matching is case-, accent- and apostrophe-blind ("Apsáalooke", "Rocky
+     Boy's" match plain typing). Rank, best first: exact label/id/keyword ·
+     label starts with the query as a whole word · label prefix · a later
+     word starts with it · id/keyword prefix · label substring · id/keyword
+     substring · a typo (1 edit from 5 letters, 2 from 8; numbers never).
+     With no query, every item in its group, groups in first-appearance
+     order; with a query, one ranked list (shorter label, then alphabetical,
+     breaks ties). `best` indexes the top match in `flat`. */
+  var SM = MCO.searchModel = {};
+  SM.normalize = function (s) {
+    return String(s).normalize('NFD').replace(/\p{M}/gu, '').replace(/['’`]/g, '').toLowerCase();
+  };
+  // Optimal-string-alignment distance, or max + 1 as soon as it must exceed max.
+  SM.typoDistance = function (a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    var prev2 = [];
+    var prev = [];
+    for (var j = 0; j <= b.length; j++) prev.push(j);
+    for (var i = 1; i <= a.length; i++) {
+      var cur = [i];
+      var rowMin = i;
+      for (j = 1; j <= b.length; j++) {
+        var cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        var v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur.push(v);
+        if (v < rowMin) rowMin = v;
+      }
+      if (rowMin > max) return max + 1;
+      prev2 = prev;
+      prev = cur;
+    }
+    return prev[b.length];
+  };
+  function typoMatch(q, texts) {
+    if (q.length < 4 || /^[\d\s]+$/.test(q)) return false;
+    var max = q.length >= 8 ? 2 : 1;
+    var prefixes = q.length >= 5;
+    return texts.some(function (t) {
+      if (SM.typoDistance(q, t, max) <= max) return true;
+      return prefixes && t.length > q.length && SM.typoDistance(q, t.slice(0, q.length), max) <= max;
+    });
+  }
+  SM.matchRank = function (item, q) {
+    if (q === '') return 0;
+    var label = SM.normalize(item.label);
+    var codes = [item.id].concat(item.keywords || []).map(SM.normalize);
+    if (label === q || codes.indexOf(q) !== -1) return 0;
+    if (label.indexOf(q) === 0) return /[\p{L}\p{N}]/u.test(label.charAt(q.length)) ? 2 : 1;
+    var words = label.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    if (words.some(function (w) { return w.indexOf(q) === 0; })) return 3;
+    if (codes.some(function (c) { return c.indexOf(q) === 0; })) return 4;
+    if (label.indexOf(q) !== -1) return 5;
+    if (codes.some(function (c) { return c.indexOf(q) !== -1; })) return 6;
+    if (typoMatch(q, words.concat([label], codes))) return 7;
+    return Infinity;
+  };
+  SM.filter = function (items, query, limit) {
+    limit = limit == null ? 200 : limit;
+    var q = SM.normalize(String(query || '').trim());
+    var groupIndex = new Map();
+    items.forEach(function (it) { if (!groupIndex.has(it.group)) groupIndex.set(it.group, groupIndex.size); });
+    var matches = items.map(function (item, index) {
+      return { item: item, index: index, rank: SM.matchRank(item, q), group: groupIndex.get(item.group) };
+    }).filter(function (m) { return m.rank !== Infinity; });
+    matches.sort(function (a, b) {
+      if (q === '') return a.group - b.group || a.index - b.index;
+      return a.rank - b.rank || a.item.label.length - b.item.label.length ||
+        a.item.label.localeCompare(b.item.label) || a.index - b.index;
+    });
+    var kept = matches.slice(0, Math.max(0, limit));
+    var flat = kept.map(function (m) { return m.item; });
+    var best = kept.length ? 0 : -1;
+    kept.forEach(function (m, i) { if (m.rank < kept[best].rank) best = i; });
+    var groups = [];
+    flat.forEach(function (item) {
+      var name = q === '' && item.group != null ? item.group : null;
+      var last = groups[groups.length - 1];
+      if (last && last.name === name) last.items.push(item);
+      else groups.push({ name: name, items: [item] });
+    });
+    return { groups: groups, flat: flat, total: matches.length, best: best };
+  };
+  // Next active index for a navigation key over `length` options.
+  SM.stepIndex = function (current, key, length) {
+    if (length <= 0) return -1;
+    if (key === 'ArrowDown') return current < 0 || current >= length - 1 ? 0 : current + 1;
+    if (key === 'ArrowUp') return current <= 0 ? length - 1 : current - 1;
+    if (key === 'Home') return 0;
+    if (key === 'End') return length - 1;
+    return current;
+  };
+  SM.summary = function (shown, total) {
+    if (total === 0) return 'No results';
+    if (shown < total) return 'Showing ' + shown + ' of ' + total + ' results; type to narrow';
+    return total === 1 ? '1 result' : total + ' results';
+  };
+
+  /* ── Search combobox (0.8.0) ───────────────────────────────────────────────
+     The APG editable combobox with list autocomplete, on the dashboard's
+     model. Five map apps hand-rolled this; their defects differed (a "no
+     match" row with no role, aria-selected missing, no count announcement).
+
+       <div class="mco-search">
+         <span class="mco-search-icon" aria-hidden="true"></span>
+         <label for="q" class="sr-only">Search stations</label>
+         <input id="q" class="mco-search-input" type="search" placeholder="Search…">
+         <div class="mco-search-list" hidden></div>
+       </div>
+
+       var sb = MCO.initSearchBox({
+         input: q, listbox: list,             // the kit wires role/aria-* on both
+         items: function () { return stations.map(function (s) {
+           return { id: s.station, label: s.name, group: s.network }; }); },
+         onSelect: function (id) { openStation(id); },
+         value: function () { return selectedId; },   // marks the current item ✓
+         label: 'Stations', limit: 200, announce: true,
+       });
+
+     Keys: Down/Up open the list and wrap (Alt+Down opens in place);
+     Home/End move only while navigating; Enter selects the active option;
+     Esc closes and restores the text from before the list opened, or clears
+     the text when the list is already closed, and stops propagation so an
+     enclosing dialog or detail doesn't close too — a third Esc passes
+     through. Typing makes the best match active. Focus leaving closes it.
+     renderRow(item, el) customizes an option; use textContent only (the
+     default is the label plus a mono item.meta || item.id). Counts are
+     announced politely, debounced. After a selection the field empties
+     (fillOnSelect: true leaves the label in it).
+     Returns {open, close, refresh, destroy}. Composes with
+     MCO.initSearchCollapse unchanged: pass sb.close as its onClose. */
+  var _sbSeq = 0;
+  MCO.initSearchBox = function (opts) {
+    var input = opts.input;
+    var list = opts.listbox;
+    var limit = opts.limit || 200;
+    var label = opts.label || 'Search';
+    var announce = opts.announce !== false;
+    var getItems = typeof opts.items === 'function' ? opts.items : function () { return opts.items || []; };
+    var value = opts.value || function () { return null; };
+    var base = list.id || ('mco-search-' + (++_sbSeq));
+    list.id = base;
+
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('aria-controls', base);
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('spellcheck', 'false');
+    list.setAttribute('role', 'listbox');
+    if (!list.hasAttribute('aria-label') && !list.hasAttribute('aria-labelledby')) list.setAttribute('aria-label', label);
+    list.hidden = true;
+
+    var isOpen = false;
+    var active = -1;
+    var result = { groups: [], flat: [], total: 0, best: -1 };
+    var textBeforeOpen = '';
+    var announceTimer = null;
+
+    function optionId(i) { return base + '-opt-' + i; }
+    function compute() { result = SM.filter(getItems(), input.value, limit); }
+
+    function render() {
+      list.textContent = '';
+      var cur = value();
+      var idx = 0;
+      result.groups.forEach(function (g, gi) {
+        var host = list;
+        if (g.name != null) {
+          host = document.createElement('div');
+          host.setAttribute('role', 'group');
+          var head = document.createElement('div');
+          head.className = 'mco-search-group';
+          head.id = base + '-g-' + gi;
+          head.setAttribute('role', 'presentation');
+          head.textContent = g.name;
+          host.setAttribute('aria-labelledby', head.id);
+          host.appendChild(head);
+          list.appendChild(host);
+        }
+        g.items.forEach(function (item) {
+          var el = document.createElement('div');
+          el.className = 'mco-search-option';
+          el.id = optionId(idx);
+          el.setAttribute('role', 'option');
+          el.setAttribute('aria-selected', String(idx === active));
+          el.dataset.index = String(idx);
+          if (cur != null && item.id === cur) el.classList.add('is-current');
+          if (opts.renderRow) {
+            opts.renderRow(item, el);
+          } else {
+            var l = document.createElement('span');
+            l.className = 'mco-search-label';
+            l.textContent = item.label;
+            var m = document.createElement('span');
+            m.className = 'mco-search-meta';
+            m.textContent = item.meta != null ? item.meta : item.id;
+            el.append(l, m);
+          }
+          host.appendChild(el);
+          idx++;
+        });
+      });
+      // The empty row and the truncation note are disabled OPTIONS, not bare
+      // rows: a listbox may only own options and groups.
+      var note = result.total === 0 ? 'No matches'
+        : result.flat.length < result.total ? 'Showing ' + result.flat.length + ' of ' + result.total + '; type to narrow' : '';
+      if (note) {
+        var n = document.createElement('div');
+        n.className = 'mco-search-note';
+        n.setAttribute('role', 'option');
+        n.setAttribute('aria-disabled', 'true');
+        n.setAttribute('aria-selected', 'false');
+        n.textContent = note;
+        list.appendChild(n);
+      }
+      syncActive();
+    }
+    function syncActive() {
+      var opts_ = list.querySelectorAll('.mco-search-option');
+      Array.prototype.forEach.call(opts_, function (el) {
+        el.setAttribute('aria-selected', String(Number(el.dataset.index) === active));
+      });
+      var el = active >= 0 ? document.getElementById(optionId(active)) : null;
+      if (isOpen && el) {
+        input.setAttribute('aria-activedescendant', el.id);
+        el.scrollIntoView({ block: 'nearest' });
+      } else {
+        input.removeAttribute('aria-activedescendant');
+      }
+    }
+    function say() {
+      if (!announce) return;
+      clearTimeout(announceTimer);
+      announceTimer = setTimeout(function () {
+        if (isOpen) MCO.announce(SM.summary(result.flat.length, result.total));
+      }, 400);
+    }
+    function open(at) {
+      if (!isOpen) textBeforeOpen = input.value;
+      isOpen = true;
+      compute();
+      var cur = value();
+      var curIdx = -1;
+      result.flat.forEach(function (it, i) { if (curIdx < 0 && it.id === cur) curIdx = i; });
+      var n = result.flat.length;
+      // Typed text: the best match. Empty field: the current item, else the first.
+      active = !n || at === 'none' ? -1 : at === 'last' ? n - 1 : input.value ? result.best : Math.max(0, curIdx);
+      list.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      render();
+      say();
+    }
+    function close() {
+      if (!isOpen) return;
+      isOpen = false;
+      active = -1;
+      list.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+      clearTimeout(announceTimer);
+    }
+    function select(i) {
+      var item = result.flat[i];
+      if (!item) return;
+      close();
+      input.value = opts.fillOnSelect ? item.label : '';
+      if (opts.onSelect) opts.onSelect(item.id);
+    }
+
+    function onInput() {
+      if (!isOpen) { textBeforeOpen = ''; isOpen = true; list.hidden = false; input.setAttribute('aria-expanded', 'true'); }
+      compute();
+      active = result.best;
+      render();
+      say();
+    }
+    function onKeydown(e) {
+      var n = result.flat.length;
+      switch (e.key) {
+        case 'ArrowDown':
+        case 'ArrowUp':
+          e.preventDefault();
+          if (!isOpen) open(e.altKey ? 'none' : e.key === 'ArrowUp' ? 'last' : 'current');
+          else if (!e.altKey) { active = SM.stepIndex(active, e.key, n); syncActive(); }
+          return;
+        case 'Home':
+        case 'End':
+          if (!isOpen || active < 0) return;      // leave the text caret alone
+          e.preventDefault();
+          active = SM.stepIndex(active, e.key, n);
+          syncActive();
+          return;
+        case 'Enter':
+          if (!isOpen || active < 0) return;
+          e.preventDefault();
+          select(active);
+          return;
+        case 'Escape':
+          if (isOpen) {
+            input.value = textBeforeOpen;
+            close();
+          } else if (input.value !== '') {
+            input.value = '';
+          } else {
+            return;                               // pass: the enclosing surface closes
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        default:
+      }
+    }
+    function onListDown(e) { e.preventDefault(); }   // keep focus in the field
+    function onListClick(e) {
+      var el = e.target.closest('.mco-search-option');
+      if (el) select(Number(el.dataset.index));
+    }
+    function onFocusOut(e) {
+      var to = e.relatedTarget;
+      if (to && (to === input || list.contains(to))) return;
+      close();
+    }
+
+    input.addEventListener('input', onInput);
+    input.addEventListener('keydown', onKeydown);
+    input.addEventListener('focusout', onFocusOut);
+    list.addEventListener('mousedown', onListDown);
+    list.addEventListener('click', onListClick);
+
+    return {
+      open: function () { input.focus(); open('current'); },
+      close: close,
+      // Items changed while the list is open (data arrived): re-filter.
+      refresh: function () { if (isOpen) { compute(); active = Math.min(active, result.flat.length - 1); render(); } },
+      destroy: function () {
+        close();
+        input.removeEventListener('input', onInput);
+        input.removeEventListener('keydown', onKeydown);
+        input.removeEventListener('focusout', onFocusOut);
+        list.removeEventListener('mousedown', onListDown);
+        list.removeEventListener('click', onListClick);
+      },
+    };
+  };
+
   /* ── URL state ─────────────────────────────────────────────────────────────
      Convention (HOUSE-STYLE.md §4): read once at boot with precedence
      URL param > localStorage > default, validating every value; mirror state

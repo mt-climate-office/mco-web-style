@@ -288,7 +288,7 @@ it as a kit MINOR — that's the intended path to absorption.
 that path. Two consumers (the UMRB build-status and station-maintenance maps)
 ended up with keyboard handling that differed only in whitespace and a
 `showSearchDropdown` that differed in exactly two lines, both of which were
-the per-row render. That is what "converged naturally" looks like: the
-absorption is approved for 0.7.0 as `MCO.initSearchBox({… renderRow …})`,
-alongside four other candidates listed under **Planned for 0.7.0** in
-CHANGELOG.md. Until that release lands, keep writing these app-local.
+the per-row render. That is what "converged naturally" looks like. It shipped
+in **0.8.0** as `MCO.initSearchBox({… renderRow …})`, on the dashboard's
+model, with the legend toggles, the table twin, the cursor tooltip and the
+clean-URL pair. Delete the local copies when you re-point.
