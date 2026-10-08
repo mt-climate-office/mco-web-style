@@ -215,14 +215,13 @@ panel auto-collapse, control relocation into a drawer.
   of that — deferred 2026-08-04 as its own design pass rather than riding along
   on a breakpoint change.
 
-  mesonet-explorer is the working reference for the *pattern*, but note it
-  deliberately does **not** use `.mco-scrim` (checked on its 2026-08-16
-  migration): the kit's scrim is viewport-`fixed`, and the explorer's is
-  `absolute` inside its map container so the drawer dims the map without
-  dimming the navbar above it. If a consumer needs that, it wants the
-  explorer's `#sidebar-scrim` rule, not the kit class — and if a second
-  consumer needs it too, the kit should grow a positioning option rather than
-  both hand-rolling it.
+  mesonet-explorer is the working reference for the *pattern*. A scrim that
+  should dim the map but not the navbar above it is
+  `<div class="mco-scrim" data-scope="container" aria-hidden="true">` inside
+  the positioned map frame (0.8.0). It replaces explorer's hand-rolled
+  `absolute` `#sidebar-scrim`; the dashboard's compact drawer was the second
+  consumer that brought the option into the kit. The default stays
+  viewport-`fixed`.
 
 **Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
 property, never `gap` directly: the brand lockup's divider margin is derived

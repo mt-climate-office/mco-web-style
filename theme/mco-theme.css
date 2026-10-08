@@ -718,12 +718,18 @@ body {
 }
 
 /* Scrim behind off-canvas drawers on compact viewports. Pair with a panel at
-   --z-drawer; the scrim sits one tier below it. */
+   --z-drawer; the scrim sits one tier below it. Always aria-hidden="true"
+   (it is a click target, not content); clicking it closes its owner.
+   data-scope="container" (0.8.0) fills its nearest positioned ancestor
+   instead of the viewport, so a drawer inside the map frame can dim the map
+   without dimming the navbar above it (explorer's #sidebar-scrim, and the
+   dashboard's compact drawer). */
 .mco-scrim {
   position: fixed; inset: 0;
   background: var(--scrim);
   z-index: var(--z-map-panel);
 }
+.mco-scrim[data-scope="container"] { position: absolute; }
 
 /* ── 6. Responsive & touch ────────────────────────────────────────────────
    Breakpoint ladder (HOUSE-STYLE.md §3): 1400 shed button labels · 1060
