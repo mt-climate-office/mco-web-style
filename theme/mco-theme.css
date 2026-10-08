@@ -626,13 +626,35 @@ body {
    (backdrop click closes, focus restores to the opener). */
 .mco-modal { background: transparent; border: none; padding: 1rem; position: fixed; inset: 0; margin: auto; width: fit-content; height: fit-content; max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); }
 .mco-modal::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+/* Long modals (0.8.0, back-ported from mesonet-explorer, the family's
+   tallest): the header sticks so the title and close button stay reachable
+   while the body scrolls, scrolling never chains to the page behind, and a
+   soft shade at the bottom edge says "there's more". The shade is two
+   layers: a --bg-surface cover attached to the END of the content (local)
+   over a shade pinned to the box's bottom edge (scroll). Mid-scroll the
+   cover is out of view and the shade shows; at the end it slides over the
+   shade and hides it. A modal that doesn't overflow never shows it. */
 .info-modal-box {
   background: var(--bg-surface); border: 1px solid var(--border);
   border-radius: 10px; width: min(540px, calc(100vw - 4rem));
   max-height: calc(100dvh - 4rem); overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 1.5rem; box-shadow: var(--shadow);
+  background-image:
+    linear-gradient(var(--bg-surface), var(--bg-surface)),
+    linear-gradient(to top, rgba(0,0,0,0.42), rgba(0,0,0,0));
+  background-repeat: no-repeat;
+  background-size: 100% 32px, 100% 22px;
+  background-position: 0 100%, 0 100%;
+  background-attachment: local, scroll;
 }
-.info-modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; gap: 1rem; }
+.info-modal-header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+  position: sticky; top: -1.5rem; z-index: 1;
+  margin: -1.5rem -1.5rem 1.25rem; padding: 1.5rem 1.5rem 0.75rem;
+  background: var(--bg-surface);
+  border-radius: 10px 10px 0 0;
+}
 .info-modal-title    { font-size: 1.05rem; font-weight: 700; color: var(--accent-line); margin: 0; }
 .info-modal-subtitle { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
 .modal-close { display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; line-height: 1; flex-shrink: 0; min-width: 34px; min-height: 34px; transition: var(--transition); }
