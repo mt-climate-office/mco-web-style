@@ -3,8 +3,12 @@
    Reference implementation of an MCO map app on the house kit. Section
    references (§) are to HOUSE-STYLE.md. Classic script, external file so the
    page's CSP can pin script-src 'self'.
+
+   MapLibre 6 is ES-modules only, so the app runs once MCO.map.loadMapLibre()
+   resolves (§7). A larger app wires its non-map UI before that; this one is
+   all map, so it simply waits.
    ========================================================================== */
-(function () {
+MCO.map.loadMapLibre().then(function (maplibregl) {
   'use strict';
 
   /* ── Constants ─────────────────────────────────────────────────────────── */
@@ -413,4 +417,8 @@
     zoomFloor.refresh();
     loadAll();
   });
-})();
+}, function () {
+  const noteEl = document.getElementById('app-note');
+  noteEl.hidden = false;
+  noteEl.textContent = 'The map library failed to load. Check your connection and reload.';
+});

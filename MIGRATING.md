@@ -135,6 +135,13 @@ for kit calls:
   s=re.search(r'<script>(.*?)</script>',h,re.S).group(1)
   print('sha256-'+base64.b64encode(hashlib.sha256(s.encode()).digest()).decode())"
   ```
+- **MapLibre 6 `worker-src` needs `blob:` AND `https://unpkg.com`** (kit
+  0.8.0+). The worker starts from a `blob:` URL and then `import`s
+  `maplibre-gl-worker.mjs` from unpkg, and a module worker's imports are checked
+  against `worker-src`. MapLibre's own migration guide says `blob:` alone.
+  Get it wrong and the basemap draws but no GeoJSON layer ever does, and the
+  console says only "Worker failed to load. Check that the worker URL is
+  correct", with no "Refused to…" line.
 - **MapLibre paints can't read CSS variables** — resolve tokens with
   `getComputedStyle(document.documentElement).getPropertyValue('--x')`,
   after the kit stylesheet has loaded.

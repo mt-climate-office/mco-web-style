@@ -7,8 +7,8 @@
      right here, inline) → font preloads → stylesheets.
 
      The kit's JS files are classic scripts. Load them near the end of <body>,
-     after maplibre-gl.js and before your app script (tags at the bottom of
-     this file).
+     before your app script (tags at the bottom of this file). MapLibre is
+     not among them: mco-map.js imports it on demand (MCO.map.loadMapLibre).
 
      SRI hashes below are for v0.7.1 exactly. Bumping the @version without
      recomputing hashes (tools/sri.sh) will hard-fail in the browser — that is
@@ -77,9 +77,26 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.1/fonts/space-mono-latin.woff2"
       as="font" type="font/woff2" crossorigin>
 
-<!-- MapLibre GL 5.x — map apps only. The house map library (HOUSE-STYLE.md §7). -->
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
-      integrity="sha384-q7EDwLXBfakVimqzBJqFCTxpgy7B18buhebV158qkVMCEVAaUnU3fQTEfWgYz+7g"
+<!-- MapLibre GL 6.x — map apps only. The house map library (HOUSE-STYLE.md §7).
+     6.x is ES-modules only, so it is not a <script src> any more: mco-map.js
+     imports it (MCO.map.loadMapLibre) and the import map below carries the
+     SRI hashes — import() takes no integrity attribute, but the browser
+     applies the map's hashes to the entry AND its shared chunk however they
+     are fetched. Keep the import map ONE LINE, byte for byte: its CSP sha256
+     (README § CSP notes) then holds on any page that copies it, whatever the
+     indentation. It must precede every module load on the page; a page with
+     its own import map merges these keys into it (older browsers honor only
+     the first map). The modulepreloads start the ~1.1 MB download now rather
+     than when the scripts at the end of <body> run. -->
+<script type="importmap">{"integrity":{"https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs":"sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN","https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs":"sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"}}</script>
+<link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs"
+      integrity="sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN"
+      crossorigin="anonymous">
+<link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs"
+      integrity="sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"
+      crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css"
+      integrity="sha384-ntw3zEt6rcVML7jDK0ULmHa5hxLB23afsPqzqfY+gLgMfAkbFCnCgPpkZvV5mmZX"
       crossorigin="anonymous">
 
 <!-- mco-web-style theme -->
@@ -90,9 +107,6 @@
 <!-- ==========================================================================
      Script tags — place near the end of <body>, in this order:
 
-<script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"
-        integrity="sha384-MYTfGytf3SxNyO7ZAu/U0wHCcs3NpqE92Q3wBz5PQhat8kEA/wbwb9qY6H/JLyuR"
-        crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.1/core/mco-core.js"
         integrity="sha384-ZOGCREEJsO8sY1wJ7eS/Q7K7NdZAHF+LxSMoO3ZGqBtEVISX3616cGomCW418hXH"
         crossorigin="anonymous"></script>
@@ -103,6 +117,12 @@
         integrity="sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm"
         crossorigin="anonymous"></script>
 <script src="app.js"></script>   <!-- classic script — the kit globals need no modules -->
+
+     A map app creates its map once MapLibre has arrived; wire the rest of the
+     UI (theme toggle, modal, filters) first so it never waits on the map:
+       MCO.map.loadMapLibre().then(initMap, function () {
+         MCO.notice({ tone: 'danger', text: 'The map library failed to load.' });
+       });
 
 
      mco-map.js: map apps only. cog-protocol.js: COG raster apps only.

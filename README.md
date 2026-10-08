@@ -31,7 +31,9 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
-Map apps add `map/mco-map.js` (requires MapLibre GL 5.x) and, for COG rasters,
+Map apps add `map/mco-map.js` (targets MapLibre GL 6.x, which it imports for
+you — `MCO.map.loadMapLibre()`; the import map in `snippets/head.html` carries
+MapLibre's SRI hashes) and, for COG rasters,
 `map/cog-protocol.js` (exposes `window.CogProtocol`). The API surface is
 documented in the source headers and JSDoc-style comments of
 `core/mco-core.js` and `map/mco-map.js` — read them for argument shapes
@@ -80,7 +82,7 @@ Rules that keep consumers safe:
 
 - **Never use `@latest`** (or `@0.1`-style ranges). They float on a ~12 h CDN
   edge cache and SRI will hard-fail nondeterministically when content moves.
-  Pin `@X.Y.Z` + hash, exactly like the apps pin `maplibre-gl@5.18.0`.
+  Pin `@X.Y.Z` + hash, exactly like the apps pin `maplibre-gl@6.11.2`.
 - **Never re-point a tag.** jsDelivr caches tag content permanently; a re-pointed
   tag produces split-brain edges forever. A bad release gets a new patch tag.
 - Because SRI pins bytes, no consumer ever silently upgrades — version numbers
@@ -114,6 +116,19 @@ GitHub-Pages meta-tag pattern) need:
   `https://fonts.googleapis.com` from `style-src` and
   `https://fonts.gstatic.com` from `font-src`.
 - `img-src`: add `https://cdn.jsdelivr.net` if you hot-link kit assets
+- **map apps** (MapLibre 6, since kit 0.8.0):
+  - `script-src`: `https://unpkg.com` and the MapLibre import map's hash,
+    `'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI='`. An import map is
+    an inline script as far as CSP is concerned. Because the snippet's map is
+    one line, this hash is the same on every page that copies it byte for
+    byte; `tools/check-sri.mjs` re-derives it, so a MapLibre bump that
+    forgets to update it fails CI.
+  - `worker-src`: `blob: https://unpkg.com`. **Both.** MapLibre 6 starts its
+    worker from a `blob:` URL that then `import`s the worker chunk from
+    unpkg, and a module worker's imports are checked against `worker-src`,
+    not `script-src`. MapLibre's migration guide lists only `blob:`. With
+    `blob:` alone the map draws its basemap and then nothing else, and the
+    only console line is "Worker failed to load", with no mention of CSP.
 - the inline anti-flash script's **sha256** in `script-src` — recompute it
   whenever that snippet changes (it did in 0.7.0, gaining the
   `.is-compact`/`.is-touch` stamp):

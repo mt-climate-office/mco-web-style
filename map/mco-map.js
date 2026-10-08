@@ -3,9 +3,12 @@
    MapLibre GL helpers for Montana Climate Office map apps.
 
    Classic script, zero dependencies, no build. Lands on window.MCO.map.
-   Requires MapLibre GL 5.x (the house map library — see HOUSE-STYLE.md §7)
-   loaded first; does NOT require mco-core.js (deliberately standalone: the
-   one shared concern, reading the current theme, is inlined).
+   Targets MapLibre GL 6.x (the house map library — see HOUSE-STYLE.md §7),
+   which ships as ES modules only: MCO.map.loadMapLibre() below imports the
+   family pin and resolves once window.maplibregl exists. Nothing here touches
+   maplibregl at load time, so this file may load before MapLibre does. Does
+   NOT require mco-core.js (deliberately standalone: the one shared concern,
+   reading the current theme, is inlined).
 
    API keys NEVER belong in this file or any shared code. themedStyleUrl()
    takes fully-formed style URLs so keys stay in the consuming app.
@@ -25,6 +28,48 @@
   var _rmMq = window.matchMedia('(prefers-reduced-motion: reduce)');
   var _rm = _rmMq.matches;
   _rmMq.addEventListener('change', function (e) { _rm = e.matches; });
+
+  /* ── Loading MapLibre (0.8.0) ──────────────────────────────────────────────
+     MapLibre 6 dropped the UMD build: there is no <script src> that defines a
+     maplibregl global any more. loadMapLibre() dynamic-imports the family pin
+     from this classic script, publishes the module namespace as
+     window.maplibregl (so every maplibregl.* call keeps working), and returns
+     a promise of it. Idempotent: every call shares one import.
+
+       MCO.map.loadMapLibre().then(function (maplibregl) {
+         var map = new maplibregl.Map({ … });
+       });
+
+     SRI: an import() takes no integrity attribute. The hashes live in the
+     page's import map instead (snippets/head.html), which the browser applies
+     to the entry AND its shared chunk however they are imported. MapLibre's
+     web worker loads the worker + shared chunks again from a blob: URL, where
+     no import map reaches — those two fetches are pinned by the exact version
+     in the URL only (HOUSE-STYLE §7).
+
+     A page that already has MapLibre (a bundler, or its own import) sets
+     window.maplibregl first; the loader then resolves with that instead of
+     importing a second copy. opts.url overrides the pinned URL for testing a
+     newer release — the import map must carry its hashes too. */
+  M.MAPLIBRE_VERSION = '6.11.2';
+  M.MAPLIBRE_URL = 'https://unpkg.com/maplibre-gl@' + M.MAPLIBRE_VERSION + '/dist/maplibre-gl.mjs';
+
+  var _mlLoad = null;
+  M.loadMapLibre = function (opts) {
+    if (_mlLoad) return _mlLoad;
+    if (window.maplibregl && window.maplibregl.Map) {
+      _mlLoad = Promise.resolve(window.maplibregl);
+    } else {
+      _mlLoad = import((opts && opts.url) || M.MAPLIBRE_URL).then(function (ns) {
+        window.maplibregl = ns;
+        return ns;
+      }, function (err) {
+        _mlLoad = null;   // let a later call (a Retry button) try again
+        throw err;
+      });
+    }
+    return _mlLoad;
+  };
 
   /* ── Montana framing ───────────────────────────────────────────────────── */
 

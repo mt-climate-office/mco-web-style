@@ -33,9 +33,17 @@
   <!-- House fonts: kit-hosted, declared in mco-theme.css; a real app preloads the pinned CDN copies (snippets/head.html). -->
   <link rel="preload" href="../fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../fonts/space-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
-        integrity="sha384-q7EDwLXBfakVimqzBJqFCTxpgy7B18buhebV158qkVMCEVAaUnU3fQTEfWgYz+7g"
-        crossorigin="anonymous">
+  <!-- MapLibre 6 (ESM): SRI via the import map; mco-map.js imports it (snippets/head.html). -->
+  <script type="importmap">{"integrity":{"https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs":"sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN","https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs":"sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"}}</script>
+  <link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs"
+          integrity="sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN"
+          crossorigin="anonymous">
+  <link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs"
+          integrity="sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"
+          crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css"
+          integrity="sha384-ntw3zEt6rcVML7jDK0ULmHa5hxLB23afsPqzqfY+gLgMfAkbFCnCgPpkZvV5mmZX"
+          crossorigin="anonymous">
   <link rel="stylesheet" href="../theme/mco-theme.css">
 
   <style>
@@ -184,7 +192,7 @@
 
   <section class="demo-section">
     <h2>Map · controls · overlays · collapsible panel</h2>
-    <p>MapLibre GL 5.x with <code>cartoStyleUrl()</code>, house navigation + fit-to-extent controls,
+    <p>MapLibre GL 6.x (loaded by <code>MCO.map.loadMapLibre()</code>) with <code>cartoStyleUrl()</code>, house navigation + fit-to-extent controls,
        the zoom floor, and the Montana boundary overlays painted by <code>overlayPaints()</code>.
        The legend is an <code>.mco-panel</code> wired with <code>MCO.initCollapsible</code> — on a
        compact viewport it starts collapsed. Camera and theme round-trip through the URL.</p>
@@ -265,9 +273,6 @@
      MIT · Montana Climate Office · <a href="https://climate.umt.edu">climate.umt.edu</a></p>
 </footer>
 
-<script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"
-        integrity="sha384-MYTfGytf3SxNyO7ZAu/U0wHCcs3NpqE92Q3wBz5PQhat8kEA/wbwb9qY6H/JLyuR"
-        crossorigin="anonymous"></script>
 <script src="../core/mco-core.js"></script>
 <script src="../map/mco-map.js"></script>
 <script>
@@ -409,7 +414,9 @@
     MCO.replaceUrlState(params);
   }
 
-  try {
+  // MapLibre 6 is ESM-only: the map waits for MCO.map.loadMapLibre(), while
+  // everything else on the page is already wired above and below.
+  MCO.map.loadMapLibre().then((maplibregl) => {
     map = new maplibregl.Map({
       container: 'map',
       style: MCO.map.cartoStyleUrl(),
@@ -437,9 +444,9 @@
       });
     });
     map.on('moveend', pushState);
-  } catch (err) {
+  }).catch((err) => {
     mapNote.textContent = 'Map unavailable: ' + err.message;
-  }
+  });
 
   /* ── Theme switching ─────────────────────────────────────────────────── */
   const segButtons = Array.from(document.querySelectorAll('[data-set-theme]'));

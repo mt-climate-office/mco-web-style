@@ -326,9 +326,22 @@ boundary needs an outline on light basemaps.
 
 ## 7. Maps
 
-- **MapLibre GL 5.x is the house map library**, pinned + SRI'd from CDN
-  (currently `5.18.0`). Leaflet pages adopt the theme/core layers now and
-  migrate opportunistically; the kit will not ship Leaflet support.
+- **MapLibre GL 6.x is the house map library**, pinned + SRI'd from CDN
+  (currently `6.11.2`; moved from 5.18.0 in kit 0.8.0 for the critical
+  attribution-control XSS GHSA-jrc7-96c5-q579, fixed only in 6.4.1+). 6.x is
+  ES-modules only, so pages no longer load it with `<script src>`:
+  `MCO.map.loadMapLibre()` imports the pin and resolves with the namespace
+  (also published as `window.maplibregl`), and the page's import map
+  (`snippets/head.html`) carries the SRI hashes for the entry and shared
+  chunks. **Known gap:** MapLibre re-imports the worker and shared chunks
+  inside its web worker from a `blob:` URL, where no import map reaches, so
+  those two fetches are pinned by the exact version in the URL (unpkg
+  serves version paths immutably) but not by hash. It is the one place in the
+  family where CDN code runs without SRI; revisit if MapLibre ships a way to
+  pass integrity to its worker. WebGL2 is required (MapLibre 6 dropped
+  WebGL1; the `Map` constructor throws `GPUInitializationError` without it).
+  Leaflet pages adopt the theme/core layers now and migrate opportunistically;
+  the kit will not ship Leaflet support.
 - Basemaps: `MCO.map.cartoStyleUrl()` (CARTO Dark Matter / Positron — neutral,
   keyless, data stays the primary read). Other providers via
   `MCO.map.themedStyleUrl({dark, light})` — **API keys live in the consuming
