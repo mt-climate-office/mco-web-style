@@ -95,6 +95,8 @@ The contrast contract, enforced by CI (`tools/check-contrast.mjs`):
 | `--text-muted`, `--text-dim` | deep, surface **only** | ≥ 4.5:1 |
 | `--accent-line` | deep, surface, raised | ≥ 3:1 |
 | `--text-on-accent` | `--accent` fills | ≥ 4.5:1 |
+| `--danger`, `--warning`, `--success` | deep, surface, raised, and their own `--*-fill` | ≥ 4.5:1 (so ≥ 3:1 as lines) |
+| `--text-on-danger`, `-warning`, `-success` | the matching `--*-fill` | ≥ 4.5:1 |
 
 Hard-won rules encoded here:
 
@@ -110,6 +112,13 @@ Hard-won rules encoded here:
   which fails AA at subtitle size — the single clearest argument for these
   tokens being shared. Fix on migration.
 - `--selection-ring` tokenizes the map selection-halo color that apps hard-coded.
+- **Status tones are chrome, not data** (0.8.0). `--danger` / `--warning` /
+  `--success` and their `-fill` / `text-on-` companions are for form errors,
+  notices (`.mco-notice`) and failure banners. They replace the per-app
+  `--c-warn` / `--warn-bg` copies (maint, umrb) and explorer's uncommented
+  `.scale-hint` hexes. A station's "dead" or "stale" **category is data**: it
+  takes a data palette under §6, never a status token. Tone never stands
+  alone. Always pair it with a word ("Error", "Warning") or an icon.
 
 **Theming.** Three themes: `dark` (default), `light`, `high-contrast`, switched
 by `data-theme` on `<html>`. The high-contrast theme is a first-class citizen

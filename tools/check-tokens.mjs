@@ -52,6 +52,9 @@ const REQUIRED = [
   '--text-primary', '--text-secondary', '--text-muted', '--text-dim',
   '--accent', '--accent-line', '--accent-hover', '--text-on-accent',
   '--selection-ring', '--brand-gradient', '--glass', '--ctrl-icon-filter',
+  '--danger', '--danger-fill', '--text-on-danger',
+  '--warning', '--warning-fill', '--text-on-warning',
+  '--success', '--success-fill', '--text-on-success',
 ];
 
 const errors = [];

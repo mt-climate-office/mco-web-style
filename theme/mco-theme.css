@@ -122,6 +122,9 @@
                                          never use them on --bg-raised
      --accent-line                     ≥ 3:1 on all three surfaces (1.4.11)
      --text-on-accent                  ≥ 4.5:1 on --accent
+     --danger, --warning, --success    ≥ 4.5:1 on deep, surface, raised, and
+                                          on their own --*-fill
+     --text-on-danger/-warning/-success ≥ 4.5:1 on the matching --*-fill
 
    --accent is the MCO brand blue. On dark surfaces it only clears ~2.3–2.9:1,
    so it is a FILL color: use it behind --text-on-accent. For borders, icons,
@@ -158,6 +161,19 @@
   --input-bg:       #232a35;
   --scrim:          rgba(0,0,0,0.45);
   --ctrl-icon-filter: invert(1);
+  /* Status tones (0.8.0) — CHROME, not data (HOUSE-STYLE §2): form errors,
+     notices, the basemap-failure banner. Never the only channel: pair with
+     a tone word or icon. Each tone is ≥ 4.5:1 on deep/surface/raised and on
+     its own -fill; --text-on-* is ≥ 4.5:1 on that fill (check-contrast). */
+  --danger:         #ed8780;
+  --danger-fill:    #37313a;
+  --text-on-danger: #e8ecf0;
+  --warning:        #df9412;
+  --warning-fill:   #35322c;
+  --text-on-warning: #e8ecf0;
+  --success:        #36ba6d;
+  --success-fill:   #213737;
+  --text-on-success: #e8ecf0;
 }
 
 [data-theme="light"] {
@@ -185,6 +201,15 @@
   --input-bg:       #f4f5f7;
   --scrim:          rgba(0,0,0,0.35);
   --ctrl-icon-filter: none;
+  --danger:         #c2271c;
+  --danger-fill:    #f8e5e4;
+  --text-on-danger: #1a1a2e;
+  --warning:        #8a5b0b;
+  --warning-fill:   #f1ebe2;
+  --text-on-warning: #1a1a2e;
+  --success:        #217343;
+  --success-fill:   #e4eee8;
+  --text-on-success: #1a1a2e;
 }
 
 /* High-contrast: pure-black surfaces, brightened accent, near-white text.
@@ -217,6 +242,15 @@
   --input-bg:       #121212;
   --scrim:          rgba(0,0,0,0.8);
   --ctrl-icon-filter: invert(1);
+  --danger:         #f47a71;
+  --danger-fill:    #1d0f0e;
+  --text-on-danger: #ffffff;
+  --warning:        #dc8d06;
+  --warning-fill:   #1a1101;
+  --text-on-warning: #ffffff;
+  --success:        #26b562;
+  --success-fill:   #05160c;
+  --text-on-success: #ffffff;
 }
 
 /* ── 2. Stacking ladder ───────────────────────────────────────────────────
