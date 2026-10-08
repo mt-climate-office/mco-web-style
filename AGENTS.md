@@ -57,8 +57,9 @@ additive · MAJOR = any rename/removal/default change (yes, a toast duration).
 ## When consuming the kit from an app
 
 **Migrating an existing app? Follow [MIGRATING.md](MIGRATING.md)** — process,
-settled precedents, gotchas, and the verification recipe. The rules below
-apply to any consumer, migrated or new.
+settled precedents, gotchas, and the verification recipe — and score it
+against [CONFORMANCE.md](CONFORMANCE.md) (`node tools/conformance.mjs <repo>`).
+The rules below apply to any consumer, migrated or new.
 
 - Pin `@X.Y.Z` + `integrity` + `crossorigin` on every kit tag. Never `@latest`.
 - Copy `snippets/anti-flash.html` INLINE into `<head>` — never load it from the
