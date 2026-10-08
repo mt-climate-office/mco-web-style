@@ -38,7 +38,7 @@ const MATRIX = [
   ['--text-muted', '--bg-deep', 4.5], ['--text-muted', '--bg-surface', 4.5],
   ['--text-dim', '--bg-deep', 4.5], ['--text-dim', '--bg-surface', 4.5],
   ['--accent-line', '--bg-deep', 3.0], ['--accent-line', '--bg-surface', 3.0], ['--accent-line', '--bg-raised', 3.0],
-  ['--text-on-accent', '--accent', 4.5],
+  ['--text-on-accent', '--accent', 4.5], ['--text-on-accent', '--accent-fill-hover', 4.5],
   // Status tones (0.8.0): readable as text on every surface AND on their own
   // notice fill; the fill's text token likewise.
   ...['--danger', '--warning', '--success'].flatMap((t) => [

@@ -149,6 +149,7 @@
   --accent-line:    #5aaee8;
   --accent-hover:   rgba(26,111,175,0.10);
   --text-on-accent: #ffffff;
+  --accent-fill-hover: #114f80;   /* .nav-btn.is-primary hover; --text-on-accent ≥ 4.5:1 on it */
   --selection-ring: #5aaee8;
   --brand-gradient: linear-gradient(90deg, var(--accent-dk), var(--accent), var(--accent-light), var(--accent));
   --glass:          rgba(30,37,48,0.82);
@@ -193,6 +194,7 @@
   --accent-line:    #1563a0;
   --accent-hover:   rgba(26,111,175,0.08);
   --text-on-accent: #ffffff;
+  --accent-fill-hover: #0d4f7a;
   --selection-ring: #1563a0;
   --brand-gradient: linear-gradient(90deg, #0a4a7a, #1266a8, #0d7fd4, #1266a8, #0a4a7a);
   --glass:          rgba(255,255,255,0.88);
@@ -234,6 +236,7 @@
   --accent-line:    #93d0ff;
   --accent-hover:   rgba(91,180,255,0.15);
   --text-on-accent: #000000;
+  --accent-fill-hover: #93d0ff;   /* lighter, not darker: black text fails on --accent-dk (3.9:1) */
   --selection-ring: #93d0ff;
   --brand-gradient: linear-gradient(90deg, #2a9aff, #6ec0ff, #a0d8ff, #6ec0ff, #2a9aff);
   --glass:          rgba(0,0,0,0.96);
@@ -428,6 +431,14 @@ body {
 .nav-btn.icon-only { padding: 0.4rem; min-width: 34px; justify-content: center; }
 .nav-btn[aria-pressed="true"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
 .nav-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+/* Primary action (0.8.0): the one button per view that does the thing — Apply,
+   Download, Retry. A filled --accent with --text-on-accent, the pairing the
+   contrast contract guarantees in all three themes. Never color: #fff on
+   --accent: it is 2.2:1 in high contrast, where the accent brightens and
+   --text-on-accent flips to black. */
+.nav-btn.is-primary { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
+.nav-btn.is-primary:hover { background: var(--accent-fill-hover); border-color: var(--accent-line); color: var(--text-on-accent); }
+.nav-btn.is-primary[disabled]:hover { background: var(--accent); }
 .nav-btn[disabled]:hover { background: none; border-color: var(--ctrl-border); color: var(--text-secondary); }
 
 .mco-btn-info {

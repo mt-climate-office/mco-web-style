@@ -94,7 +94,7 @@ The contrast contract, enforced by CI (`tools/check-contrast.mjs`):
 | `--text-primary`, `--text-secondary` | deep, surface, raised | ≥ 4.5:1 |
 | `--text-muted`, `--text-dim` | deep, surface **only** | ≥ 4.5:1 |
 | `--accent-line` | deep, surface, raised | ≥ 3:1 |
-| `--text-on-accent` | `--accent` fills | ≥ 4.5:1 |
+| `--text-on-accent` | `--accent` and `--accent-fill-hover` fills | ≥ 4.5:1 |
 | `--danger`, `--warning`, `--success` | deep, surface, raised, and their own `--*-fill` | ≥ 4.5:1 (so ≥ 3:1 as lines) |
 | `--text-on-danger`, `-warning`, `-success` | the matching `--*-fill` | ≥ 4.5:1 |
 
@@ -134,6 +134,9 @@ three** blocks — CI enforces parity.
 underline via `::after`. Order: logo → divider → brand → `.controls` →
 `.nav-meta` (right-aligned). Buttons are `.nav-btn` (34 px, `.icon-only`
 variant), segmented groups `.seg-btns > .seg-btn`, info button `.mco-btn-info`.
+**One primary action per view** is `.nav-btn.is-primary` (0.8.0): a filled
+`--accent` with `--text-on-accent`. Never hand-roll `color: #fff` on the
+accent, which is 2.2:1 in high contrast.
 
 **Glass panels** (`.mco-panel`): floating surfaces over the map (legend,
 filters). Head + collapsible body; wire with `MCO.initCollapsible`.
