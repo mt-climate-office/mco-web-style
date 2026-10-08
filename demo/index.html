@@ -278,8 +278,8 @@
 <script>
   'use strict';
 
-  /* ── Live region + toast ─────────────────────────────────────────────── */
-  const live = MCO.createLiveRegion();
+  /* ── Announcer + toast ───────────────────────────────────────────────── */
+  const live = { announce: (t) => MCO.announce(t) };   // the page's one announcer
   document.getElementById('btn-toast').addEventListener('click', () => {
     MCO.showToast('Toast: styled by .mco-toast, announced politely.');
   });

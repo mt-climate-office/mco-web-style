@@ -61,8 +61,9 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
   const srTable = document.getElementById('sr-station-table');
   let _cardOpener = null;
 
-  // Live region for everything a sighted user learns from the canvas — §5.1
-  const live = MCO.createLiveRegion();
+  // The page's one announcer, for everything a sighted user learns from the
+  // canvas — §5.1
+  const live = { announce: (t) => MCO.announce(t) };
 
   /* ── Map init (§7) ─────────────────────────────────────────────────────── */
 

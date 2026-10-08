@@ -9,8 +9,8 @@
    documented in HOUSE-STYLE.md.
 
    Contents: constants · storage · strings · Mountain-time helpers · fetch ·
-   reduced motion (live) · viewport (compact/touch) · toast · theme ·
-   live region · info modal · collapsible · URL state.
+   reduced motion (live) · viewport (compact/touch) · announcements + toast ·
+   theme · info modal · collapsible · URL state.
    ========================================================================== */
 (function () {
   'use strict';
@@ -182,11 +182,38 @@
     },
   };
 
+  /* ── Live-region plumbing (0.8.0) ──────────────────────────────────────────
+     Two defects every hand-made region shared (found by mesonet-dashboard):
+     1. Setting the same text twice is no DOM change, so a repeated message
+        ("Link copied", twice) is not re-read. Clear first, then set the text
+        a beat later, as a separate mutation.
+     2. A region inserted at the moment of its first message is often not
+        read at all: screen readers watch regions that already exist. So the
+        kit's regions (and the toast) are created when this script loads,
+        not on first use. */
+  var ANNOUNCE_GAP_MS = 50;      // clear → set; long enough to be two mutations
+  function clearThenSet(el, text, state) {
+    clearTimeout(state.timer);
+    el.textContent = '';
+    state.timer = setTimeout(function () { el.textContent = text; }, ANNOUNCE_GAP_MS);
+  }
+  // Run fn once <body> exists. The kit's scripts load at the end of <body>, so
+  // this is normally immediate; a page loading them in <head> waits a tick.
+  function onBody(fn) {
+    if (document.body) fn();
+    else document.addEventListener('DOMContentLoaded', fn, { once: true });
+  }
+
   /* ── Toast ─────────────────────────────────────────────────────────────── */
 
   // createToast({element?, duration?}) → {show, hide, element}. With no
   // element, one is created and appended to <body> (class .mco-toast, styled
   // by mco-theme.css, announced politely via role="status").
+  //
+  // show(msg, ms?, {announce: false}) keeps the toast out of the
+  // accessibility tree for that message — for an app that has already said
+  // the same thing through MCO.announce, so screen readers don't hear it
+  // twice (snowpack explorer's pinned-reading double announce).
   MCO.createToast = function (opts) {
     opts = opts || {};
     var duration = opts.duration || 2800;
@@ -196,14 +223,23 @@
       el.className = 'mco-toast';
       el.setAttribute('role', 'status');
       el.setAttribute('aria-live', 'polite');
-      document.body.appendChild(el);
+      el.setAttribute('aria-atomic', 'true');
+      onBody(function () { document.body.appendChild(el); });
     }
     var timer;
+    var live = {};
     return {
       element: el,
-      show: function (msg, ms) {
+      show: function (msg, ms, o) {
         clearTimeout(timer);
-        el.textContent = msg;
+        if (o && o.announce === false) {
+          clearTimeout(live.timer);
+          el.setAttribute('aria-hidden', 'true');
+          el.textContent = msg;
+        } else {
+          el.removeAttribute('aria-hidden');
+          clearThenSet(el, msg, live);
+        }
         el.classList.add('visible');
         timer = setTimeout(function () { el.classList.remove('visible'); }, ms || duration);
       },
@@ -214,11 +250,11 @@
     };
   };
 
-  // Singleton convenience — most pages want exactly one toast.
-  var _toast = null;
-  MCO.showToast = function (msg, ms) {
-    if (!_toast) _toast = MCO.createToast();
-    _toast.show(msg, ms);
+  // Singleton convenience — most pages want exactly one toast. Created at
+  // load (0.8.0) so its live region exists before the first message.
+  var _toast = MCO.createToast();
+  MCO.showToast = function (msg, ms, opts) {
+    _toast.show(msg, ms, opts);
   };
 
   /* ── Theme ─────────────────────────────────────────────────────────────── */
@@ -270,19 +306,52 @@
     return { sync: sync, toggle: toggle };
   };
 
-  /* ── Screen-reader live region ─────────────────────────────────────────────
-     A polite aria-live region for announcing what just changed on a canvas or
-     WebGL surface a screen reader can't see: "42 stations shown", "Station X
-     opened". Pair with the hidden-table twin (HOUSE-STYLE.md §5). */
-  MCO.createLiveRegion = function () {
+  /* ── Screen-reader announcements ───────────────────────────────────────────
+     MCO.announce(text, {politeness}) is the page's ONE announcer (0.8.0):
+     what just changed on a canvas or WebGL surface a screen reader can't see
+     ("42 stations shown", "Station X opened"). HOUSE-STYLE §5.1 lists what
+     must be announced. Pair with the hidden-table twin (§5.2).
+
+     - Its two regions (polite, assertive) exist from script load.
+     - Each message clears the region and is set a beat later, so repeating
+       the same text is re-read.
+     - The same text at the same politeness within 500 ms is dropped: two
+       code paths reporting one change (a filter handler and a render) are
+       heard once.
+     - 'assertive' interrupts. Reserve it for failures the user must hear
+       now; everything else is 'polite' (the default). */
+  var ANNOUNCE_DEDUPE_MS = 500;
+  function makeRegion(politeness) {
     var el = document.createElement('div');
     el.className = 'sr-only';
-    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-live', politeness);
     el.setAttribute('aria-atomic', 'true');   // announce replacements whole
-    document.body.appendChild(el);
+    onBody(function () { document.body.appendChild(el); });
+    return el;
+  }
+  var _regions = { polite: makeRegion('polite'), assertive: makeRegion('assertive') };
+  var _regionState = { polite: {}, assertive: {} };
+  var _lastAnnounce = { text: null, politeness: null, at: 0 };
+
+  MCO.announce = function (text, opts) {
+    var politeness = opts && opts.politeness === 'assertive' ? 'assertive' : 'polite';
+    text = String(text);
+    var now = Date.now();
+    if (text === _lastAnnounce.text && politeness === _lastAnnounce.politeness &&
+        now - _lastAnnounce.at < ANNOUNCE_DEDUPE_MS) return;
+    _lastAnnounce = { text: text, politeness: politeness, at: now };
+    clearThenSet(_regions[politeness], text, _regionState[politeness]);
+  };
+
+  // A separate polite region, for the rare page that needs more than one
+  // (prefer MCO.announce). Since 0.8.0 its announce() clears before setting,
+  // like MCO.announce, so a repeated message is re-read.
+  MCO.createLiveRegion = function () {
+    var el = makeRegion('polite');
+    var state = {};
     return {
       element: el,
-      announce: function (text) { el.textContent = text; },
+      announce: function (text) { clearThenSet(el, String(text), state); },
     };
   };
 

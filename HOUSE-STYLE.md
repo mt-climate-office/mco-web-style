@@ -267,8 +267,19 @@ implementation in the family; CI runs axe over the kit demo in all three
 themes.
 
 1. **Live region for canvas changes.** Anything a sighted user learns from the
-   map/canvas re-render (“42 stations shown”, “Station X opened”) is announced
-   via `MCO.createLiveRegion()`. *(mesonet-status `#sr-announce`)*
+   map/canvas re-render is announced through **`MCO.announce(text)`**, the
+   page's one announcer (0.8.0). Don't hand-make an `#sr-announce`: the kit's
+   regions exist from script load (a region created with its first message is
+   often not read), clear before setting (so a repeat is re-read), and drop
+   duplicates within 500 ms. **What must be announced:**
+   - filter or count changes (“42 stations shown: HydroMet”)
+   - a selection opened or closed (“Bozeman opened”, “Station closed”)
+   - load failures (`{politeness: 'assertive'}`; the only assertive case)
+   - tab, section or view changes, including Back/Forward (“Ag tab”)
+
+   A toast is itself `role=status`. When the same words already went through
+   `MCO.announce`, show the toast with `MCO.showToast(msg, ms, {announce:
+   false})` or screen readers hear it twice.
 2. **Hidden-table twin.** Every canvas/WebGL data layer has an `.sr-only`
    `<table>` rebuilt per render, with `scope`d headers and textual state
    (“no data”, “(stale)”). *(mesonet-explorer `#sr-station-table` — best in family)*
