@@ -356,8 +356,55 @@ body {
   background-repeat: no-repeat;
 }
 .maplibregl-ctrl-attrib { background: var(--glass) !important; color: var(--text-muted) !important; }
-.maplibregl-ctrl-attrib a { color: var(--text-secondary) !important; }
+.maplibregl-ctrl-attrib a { color: var(--text-secondary) !important; text-decoration: underline; text-underline-offset: 2px; }
 .maplibregl-ctrl-attrib button.maplibregl-ctrl-attrib-button { filter: var(--ctrl-icon-filter, none); }
+/* Attribution links are underlined (0.8.0): against the surrounding credit
+   text they differ by color alone, 1.74:1 on dark and 1.25:1 on
+   high-contrast, and WCAG 1.4.1 wants 3:1 or a non-color cue. axe flags it
+   once hillshade's "Terrain: Mapzen/AWS Open Data" credit turns the bar into
+   a text block. Same remedy as prose links in .info-section. */
+
+/* Popups (0.8.0): MapLibre's popup is white with a black tip in every theme.
+   Repainted from tokens, and put on the --z-detail tier: the vendor sheet
+   gives popups NO z-index, so the map controls (z 2) drew over them. Close
+   button 44px on touch. Content comes from MCO.map.popupContent()
+   (.mco-popup / .mco-facts below), never setHTML of API strings (§7). */
+.maplibregl-popup { z-index: var(--z-detail); }
+.maplibregl-popup-content {
+  background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  padding: 0.55rem 0.75rem; font-family: var(--font-ui); font-size: 0.8rem;
+}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--bg-surface); }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--bg-surface); }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--bg-surface); }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--bg-surface); }
+.maplibregl-popup-close-button {
+  width: 28px; height: 28px; top: 2px; right: 2px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted); font-size: 1.1rem; line-height: 1;
+}
+.maplibregl-popup-close-button:hover { background: var(--accent-hover); color: var(--text-primary); }
+.mco-popup { min-width: 10rem; }
+.maplibregl-popup-content:has(.maplibregl-popup-close-button) .mco-popup { padding-right: 1.4rem; }
+.mco-popup-title { margin: 0; font-size: 0.85rem; font-weight: 600; line-height: 1.25; color: var(--text-primary); }
+.mco-popup-sub { margin: 0.1rem 0 0; font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); }
+.mco-popup-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+.mco-popup-actions a.nav-btn { text-decoration: none; }
+/* Label/value facts: a two-column <dl>, also used by detail sheets and
+   cards so a popup and a sheet render a station the same way. Labels are
+   --text-muted, which is allowed on deep and surface only (never --bg-raised). */
+.mco-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.75rem; margin: 0.45rem 0 0; font-size: 0.78rem; }
+.mco-facts > div { display: contents; }
+.mco-facts dt { color: var(--text-muted); }
+.mco-facts dd { margin: 0; color: var(--text-primary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
 /* Vendor default is 2; restated so the whole stacking ladder is greppable.
    With viewport-fit=cover the corner containers need the safe-area insets
    themselves, or the attribution lands under the home indicator. NOTE:
@@ -526,7 +573,7 @@ body {
 .mco-notice { border-left: 3px solid var(--notice-edge, var(--accent-line)); }
 .mco-notice-icon { flex-shrink: 0; width: 16px; height: 16px; color: var(--notice-edge, var(--accent-line)); }
 .mco-notice-text { flex: 1; min-width: 0; margin: 0; }
-.mco-notice-tone { font-weight: 600; color: var(--notice-tone, var(--text-primary)); margin-right: 0.35rem; }
+.mco-notice-tone { font-weight: 600; color: var(--notice-tone, var(--text-primary)); }
 .mco-notice-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .mco-notice-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
 .mco-notice[data-tone="danger"]  { --notice-edge: var(--danger);  --notice-tone: var(--danger);  background: var(--danger-fill);  color: var(--text-on-danger); }
@@ -808,5 +855,7 @@ body {
   .nav-btn.icon-only, .mco-navbar .nav-btn:has(> .btn-label) { min-width: 40px; }
   .mco-btn-info { width: 40px; height: 40px; }
   .modal-close { min-width: 44px; min-height: 44px; }
+  .maplibregl-popup-close-button { width: 44px; height: 44px; top: 0; right: 0; }
+  .maplibregl-popup-content:has(.maplibregl-popup-close-button) .mco-popup { padding-right: 2.4rem; }
   .mco-panel-toggle { width: 36px; height: 36px; }
 }

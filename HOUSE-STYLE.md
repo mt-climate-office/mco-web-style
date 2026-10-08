@@ -401,7 +401,27 @@ boundary needs an outline on light basemaps.
   app, never in shared code**, and must be domain-restricted at the provider.
 - Controls: `MCO.map.addNavigation` (no compass — rotation is off in these
   apps), `MCO.map.addFitControl` fused into the same group,
-  `MCO.map.installZoomFloor` so the region always fills the viewport.
+  `MCO.map.installZoomFloor` so the region always fills the viewport. Since
+  0.8.0 the floor ignores chrome-only resizes (a phone URL bar) and takes
+  `onBeforeSnap` for app policy ("not while a detail is open").
+- **Basemap failure is handled, not hoped away** (0.8.0). Every map calls
+  `MCO.map.watchBasemap(map)`. If the style 404s or hangs, the watch retries
+  once after 5 s and then falls back to `MCO.map.blankStyle()`, a background in
+  `--bg-deep`. That style does load, so `style.load` adds the data and
+  boundaries and the map is useful without streets. A notice with Retry stays
+  over the map. Start data loading from `style.load` (or from `load`, which
+  the fallback also fires), never from a basemap-specific signal.
+- **Popup, tooltip, sheet and table content is DOM-built** (0.8.0, M4). Use DOM
+  APIs and `textContent`: `MCO.map.popupContent({title, subtitle, facts,
+  actions})` with `popup.setDOMContent(…)`, `MCO.map.initCursorTooltip` for
+  hover, `MCO.srTable` for the twin. `setHTML` and `innerHTML` take only
+  static, author-written strings, never one with an API value in it, escaped
+  or not. A URL from an API goes through `MCO.map.safeUrl(u)` (`https:` only)
+  and is set as `img.src`/`a.href`, or as
+  `` el.style.backgroundImage = `url(${JSON.stringify(u)})` ``. Never build it
+  into a `style="…"` string: that is attribute and CSS injection (maint's
+  `p.thumb`). The kit styles the popup shell from tokens on the `--z-detail`
+  tier, so apps delete their local popup CSS.
 - **Topography**: `MCO.map.addHillshade(map)` — live-shaded from the keyless
   AWS terrain DEM, `igor` method, themed paints (highlights carry the relief
   on dark; exaggeration 0.70 dark / 0.50 light / 0.80 high-contrast). Chosen

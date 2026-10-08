@@ -64,6 +64,7 @@
     .swatch .name { font-size: 0.7rem; font-weight: 600; color: var(--text-primary); }
     .swatch .val  { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); overflow-wrap: anywhere; }
     .demo-stack { display: grid; gap: 0.5rem; }
+    .demo-row-after { margin-top: 0.8rem; }
     .demo-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     #map { width: 100%; height: 100%; }
@@ -225,24 +226,24 @@
     <div id="notice-demo" class="demo-stack">
       <div class="mco-notice">
         <svg class="mco-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/></svg>
-        <p class="mco-notice-text"><strong class="mco-notice-tone">Note</strong>Data after 10:00 MT are provisional. <a href="#main">Learn more</a></p>
+        <p class="mco-notice-text"><strong class="mco-notice-tone">Note</strong> Data after 10:00 MT are provisional. <a href="#main">Learn more</a></p>
       </div>
       <div class="mco-notice" data-tone="warning">
         <svg class="mco-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17v.01"/></svg>
-        <p class="mco-notice-text"><strong class="mco-notice-tone">Warning</strong>3 stations have not reported in 6 hours.</p>
+        <p class="mco-notice-text"><strong class="mco-notice-tone">Warning</strong> 3 stations have not reported in 6 hours.</p>
       </div>
       <div class="mco-notice" data-tone="danger">
         <svg class="mco-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/></svg>
-        <p class="mco-notice-text"><strong class="mco-notice-tone">Error</strong>The station list failed to load.</p>
+        <p class="mco-notice-text"><strong class="mco-notice-tone">Error</strong> The station list failed to load.</p>
         <div class="mco-notice-actions"><button type="button" class="nav-btn">Retry</button></div>
       </div>
       <div class="mco-notice" data-tone="success">
         <svg class="mco-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></svg>
-        <p class="mco-notice-text"><strong class="mco-notice-tone">Done</strong>Export saved.</p>
+        <p class="mco-notice-text"><strong class="mco-notice-tone">Done</strong> Export saved.</p>
       </div>
       <div class="mco-empty">No stations match these filters.</div>
     </div>
-    <div class="demo-row" style="margin-top: 0.8rem">
+    <div class="demo-row demo-row-after">
       <button type="button" class="nav-btn" id="btn-notice">Show a dismissible notice</button>
     </div>
   </section>
@@ -460,18 +461,43 @@
 
   // MapLibre 6 is ESM-only: the map waits for MCO.map.loadMapLibre(), while
   // everything else on the page is already wired above and below.
+  // ?basemap=fail points the style at a 404, to exercise MCO.map.watchBasemap.
+  const styleUrl = () => MCO.urlParams().get('basemap') === 'fail'
+    ? 'https://basemaps.cartocdn.com/gl/mco-demo-missing/style.json'
+    : MCO.map.cartoStyleUrl();
   MCO.map.loadMapLibre().then((maplibregl) => {
     map = new maplibregl.Map({
       container: 'map',
-      style: MCO.map.cartoStyleUrl(),
+      style: styleUrl(),
       ...MCO.map.initialCamera(MCO.urlParams()),
     });
     MCO.map.addNavigation(map);
     MCO.map.addFitControl(map);
     zoomFloor = MCO.map.installZoomFloor(map);
+    MCO.map.watchBasemap(map, {
+      styleUrl,
+      retryDelayMs: MCO.urlParams().get('basemap') === 'fail' ? 500 : 5000,
+      onFail: () => { mapNote.textContent = 'Basemap failed; showing overlays on the blank fallback.'; },
+    });
+    // Hover: the kit's cursor tooltip. Click: a DOM-built popup (§7).
+    MCO.map.initCursorTooltip(map, {
+      layers: ['tribal-fill'],
+      render: (f) => ({ name: f.properties.NAME, sub: 'Tribal nation · click for details' }),
+    });
+    const popup = new maplibregl.Popup({ maxWidth: '280px' });
+    map.on('click', 'tribal-fill', (e) => {
+      const f = e.features[0];
+      popup.setLngLat(e.lngLat).setDOMContent(MCO.map.popupContent({
+        title: f.properties.NAME,
+        subtitle: 'MCO.map.popupContent()',
+        facts: [['Layer', 'tribal-fill'], ['Source', 'map/data/'], ['Clicked at', `${e.lngLat.lat.toFixed(2)}, ${e.lngLat.lng.toFixed(2)}`]],
+        actions: [{ label: 'climate.umt.edu', href: 'https://climate.umt.edu' }],
+      })).addTo(map);
+    });
 
     map.on('load', () => {
       zoomFloor.refresh();
+      if (!overlayData.state) mapNote.textContent = 'Loading overlays…';
       Promise.all([
         MCO.fetchJSON('../map/data/mt_state_simple.geojson'),
         MCO.fetchJSON('../map/data/mt_counties_simple.geojson'),
@@ -487,6 +513,9 @@
         mapNote.textContent = 'Overlay GeoJSON failed to load (serve the repo root, not demo/).';
       });
     });
+    // Every style load (theme switch, basemap retry, blank fallback) starts
+    // from a bare style: re-add the overlays each time, not once.
+    map.on('style.load', addOverlays);
     map.on('moveend', pushState);
   }).catch((err) => {
     mapNote.textContent = 'Map unavailable: ' + err.message;
@@ -504,8 +533,7 @@
     syncSegs();
     themeToggle.sync();
     if (map) {
-      map.setStyle(MCO.map.cartoStyleUrl());
-      map.once('style.load', addOverlays);   // setStyle wipes our sources/layers
+      map.setStyle(styleUrl());              // style.load re-adds the overlays
     }
     live.announce('Theme: ' + MCO.getTheme());
     pushState();

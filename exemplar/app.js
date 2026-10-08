@@ -73,6 +73,9 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     ...MCO.map.initialCamera(params),
   });
   MCO.map.addNavigation(map);                    // house default: no compass
+  // A dead basemap retries once, then falls back to a blank style that still
+  // fires 'load', so the stations draw anyway — §7
+  MCO.map.watchBasemap(map);
   MCO.map.addFitControl(map, { onBeforeFit: closeCard });
   const zoomFloor = MCO.map.installZoomFloor(map);
 
@@ -318,21 +321,11 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
 
   /* ── Map pointer interactions ──────────────────────────────────────────── */
 
-  map.on('mousemove', 'stations-dots', (e) => {
-    map.getCanvas().style.cursor = 'pointer';
-    const f = e.features && e.features[0];
-    if (!f) return;
-    tooltip.innerHTML =
-      `<span class="tooltip-name">${MCO.escapeHTML(f.properties.name)}</span>` +
-      `<span class="tooltip-sub">${MCO.escapeHTML(f.properties.id)} · ${MCO.escapeHTML(f.properties.net)}</span>`;
-    // .mco-tooltip is position:fixed — use viewport coordinates.
-    tooltip.style.left = (e.originalEvent.clientX + 14) + 'px';
-    tooltip.style.top = (e.originalEvent.clientY + 14) + 'px';
-    tooltip.classList.add('visible');
-  });
-  map.on('mouseleave', 'stations-dots', () => {
-    map.getCanvas().style.cursor = '';
-    tooltip.classList.remove('visible');
+  // Hover decoration; the same facts reach AT through the sr-table — §5.8
+  MCO.map.initCursorTooltip(map, {
+    element: tooltip,
+    layers: ['stations-dots'],
+    render: (f) => ({ name: f.properties.name, sub: `${f.properties.id} · ${f.properties.net}` }),
   });
   map.on('click', 'stations-dots', (e) => {
     const f = e.features && e.features[0];
@@ -351,8 +344,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     iconSun: document.getElementById('icon-sun'),
     iconMoon: document.getElementById('icon-moon'),
     onChange: () => {
-      map.setStyle(MCO.map.cartoStyleUrl());
-      map.once('style.load', () => { addCustomLayers(); render(); });
+      map.setStyle(MCO.map.cartoStyleUrl());   // style.load re-adds the layers
       writeUrl();
     },
   });
@@ -441,6 +433,11 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     });
   }
 
+  // Every style load (theme switch, basemap retry, blank fallback) starts
+  // from a bare style, so the custom layers go back on each time — §4, §7.
+  map.on('style.load', () => {
+    if (stations.length) { addCustomLayers(); render(); }
+  });
   map.on('load', () => {
     zoomFloor.refresh();
     loadAll();

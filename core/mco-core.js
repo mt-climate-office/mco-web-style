@@ -378,8 +378,9 @@
      - The tone word ("Error", "Warning", …) is visible text, so color is
        never the only channel. Pass toneLabel to change it.
      - The text is announced through MCO.announce (assertive for danger,
-       polite otherwise) rather than by giving the element a live role: a
-       role=status inserted together with its message is often not read.
+       polite otherwise; opts.politeness overrides, e.g. a warning-toned load
+       failure) rather than by giving the element a live role: a role=status
+       inserted together with its message is often not read.
      - dismissible (default true) adds a × button. dismissKey remembers a
        dismissal in sessionStorage; it must be app-prefixed (mco-<app>-…). A
        notice already dismissed this session is not shown: the handle's
@@ -432,7 +433,8 @@
     word.className = 'mco-notice-tone';
     var toneLabel = opts.toneLabel || NOTICE_TONES[tone];
     word.textContent = toneLabel;
-    p.append(word, document.createTextNode(String(opts.text || '')));
+    // A real space, not a margin: AT reads the word and the text as one line.
+    p.append(word, ' ', String(opts.text || ''));
     el.append(icon, p);
 
     if (opts.action) {
@@ -476,7 +478,7 @@
     var host = opts.container || document.getElementById('main') || document.body;
     host.insertBefore(el, host.firstChild);
     MCO.announce(toneLabel + ': ' + (opts.text || ''),
-      { politeness: tone === 'danger' ? 'assertive' : 'polite' });
+      { politeness: opts.politeness || (tone === 'danger' ? 'assertive' : 'polite') });
 
     return { element: el, close: close };
   };
