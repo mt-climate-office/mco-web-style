@@ -337,6 +337,11 @@ themes.
 7. **`aria-pressed` is the styling source of truth** for toggles — CSS keys off
    `[aria-pressed="true"]`, so the accessible state can never drift from the
    visual state. Pair with swapped `aria-label`s where the action inverts.
+   **Legend rows** are `.mco-legend-row` buttons wired by
+   `MCO.initLegendToggles` (0.8.0). "Off" dims the swatch and strikes the label
+   through. **Never put opacity on the row**: parent opacity composites the
+   label too, and no child rule can win it back. Three apps shipped a 2.7:1
+   label that way, a 1.4.3 failure.
 8. **Keyboard twin for every pointer gesture.** Double-click-to-isolate gets
    Shift+Enter; hover-only reads get a click/focus path. A hover tooltip over
    canvas is `aria-hidden` decoration — the same content must reach AT another

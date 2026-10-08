@@ -640,6 +640,106 @@
     return { element: wrap, render: render };
   };
 
+  /* ── Legend toggles (0.8.0) ────────────────────────────────────────────────
+     Click a legend row to show/hide its category; double-click isolates it
+     (double-click the isolated row again to show everything). Shift+Enter is
+     the keyboard twin of the double-click (§5.8). Rows are buttons styled by
+     .mco-legend-row; aria-pressed is kept in sync and drives the styling.
+
+       var legend = MCO.initLegendToggles({
+         rows: legendEl.querySelectorAll('.mco-legend-row'),   // each with data-key
+         visible: ['fresh', 'stale'],          // initial; default every row
+         onChange: function (visibleSet, change) { render(); },
+         noun: 'categories',                   // "Fresh hidden, 3 of 4 categories shown"
+         showAll: showAllButton,               // optional; shown while anything is hidden
+       });
+
+     A mouse click waits out the double-click window (250 ms) so an isolate
+     doesn't flash two toggles first; keyboard activation (click with
+     detail 0) applies at once. Each change is announced once through
+     MCO.announce. change = {key, action: 'toggle'|'isolate'|'all'}.
+     Returns {visible(), set(keys), showAll(), dispose()}. */
+  var DBLCLICK_MS = 250;
+  MCO.initLegendToggles = function (opts) {
+    var rows = Array.prototype.slice.call(opts.rows || []);
+    var keys = rows.map(function (r) { return r.dataset.key; });
+    var noun = opts.noun || 'categories';
+    var showAllBtn = opts.showAll || null;
+    var vis = new Set(opts.visible ? Array.from(opts.visible) : keys);
+    var timer = null;
+
+    function labelOf(key) {
+      var row = rows[keys.indexOf(key)];
+      var l = row && row.querySelector('.mco-legend-label');
+      return (l ? l.textContent : key).trim();
+    }
+    function sync() {
+      rows.forEach(function (r) { r.setAttribute('aria-pressed', String(vis.has(r.dataset.key))); });
+      if (showAllBtn) showAllBtn.hidden = vis.size === keys.length;
+    }
+    function changed(change, lead) {
+      sync();
+      MCO.announce(change.action === 'all' ? lead + '.'
+        : lead + ', ' + vis.size + ' of ' + keys.length + ' ' + noun + ' shown.');
+      if (opts.onChange) opts.onChange(new Set(vis), change);
+    }
+    function toggle(key) {
+      if (vis.has(key)) vis.delete(key); else vis.add(key);
+      changed({ key: key, action: 'toggle' }, labelOf(key) + (vis.has(key) ? ' shown' : ' hidden'));
+    }
+    function isolate(key) {
+      if (vis.size === 1 && vis.has(key)) { showAll(); return; }
+      vis = new Set([key]);
+      changed({ key: key, action: 'isolate' }, 'Only ' + labelOf(key));
+    }
+    function showAll() {
+      vis = new Set(keys);
+      changed({ key: null, action: 'all' }, 'All ' + noun + ' shown');
+    }
+
+    function onClick(e) {
+      var key = e.currentTarget.dataset.key;
+      if (e.detail === 0) { toggle(key); return; }        // keyboard: no dblclick to wait for
+      if (e.detail > 1) return;                             // the dblclick handler owns it
+      clearTimeout(timer);
+      timer = setTimeout(function () { timer = null; toggle(key); }, DBLCLICK_MS);
+    }
+    function onDbl(e) {
+      clearTimeout(timer); timer = null;
+      isolate(e.currentTarget.dataset.key);
+    }
+    function onKey(e) {
+      if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault();
+        isolate(e.currentTarget.dataset.key);
+      }
+    }
+    rows.forEach(function (r) {
+      r.addEventListener('click', onClick);
+      r.addEventListener('dblclick', onDbl);
+      r.addEventListener('keydown', onKey);
+    });
+    if (showAllBtn) showAllBtn.addEventListener('click', showAll);
+    sync();
+
+    return {
+      visible: function () { return new Set(vis); },
+      // Set the visible keys silently (state restored from the URL): no
+      // announcement, no onChange.
+      set: function (k) { vis = new Set(Array.from(k).filter(function (x) { return keys.indexOf(x) !== -1; })); sync(); },
+      showAll: showAll,
+      dispose: function () {
+        clearTimeout(timer);
+        rows.forEach(function (r) {
+          r.removeEventListener('click', onClick);
+          r.removeEventListener('dblclick', onDbl);
+          r.removeEventListener('keydown', onKey);
+        });
+        if (showAllBtn) showAllBtn.removeEventListener('click', showAll);
+      },
+    };
+  };
+
   /* ── Info modal (native <dialog>) ──────────────────────────────────────────
      Opener-captured focus restore (works with multiple openers), backdrop
      click to close, [data-close-modal] delegation for close buttons. */

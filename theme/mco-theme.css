@@ -714,6 +714,47 @@ body {
 }
 .mco-panel-body.is-collapsing { max-height: 0; opacity: 0; }
 
+/* Legend rows (0.8.0) — click to show/hide a category, wired by
+   MCO.initLegendToggles. aria-pressed is the styling source of truth (§5.7):
+     <button class="mco-legend-row" aria-pressed="true" data-key="fresh">
+       <span class="mco-legend-swatch" style="--swatch: #2a8a86" aria-hidden="true"></span>
+       <span class="mco-legend-label">Fresh</span><span class="mco-legend-count">42</span>
+     </button>
+   The ROW never gets opacity: parent opacity composites the whole subtree,
+   so no child rule can restore the label's contrast (three apps shipped
+   `.legend-row.off { opacity: .4 }`, a 2.7:1 label). Off dims the swatch
+   only and strikes the label through, a non-color cue. The label stays
+   --text-secondary: the panel is glass over an arbitrary basemap, where
+   --text-muted's surface-only guarantee doesn't hold.
+   Swatches always carry a --border edge, so a white "near normal" bin can't
+   vanish on light glass. data-shape matches the map mark: circle | hollow |
+   ring | line | dash (default: rounded square, a fill). */
+.mco-legend-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  width: 100%; min-height: 28px; padding: 2px 4px;
+  background: none; border: 0; border-radius: var(--radius-sm);
+  color: var(--text-secondary); font: inherit; font-size: 0.78rem; text-align: left;
+  cursor: pointer; transition: background var(--transition);
+}
+.mco-legend-row:hover { background: var(--accent-hover); color: var(--text-primary); }
+.mco-legend-swatch {
+  width: 14px; height: 14px; flex-shrink: 0;
+  background: var(--swatch, transparent);
+  border: 1px solid var(--border); border-radius: 3px;
+  transition: opacity var(--transition);
+}
+.mco-legend-swatch[data-shape="circle"] { border-radius: 50%; }
+.mco-legend-swatch[data-shape="hollow"] { border-radius: 50%; background: transparent; border: 2px solid var(--swatch); }
+.mco-legend-swatch[data-shape="ring"]   { border-radius: 50%; background: transparent; border: 3.5px solid var(--swatch); }
+.mco-legend-swatch[data-shape="line"]   { height: 3px; width: 16px; border: 0; border-radius: 2px; }
+.mco-legend-swatch[data-shape="dash"]   { height: 3px; width: 16px; border: 0; border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--swatch) 0 4px, transparent 4px 7px); }
+.mco-legend-label { flex: 1; min-width: 0; }
+.mco-legend-count { margin-left: auto; padding-left: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
+.mco-legend-row[aria-pressed="false"] .mco-legend-swatch { opacity: 0.35; }
+.mco-legend-row[aria-pressed="false"] .mco-legend-label { text-decoration: line-through; text-decoration-thickness: 1px; }
+@media (hover: none) { .mco-legend-row { min-height: 40px; } }
+
 /* Collapsible search (MCO.initSearchCollapse) ───────────────────────────────
    At compact widths a navbar search field costs more width than it earns, but
    hiding it strands the only keyboard route to a named feature. Instead it

@@ -69,8 +69,7 @@
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     #map { width: 100%; height: 100%; }
     #legend-panel { right: 0.75rem; bottom: 1.75rem; }
-    .legend-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--text-secondary); padding: 3px 0; }
-    .legend-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+    .demo-show-all { margin-top: 0.4rem; }
     #hover-target {
       border: 1px dashed var(--ctrl-border); border-radius: var(--radius-md);
       padding: 1.2rem; text-align: center; font-size: 0.85rem; color: var(--text-muted);
@@ -209,9 +208,21 @@
           </button>
         </div>
         <div class="mco-panel-body" id="legend-body">
-          <div class="legend-row"><span class="legend-swatch" id="sw-state" aria-hidden="true"></span>State boundary</div>
-          <div class="legend-row"><span class="legend-swatch" id="sw-county" aria-hidden="true"></span>County lines</div>
-          <div class="legend-row"><span class="legend-swatch" id="sw-tribal" aria-hidden="true"></span>Tribal nations</div>
+          <!-- MCO.initLegendToggles: click shows/hides, double-click or
+               Shift+Enter isolates; aria-pressed drives the styling. -->
+          <button type="button" class="mco-legend-row" data-key="state" aria-pressed="true">
+            <span class="mco-legend-swatch" data-shape="line" id="sw-state" aria-hidden="true"></span>
+            <span class="mco-legend-label">State boundary</span>
+          </button>
+          <button type="button" class="mco-legend-row" data-key="counties" aria-pressed="true">
+            <span class="mco-legend-swatch" data-shape="line" id="sw-county" aria-hidden="true"></span>
+            <span class="mco-legend-label">County lines</span>
+          </button>
+          <button type="button" class="mco-legend-row" data-key="tribal" aria-pressed="true">
+            <span class="mco-legend-swatch" id="sw-tribal" aria-hidden="true"></span>
+            <span class="mco-legend-label">Tribal nations</span><span class="mco-legend-count">7</span>
+          </button>
+          <button type="button" class="nav-btn demo-show-all" id="legend-show-all" hidden>Show all</button>
         </div>
       </div>
     </div>
@@ -409,9 +420,9 @@
   /* ── Legend swatches track the overlay paints ────────────────────────── */
   function paintLegendSwatches() {
     const p = MCO.map.overlayPaints();
-    document.getElementById('sw-state').style.background = p.stateLine['line-color'];
-    document.getElementById('sw-county').style.background = p.countiesLine['line-color'];
-    document.getElementById('sw-tribal').style.background = p.tribalLine['line-color'];
+    document.getElementById('sw-state').style.setProperty('--swatch', p.stateLine['line-color']);
+    document.getElementById('sw-county').style.setProperty('--swatch', p.countiesLine['line-color']);
+    document.getElementById('sw-tribal').style.setProperty('--swatch', p.tribalLine['line-color']);
   }
   paintLegendSwatches();
 
@@ -448,6 +459,27 @@
     }
     if (map.getSource('state') && !map.getLayer('state-line')) {
       map.addLayer({ id: 'state-line', type: 'line', source: 'state', paint: paints.stateLine });
+    }
+    applyOverlayVisibility();
+  }
+
+  const OVERLAY_LAYERS = {
+    state: ['state-line'], counties: ['counties-line'],
+    tribal: ['tribal-fill', 'tribal-line', 'tribal-label'],
+  };
+  const legend = MCO.initLegendToggles({
+    rows: document.querySelectorAll('#legend-body .mco-legend-row'),
+    noun: 'overlays',
+    showAll: document.getElementById('legend-show-all'),
+    onChange: () => applyOverlayVisibility(),
+  });
+  function applyOverlayVisibility() {
+    if (!map) return;
+    const shown = legend.visible();
+    for (const [key, ids] of Object.entries(OVERLAY_LAYERS)) {
+      for (const id of ids) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', shown.has(key) ? 'visible' : 'none');
+      }
     }
   }
 
