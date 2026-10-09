@@ -558,6 +558,83 @@
     };
   };
 
+  /* ── Station markers (0.9.0) ───────────────────────────────────────────────
+     HOUSE-STYLE §7: network = SHAPE + color, data value = fill. Shape
+     survives grayscale and every CVD type. Network colors come from
+     MCO.palette.NETWORK (palette/mco-palette.js — load it first), per theme
+     and contrast-tested against both basemaps.
+       map.addLayer({ id: 'agrimet', type: 'circle', source: 's',
+         filter: ['==', ['get', 'net'], 'AgriMet'],
+         paint: MCO.map.markerPaint('agrimet', { radius: 6 }) });
+     Shapes: circle (filled, --dot-stroke edge) · hollow (--bg-surface fill,
+     thick colored ring) · ring (no fill, thin colored ring). Pass `fill` (a
+     color or expression) to encode a data value inside a circle. Paints read
+     the theme when called: re-call after a theme switch, like every paint.
+
+     selectionPaint() is the selected-station ring, from --selection-ring
+     read at paint time (never a literal — explorer's '#5aaee8' is the dark
+     value and wrong on light). focusPaint() is the keyboard-focus halo, in
+     --accent-line, distinct from selection. hitPaint() is an invisible
+     layer at least 22px across on touch, for a tappable target.
+
+     Co-located stations (§7): up to 3 merge into one feature drawn with
+     colocatedHaloPaint() — an outer ring in the second network's color —
+     and a click cycles through them ("1 of 2: Bozeman AgriMet"), reachable
+     by keyboard through the selectable MCO.srTable twin. Dense clusters keep
+     the app's badge + spider; the badge is --text-on-accent on --accent,
+     and the spider closes on Esc (MCO.overlay). */
+  function token(name, fallback) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  }
+  function themeName() { return document.documentElement.dataset.theme || 'dark'; }
+  function networkOf(key) {
+    if (!MCO.palette || !MCO.palette.network) throw new Error('MCO.map.markerPaint needs palette/mco-palette.js');
+    var n = MCO.palette.network(key, themeName());
+    if (!n) throw new Error('MCO.map.markerPaint: unknown network ' + key);
+    return n;
+  }
+  M.markerPaint = function (network, opts) {
+    opts = opts || {};
+    var n = networkOf(network);
+    var r = opts.radius != null ? opts.radius : ['interpolate', ['linear'], ['zoom'], 4, 3.5, 10, 7];
+    if (n.shape === 'hollow') {
+      return { 'circle-radius': r, 'circle-color': opts.fill || token('--bg-surface', '#1e2530'),
+        'circle-stroke-color': n.color, 'circle-stroke-width': 2.5 };
+    }
+    if (n.shape === 'ring') {
+      return { 'circle-radius': r, 'circle-color': opts.fill || 'rgba(0,0,0,0)',
+        'circle-stroke-color': n.color, 'circle-stroke-width': 1.5 };
+    }
+    return { 'circle-radius': r, 'circle-color': opts.fill || n.color,
+      'circle-stroke-color': token('--dot-stroke', '#ffffff'), 'circle-stroke-width': 1.2 };
+  };
+  function ringPaint(color, opts) {
+    opts = opts || {};
+    return { 'circle-radius': opts.radius != null ? opts.radius : ['interpolate', ['linear'], ['zoom'], 4, 6.5, 10, 11],
+      'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': color, 'circle-stroke-width': opts.width || 2.5 };
+  }
+  M.selectionPaint = function (opts) { return ringPaint(token('--selection-ring', '#5aaee8'), opts); };
+  M.focusPaint = function (opts) {
+    opts = opts || {};
+    return ringPaint(token('--accent-line', '#5aaee8'), { radius: opts.radius != null ? opts.radius
+      : ['interpolate', ['linear'], ['zoom'], 4, 9, 10, 14], width: opts.width || 2 });
+  };
+  M.hitPaint = function (opts) {
+    opts = opts || {};
+    return { 'circle-radius': opts.radius != null ? opts.radius : 11, 'circle-color': 'rgba(0,0,0,0)' };
+  };
+  // Outer ring in the second network's color; prop names the feature
+  // property holding that network's key (e.g. 'net2' = 'agrimet').
+  M.colocatedHaloPaint = function (opts) {
+    opts = opts || {};
+    var prop = opts.prop || 'net2';
+    var match = ['match', ['downcase', ['to-string', ['get', prop]]]];
+    ['hydromet', 'agrimet', 'cooperator'].forEach(function (k) { match.push(k, networkOf(k).color); });
+    match.push('rgba(0,0,0,0)');
+    return { 'circle-radius': opts.radius != null ? opts.radius : ['interpolate', ['linear'], ['zoom'], 4, 6, 10, 10.5],
+      'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': match, 'circle-stroke-width': 2 };
+  };
+
   /* ── Hillshade ─────────────────────────────────────────────────────────────
      Live-shaded topography from elevation data — the treatment that finally
      works in every theme, because the colors are derived per theme rather

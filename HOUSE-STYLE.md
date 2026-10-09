@@ -63,6 +63,18 @@ titles collapsed to near-identical prefixes there (“Station Stat…” vs “S
 Main…”). The distinctive word has to come first to survive — and with the tab's
 family half abbreviated too, most titles now fit whole.
 
+**State in the title** (0.9.0): `<Detail> · <Short> · <Family>`, with the
+detail first, because the tab truncates and the detail is what tells two tabs
+apart. Use exactly one middot between parts. The detail is one station name or
+one date, never both. Set it with `MCO.setPageTitle({short, detail})` and the
+card form with `MCO.setSocialMeta({short, detail, image, url})`, which also
+writes `og:site_name` as the long family alone.
+
+**Head assets** (decided 2026-10-08): favicons and the social card's
+`og-card.png` are **hot-linked from the pinned kit tag**, so they version with
+the kit and can't drift. The navbar logo stays vendored. The canonical URL is
+the production host, never github.io.
+
 Target titles per app live in CONSUMERS.md; apply on migration.
 ⛔ `mco-drought-dashboard` is excluded from this and every other family-wide
 sweep — see its CONSUMERS.md row.
@@ -76,8 +88,11 @@ carry system fallbacks. Don't add other families — the drought dashboard's Int
 is drift, not precedent.
 
 **Voice.** Plain, confident, unhedged. Info modals explain what the colors mean
-and where the data comes from; footers and exports credit
-`Montana Climate Office · climate.umt.edu`.
+and where the data comes from. Footers and exports credit
+`Montana Climate Office · climate.umt.edu`, always through `MCO.credit({source})`
+(0.9.0), so the wording and the `·` separator (never `|`) are identical
+everywhere. Pages with room carry a `.mco-footer`. Full-viewport map apps put
+the credit in the info modal's Data section and their exports instead.
 
 ---
 
@@ -518,6 +533,24 @@ boundary needs an outline on light basemaps.
   (dashed, appears at z9 — pale orange on Positron) in `addCustomLayers()`:
   `map.setLayoutProperty('boundary_county', 'visibility', 'none')` — otherwise
   the map shows two county treatments above zoom 9.
+- **Station markers** (0.9.0): **network = shape + color, data value =
+  fill**. `MCO.map.markerPaint(network)` draws HydroMet as a filled circle,
+  AgriMet as a hollow one and Cooperator as a ring, in
+  `MCO.palette.NETWORK` colors. The legend swatch uses the same `data-shape`.
+  The selected station ring is `MCO.map.selectionPaint()` (`--selection-ring`
+  read at paint time, never a literal). Keyboard focus is
+  `MCO.map.focusPaint()` (`--accent-line`, distinct from selection). Add an
+  invisible `MCO.map.hitPaint()` layer (≥ 22 px across) as the click/tap
+  target.
+- **Co-located stations**: up to 3 merge into one feature with an outer ring
+  in the second network's color (`MCO.map.colocatedHaloPaint`). A click
+  cycles through them and announces “1 of 2: Bozeman AgriMet”; the keyboard
+  path is the selectable sr-table twin. Dense clusters keep the app's badge +
+  spider. The badge is `--text-on-accent` on `--accent`, and the spider closes
+  on Esc.
+- **Charts** read chrome from `MCO.chartTokens()` and data colors from
+  `MCO.palette`. They listen for `mco:themechange` (fired by `MCO.setTheme`)
+  and dispose and re-init on it rather than `setOption`.
 - The map container gets `role="application"` and an `aria-label`.
 - Vendoring exception: `data.climate.umt.edu` resolves to a private IP on
   campus (Chrome LNA blocks public→private fetches) — vendor data files into

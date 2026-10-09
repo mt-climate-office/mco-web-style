@@ -270,9 +270,93 @@
   MCO.osTheme = function () {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
+  // Fires `mco:themechange` on document (0.9.0) with detail {theme,
+  // previous}, so a chart, a canvas export or a map re-style listens once
+  // instead of every toggle call site remembering it.
   MCO.setTheme = function (theme, opts) {
+    var previous = MCO.getTheme();
     document.documentElement.dataset.theme = theme;
     if (!opts || opts.persist !== false) MCO.lsSet(MCO.THEME_KEY, theme);
+    if (theme !== previous) {
+      document.dispatchEvent(new CustomEvent('mco:themechange', { detail: { theme: theme, previous: previous } }));
+    }
+  };
+
+  /* ── Tokens from JS (0.9.0) ────────────────────────────────────────────────
+     MCO.cssVar('--text-primary') — the trimmed computed value (three apps
+     each wrapped this). MCO.chartTokens() — the chrome a chart or a canvas
+     export needs, read live from the current theme. CHROME only: data
+     colors come from MCO.palette. On a theme change, re-read them; for
+     ECharts, dispose and re-init the chart (carrying zoom and legend state)
+     rather than setTheme/setOption, which lost state and mis-drew dual-axis
+     charts on the dashboard. ECharts' default legend dim (--border, ≈1.6:1)
+     fails: use textMuted as inactiveColor. */
+  MCO.cssVar = function (name, el) {
+    return getComputedStyle(el || document.documentElement).getPropertyValue(name).trim();
+  };
+  MCO.chartTokens = function () {
+    var v = MCO.cssVar;
+    return {
+      text: v('--text-primary'), textSecondary: v('--text-secondary'), textMuted: v('--text-muted'),
+      grid: v('--border'), surface: v('--bg-surface'), background: v('--bg-deep'),
+      tooltipBg: v('--glass'), tooltipBorder: v('--border'),
+      accentLine: v('--accent-line'), selection: v('--selection-ring'),
+      fontUi: v('--font-ui'), fontMono: v('--font-mono'),
+    };
+  };
+
+  /* ── Page title, social meta, credit (0.9.0) ───────────────────────────────
+     HOUSE-STYLE §1. Tab: "<Detail> · <Short> · <Family>" with the short
+     family (MT Mesonet | MCO). Card: "<Detail> · <Short> · <Long family>"
+     (Montana Mesonet | Montana Climate Office); og:site_name the long family
+     alone. Detail is optional plain text — one station or one date. */
+  var LONG_FAMILY = { 'MT Mesonet': 'Montana Mesonet', 'MCO': 'Montana Climate Office' };
+  function titleParts(o, family) {
+    return [o.detail, o.short, family].filter(function (x) { return x != null && String(x).trim() !== ''; }).join(' · ');
+  }
+  MCO.setPageTitle = function (o) {
+    if (!o || !o.short) throw new Error('MCO.setPageTitle: short is required');
+    document.title = titleParts(o, o.family || 'MT Mesonet');
+    return document.title;
+  };
+  function upsertMeta(attr, key, content) {
+    var el = document.head.querySelector('meta[' + attr + '="' + key + '"]');
+    if (!el) { el = document.createElement('meta'); el.setAttribute(attr, key); document.head.appendChild(el); }
+    el.setAttribute('content', content);
+  }
+  MCO.setSocialMeta = function (o) {
+    if (!o || !o.short) throw new Error('MCO.setSocialMeta: short is required');
+    var fam = o.family || 'MT Mesonet';
+    var long = LONG_FAMILY[fam] || fam;
+    var title = titleParts(o, long);
+    upsertMeta('property', 'og:title', title);
+    upsertMeta('name', 'twitter:title', title);
+    upsertMeta('property', 'og:site_name', long);
+    if (o.description) { upsertMeta('property', 'og:description', o.description); upsertMeta('name', 'twitter:description', o.description); }
+    if (o.url) {
+      upsertMeta('property', 'og:url', o.url);
+      var c = document.head.querySelector('link[rel="canonical"]');
+      if (!c) { c = document.createElement('link'); c.rel = 'canonical'; document.head.appendChild(c); }
+      c.href = o.url;
+    }
+    if (o.image) {
+      upsertMeta('property', 'og:image', o.image);
+      upsertMeta('name', 'twitter:image', o.image);
+      upsertMeta('name', 'twitter:card', 'summary_large_image');
+      if (o.imageWidth) upsertMeta('property', 'og:image:width', String(o.imageWidth));
+      if (o.imageHeight) upsertMeta('property', 'og:image:height', String(o.imageHeight));
+      var alt = o.imageAlt || 'Montana Climate Office';
+      upsertMeta('property', 'og:image:alt', alt);
+      upsertMeta('name', 'twitter:image:alt', alt);
+    }
+    return title;
+  };
+  // The one credit string — info modal Data sections, footers and every
+  // export draw from it, so the wording is identical everywhere. Separator
+  // is the middot, never a pipe.
+  MCO.credit = function (o) {
+    var source = o && o.source;
+    return (source ? source + ' · ' : '') + 'Montana Climate Office · climate.umt.edu';
   };
   MCO.toggleTheme = function () {
     var next = MCO.getTheme() === 'dark' ? 'light' : 'dark';
