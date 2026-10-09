@@ -64,12 +64,16 @@
     <li id="r-core"><span>core/mco-core.js</span><span class="status">…</span></li>
     <li id="r-map"><span>map/mco-map.js</span><span class="status">…</span></li>
     <li id="r-cog"><span>map/cog-protocol.js</span><span class="status">…</span></li>
+    <li id="r-palette"><span>palette/mco-palette.js</span><span class="status">…</span></li>
     <li id="r-fonts"><span>fonts/ (Outfit + Space Mono)</span><span class="status">…</span></li>
   </ul>
 </main>
 
 <script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/core/mco-core.js"
         integrity="sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/palette/mco-palette.js"
+        integrity="sha384-P+8vdCR12oZ388lO/orPRnm6Tcz69x6mhN32l7AWP7j8S7KCNijXDZrmYjWuXm8J"
         crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/map/mco-map.js"
         integrity="sha384-pmyiDS5SNzBxK1AyD/ONb7mFLrfklj+Pvyd6KCxYKzLOQnqiK+07+3liQR5Zr16x"
@@ -90,6 +94,7 @@
   mark('r-core', !!(window.MCO && MCO.versions && MCO.versions.core));
   mark('r-map', !!(window.MCO && MCO.map && MCO.versions && MCO.versions.map));
   mark('r-cog', typeof window.CogProtocol !== 'undefined');
+  mark('r-palette', !!(window.MCO && MCO.palette && MCO.versions && MCO.versions.palette));
   // Fonts: the @font-face rules in the CDN theme must resolve ../fonts/ on the
   // same tag. document.fonts.load() resolves with the faces it loaded (empty
   // when nothing matched); a 404 or CSP block leaves a face in "error".

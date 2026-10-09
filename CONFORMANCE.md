@@ -23,7 +23,7 @@ pass's job. Each item cites the rule it checks.
 - [ ] `viewport-fit=cover` in the viewport meta (§3)
 - [ ] `<title>` is `<Short name> · <MT Mesonet|MCO>` (§1 Page title)
 - [ ] `og:title`, `twitter:title`, `og:site_name` (long family alone) and `rel=canonical` (§1)
-- [ ] Favicon set from the kit's `assets/` (vendored or pinned)
+- [ ] Favicons and `og-card.png` hot-linked from the pinned kit tag (decided 2026-10-08); canonical on the production host (§1)
 - [ ] **Map apps:** MapLibre 6 via the one-line import map from `snippets/head.html`; CSP `script-src` carries its hash and `worker-src` is `blob: https://unpkg.com` (§7, README § CSP)
 
 ## 2. Shell

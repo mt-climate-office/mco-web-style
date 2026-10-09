@@ -8,6 +8,56 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.9.0] — 2026-10-08
+
+The mobile and data release: overlays with one focus and Esc model,
+loading/controls/cards, the palette module, and shared verify tooling, all
+from the dashboard's kit proposals. Additive (MINOR). The one change every
+consumer must make is re-copying the anti-flash snippet (new CSP hash).
+MIGRATING § 0.8.x → 0.9.0.
+
+### Added
+- **`MCO.overlay`** + **`MCO.escStack`** (#11). Focus in and back, reference-counted
+  `inert`, one Esc order in which a native `<dialog>` always wins, and
+  `MCO.overlay.isBlocking()` for shortcut suppression.
+- **`MCO.initDrawer` + `.mco-drawer`** (#5). A labelled `<aside>` that is
+  inert-making while open, docks as a column above compact, and is
+  `[hidden]` when closed.
+- **`MCO.initSheet` + `.mco-sheet`** (#6). explorer's panel, generalized:
+  peek/full detents, head drag with fling and dismiss, and the grip as the
+  keyboard twin.
+- **`MCO.metrics`** + `--chrome-h` / `--sheet-h` / `--tabbar-h` and opt-in
+  `html.mco-autolift` (#9).
+- **First-paint hold**: `html.mco-booting` from the anti-flash snippet, plus
+  `MCO.ready()` / `MCO.whenReady()` and `[data-hold]` / `[data-skeleton]` (#10).
+- **`.mco-card`** (#7). **`MCO.loading`**, **`.mco-progress`** and
+  **`.mco-skeleton`** (#13).
+- **`.seg-btns.is-radio`** + **`MCO.initSegmentedFallback`** (#14).
+- **`MCO.initStepper`** + `.nav-btn.mco-step` (#22). **`.mco-chips` /
+  `.mco-chip`** + `MCO.toggleIn` (#23).
+- **`palette/mco-palette.js`**, a new published file: `MCO.palette` ramps,
+  OKLab `sample`, per-theme 3:1 `span`s, Tol categoricals, and `NETWORK`
+  (#17). It is byte-identical to the dashboard's, and CI gains 183 palette
+  checks.
+- **`MCO.cssVar`**, **`MCO.chartTokens()`**, and a **`mco:themechange`**
+  event from `MCO.setTheme` (#18).
+- **Type and spacing scale** `--fs-*`, `--lh-*`, `--fw-*` and `--space-*`,
+  theme-invariant (#25, #26).
+- **`MCO.setPageTitle` / `MCO.setSocialMeta`** with the detail-first title
+  rule. Favicons and og-card are hot-linked from the pinned tag, decided
+  2026-10-08 (#28).
+- **`.mco-footer`** + **`MCO.credit()`** (#29).
+- **`MCO.map.markerPaint`** (network = shape + color), `selectionPaint`,
+  `focusPaint`, `hitPaint` and `colocatedHaloPaint`, with the HOUSE-STYLE §7
+  marker and co-location rules (#31, #33).
+- **`tools/verify/`**: a shareable harness (`head`, `axe-matrix` at 1440 and
+  390-touch, `keyboard`, `lint-css`) (#34).
+
+### Fixed
+- **Touch targets under 40px** on touch, found by the new harness: MapLibre
+  zoom/fit (29px), the compact attribution ⓘ (24px), and `.mco-panel-toggle`
+  (36px). The kit's own a11y gate now audits touch targets at 390px.
+
 ## [0.8.0] — 2026-10-08
 
 MapLibre 6 for a critical XSS, and the absorptions planned since 2026-08-16:

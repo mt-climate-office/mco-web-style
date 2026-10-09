@@ -351,6 +351,58 @@ CONSUMERS.md.
 - A local copy of `installZoomFloor`'s guards (explorer) → the kit's; app
   policy moves into `onBeforeSnap`.
 
+## Re-pointing an existing consumer: 0.8.x → 0.9.0
+
+0.9.0 is additive apart from one snippet change. Score with
+`node tools/conformance.mjs` and verify with `tools/verify/` (`head.mjs`,
+`axe-matrix.mjs` at 1440 + 390-touch, `keyboard.mjs`, `lint-css.mjs`) before
+and after.
+
+**Pass 1, required for everyone**
+1. Tags `@0.8.0` → `@0.9.0` with the README hashes. Apps that color data
+   or draw station markers add the new `palette/mco-palette.js` tag
+   **before** `mco-map.js`.
+2. **Re-copy `snippets/anti-flash.html`.** It gains the `mco-booting`
+   first-paint hold, so **recompute this page's CSP sha256**. Then call
+   `MCO.ready()` once the first meaningful state is applied. The snippet
+   releases the hold after 3 s regardless.
+3. Favicons and `og-card.png` move to the pinned kit tag (decided
+   2026-10-08): swap the vendored `assets/` links for the
+   `snippets/head.html` ones, and make sure `img-src` allows
+   `https://cdn.jsdelivr.net`. Delete the vendored favicons; keep the navbar
+   logo vendored. status: canonical → the production host.
+4. Run `tools/verify/axe-matrix.mjs`. The 390px pass now audits touch
+   targets, and the kit's own MapLibre controls are fixed in 0.9.0.
+
+**Pass 2, delete what the kit now owns** (one per commit)
+- explorer: drawer logic + CSS → `MCO.initDrawer` (`.mco-drawer`, scoped
+  scrim). The sheet → `MCO.initSheet` (drop its `role=dialog`). The manual
+  toast and corner lifts → `html.mco-autolift`. Its first-paint hold →
+  `[data-hold]` + `MCO.ready()`. The loading bar and error cards →
+  `MCO.loading`. `makeStepper` → `MCO.initStepper`. The selection ring
+  `'#5aaee8'` → `MCO.map.selectionPaint()` (the light-theme bug). Fix
+  "Now" vs "Latest" (2.5.3).
+- status, maint, umrb: on compact, open `MCO.initSheet` with
+  `popupContent` instead of the anchored popup. `.chip` → `.mco-chip`.
+  Off-ladder 1200/1280 wraps → shed at 1060 with
+  `MCO.initSegmentedFallback`. Popup facts → `.mco-facts` (umrb's
+  muted-on-raised `.pop-facts dt` is fixed by it). Add marker shapes with
+  `MCO.map.markerPaint` (status), and read the token rather than hard-coded
+  dots (umrb, which should also fix its "Orange dots" modal text).
+- photos: its segmented fallback → `MCO.initSegmentedFallback` (fix the
+  NS/SS names). Its date stepper → `MCO.initStepper`, and delete its local
+  `shiftDate`. `updateSocialMeta` → `MCO.setSocialMeta`. Its selection
+  fallback hex → `selectionPaint`.
+- snow: stepper → `MCO.initStepper` (**its Enter/Space do nothing today, a
+  2.1.1 failure**). Title → `MCO.setPageTitle` (currently the wrong short
+  name, the long family and two middots). Export credit → `MCO.credit()`
+  (`·`, not `|`). Exports read `MCO.chartTokens()`, not hard-coded copies.
+  Its brand `display: none` at 1060 → the kit collapse.
+- Ramps → `MCO.palette` (explorer: drop Spectral and map `?ramp=spectral`
+  → RdBu with a toast. status, maint and umrb: replace their
+  non-monotonic bins).
+- Any app listening for theme flips → `document.addEventListener('mco:themechange', …)`.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export is known duplication that the kit has **deliberately not

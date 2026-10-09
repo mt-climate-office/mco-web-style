@@ -124,6 +124,9 @@
 <script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/core/mco-core.js"
         integrity="sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb"
         crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/palette/mco-palette.js"
+        integrity="sha384-P+8vdCR12oZ388lO/orPRnm6Tcz69x6mhN32l7AWP7j8S7KCNijXDZrmYjWuXm8J"
+        crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/map/mco-map.js"
         integrity="sha384-pmyiDS5SNzBxK1AyD/ONb7mFLrfklj+Pvyd6KCxYKzLOQnqiK+07+3liQR5Zr16x"
         crossorigin="anonymous"></script>
@@ -139,5 +142,7 @@
        });
 
 
-     mco-map.js: map apps only. cog-protocol.js: COG raster apps only.
+     mco-palette.js: apps that color data (ramps, network markers) — load it
+     before mco-map.js, whose markerPaint() reads it. mco-map.js: map apps
+     only. cog-protocol.js: COG raster apps only.
      ========================================================================== -->

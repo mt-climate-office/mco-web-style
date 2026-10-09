@@ -52,6 +52,7 @@ CSS custom properties, kept in lockstep by CI.
 | `core/mco-core.js` | `window.MCO`: storage, Mountain-time, fetch + promise cache, viewport, announcer (`announce`) + toast, notice, theme, modal, collapsible, sr-table twin, legend toggles, search combobox + model, URL state (replace / push / restore) | every page |
 | `map/mco-map.js` | `window.MCO.map`: MapLibre 6 loader, Montana bounds, basemap URLs + failure watch, controls, zoom floor, DOM popups, cursor tooltip, hillshade, overlay paints | MapLibre apps |
 | `map/cog-protocol.js` | `cog://` raster protocol (`window.CogProtocol`) | COG raster apps |
+| `palette/mco-palette.js` | `window.MCO.palette`: approved data ramps (OKLab sampling, per-theme 3:1 spans), Tol categoricals, the station-network registry | apps that color data |
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
 | `fonts/` | Outfit + Space Mono woff2 (latin + latin-ext; SIL OFL, license texts alongside), declared by `mco-theme.css` | every page (preload the two latin files — `snippets/head.html`) |
@@ -67,6 +68,7 @@ theme/mco-theme.css      sha384-x9dp9SwDeJ4J69qkuo74FgLlhHT/0n6ObXSYq2iLxfLGPTD/
 core/mco-core.js         sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb
 map/mco-map.js           sha384-pmyiDS5SNzBxK1AyD/ONb7mFLrfklj+Pvyd6KCxYKzLOQnqiK+07+3liQR5Zr16x
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm
+palette/mco-palette.js   sha384-P+8vdCR12oZ388lO/orPRnm6Tcz69x6mhN32l7AWP7j8S7KCNijXDZrmYjWuXm8J
 ```
 
 Recompute with `tools/sri.sh`. CI (`tools/check-sri.mjs`) fails if this table,
@@ -94,7 +96,7 @@ Rules that keep consumers safe:
 
 1. Make changes; keep `tokens/tokens.json` in sync with the CSS.
 2. Run the gates locally:
-   `node --check core/mco-core.js map/mco-map.js map/cog-protocol.js` ·
+   `node --check core/mco-core.js map/mco-map.js map/cog-protocol.js palette/mco-palette.js` ·
    `node tools/check-tokens.mjs` · `node tools/check-contrast.mjs`
 3. Eyeball `demo/` in all three themes: `python3 -m http.server 8000` from the
    repo root → `http://localhost:8000/demo/`.

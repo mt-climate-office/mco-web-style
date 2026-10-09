@@ -256,7 +256,15 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   shipped exactly this bug). Use `max(1rem, env(safe-area-inset-*))` padding on
   edge-hugging chrome.
 - Segmented button groups that don't fit under 1060 px get a `<select>`
-  fallback (photo explorer pattern).
+  fallback via `MCO.initSegmentedFallback` (0.9.0; the photo explorer
+  pattern). Single-choice groups are `.seg-btns.is-radio` radio fieldsets,
+  which give arrow keys and one Tab stop for free. **Breakpoints come from the
+  ladder only.** A bar that needs 1200 or 1280 sheds at 1060 and uses the
+  fallback. **Short labels must be contained in the accessible name** (WCAG
+  2.5.3): "Now" can't be the visible label of a button named "Latest", and
+  "NS" can't stand for "North Sky" unless the name starts with it.
+  **No ARIA tablists:** every in-family "tab" so far is either navigation
+  (links + `aria-current`) or a single choice (radio segmented).
 - **Search is `MCO.initSearchBox`** (0.8.0) on `.mco-search`: the APG
   combobox with `aria-activedescendant`, a disabled `role=option` for “No
   matches”, polite result counts, and Esc that closes, then clears, then passes

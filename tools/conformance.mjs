@@ -53,8 +53,8 @@ const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
 check('Head', 'title is "<Short name> · <MT Mesonet|MCO>"', /^[^·]+ · (MT Mesonet|MCO)$/.test(title.trim()), title);
 check('Head', 'og:title, twitter:title, canonical',
   /property="og:title"/.test(html) && /name="twitter:title"/.test(html) && /rel="canonical"/.test(html));
-// Vendored copies are the family convention (MIGRATING: vendor before the CSP).
-check('Head', 'favicon: the kit set, pinned or vendored (favicon-32.png)', /rel="icon"[^>]*favicon-32\.png/.test(html));
+// Hot-linked from the pinned kit tag (decided 2026-10-08, kit 0.9.0).
+check('Head', 'favicon hot-linked from the pinned kit tag — kit 0.9.0', /rel="icon"[^>]*mco-web-style@\d+\.\d+\.\d+\/assets\/favicon/.test(html));
 if (isMap) {
   const im = (html.match(/<script type="importmap">([\s\S]*?)<\/script>/) || [])[1];
   check('Head', 'MapLibre 6 via import map (SRI) — kit 0.8.0', !!im && /maplibre-gl@6\./.test(im) && !/maplibre-gl@5/.test(html));
