@@ -62,7 +62,9 @@ export default {
   storage: { 'mco-status-seen-intro': '1' },        // seeded before every load
   scenarios: [
     // ready: a FUNCTION run in the page, or a CSS selector. Never a string
-    // of code: a meta CSP without 'unsafe-eval' rejects it.
+    // of code: a meta CSP without 'unsafe-eval' rejects it. The function is
+    // SERIALIZED into the page, so it can't close over anything in this
+    // file: a helper it calls is a ReferenceError there. Inline the logic.
     { name: 'default', query: '', ready: () => document.querySelectorAll('#sr-twin tbody tr').length > 100 },
     { name: 'station', query: '?station=acebozem', ready: '.mco-sheet[data-state="peek"]' },
   ],

@@ -619,6 +619,8 @@ a.nav-btn { text-decoration: none; }
 .mco-chip-count { font-family: var(--font-mono); font-size: 0.9em; font-variant-numeric: tabular-nums; }
 .mco-chip[aria-busy="true"] { cursor: progress; }
 .mco-chip[aria-busy="true"] .mco-chip-count { visibility: hidden; }
+/* A chip with no count still shows it is loading (0.11.3). */
+.mco-chip[aria-busy="true"]:not(:has(.mco-chip-count))::after { content: "\2026"; content: "\2026" / ""; }
 
 /* Refresh/liveness status: read-only, deliberately subordinated. Add .static
    when the view isn't live (historical modes) to stop the pulse. */

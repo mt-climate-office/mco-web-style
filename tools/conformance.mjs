@@ -74,7 +74,9 @@ check('Shell', '≤750 brand collapse untouched, or a tagged kit-override',
 /* 3. Tokens */
 const accentLines = [...(css + '\n' + js).matchAll(/(border(?:-[a-z]+)*|outline(?:-color)?|stroke|(?<![-\w])color)\s*:\s*[^;]*var\(--accent\)/g)];
 check('Tokens', 'no --accent as a line or text color (use --accent-line)', accentLines.length === 0, `${accentLines.length} uses`);
-const hexLines = css.split('\n').filter((l) => /#[0-9a-fA-F]{3,8}\b/.test(l) && !/contrast|data|palette|ramp|cvd|wcag|:\s*#[0-9a-f]+;\s*\/\*/i.test(l));
+// Same exemption as tools/verify/lint-css.mjs (0.11.3): a ratio comment
+// ("/* 5.08:1 */") anywhere on the line counts, even after a closing brace.
+const hexLines = css.split('\n').filter((l) => /#[0-9a-fA-F]{3,8}\b/.test(l) && !/contrast|data|palette|ramp|cvd|wcag|\d(\.\d+)?:1|kit-override/i.test(l));
 check('Tokens', 'no raw hex in app CSS without a contrast/data comment', hexLines.length === 0, `${hexLines.length} lines`);
 check('Tokens', 'status colors from tokens (no local --c-warn / --warn-bg) — kit 0.8.0', !/--c-warn|--warn-bg/.test(css));
 

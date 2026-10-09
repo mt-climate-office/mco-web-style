@@ -125,9 +125,14 @@
     const tw   = ifd[322], th = ifd[323];
     const offs = [].concat(ifd[324]);
     const lens = [].concat(ifd[325]);
-    const compressed = new Uint8Array(
-      await (await fetch(cogUrl, { headers: { Range: `bytes=${offs[blockIdx]}-${offs[blockIdx] + lens[blockIdx] - 1}` } })).arrayBuffer()
-    );
+    const res = await fetch(cogUrl, { headers: { Range: `bytes=${offs[blockIdx]}-${offs[blockIdx] + lens[blockIdx] - 1}` } });
+    if (!res.ok) throw new Error(`[cog] block ${blockIdx}: HTTP ${res.status}`);
+    const compressed = new Uint8Array(await res.arrayBuffer());
+    // A truncated range response would surface from fzstd as "unexpected
+    // EOF"; name it instead (0.11.3).
+    if (compressed.byteLength < lens[blockIdx]) {
+      throw new Error(`[cog] block ${blockIdx}: short read, ${compressed.byteLength} of ${lens[blockIdx]} bytes`);
+    }
     const raw  = fzstd.decompress(compressed);
     // Undo horizontal-differencing predictor with uint16 modular arithmetic
     const u16a = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2);
@@ -195,6 +200,9 @@
   async function emptyTile() {
     if (!_emptyTile) {
       const c = new OffscreenCanvas(256, 256);
+      // convertToBlob throws InvalidStateError on a canvas that never had a
+      // context (Chromium): every empty tile logged an error (0.11.3).
+      c.getContext('2d');
       _emptyTile = await (await c.convertToBlob({ type: 'image/png' })).arrayBuffer();
     }
     return _emptyTile;

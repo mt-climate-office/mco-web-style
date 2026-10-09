@@ -8,6 +8,43 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.11.3] — 2026-10-09
+
+Fixes found by the six consumer re-points. PATCH: theme, core and cog
+changed; map and palette are the same as 0.11.2.
+
+### Fixed
+- **`cog-protocol.js` `emptyTile()`** called `convertToBlob()` on an
+  OffscreenCanvas that never had a context, which throws in Chromium. These
+  were the ~16 `[cog] OffscreenCanvas has no rendering context` errors snow
+  logged on every phone-width load, long recorded as snow's own.
+- **`cog-protocol.js` `getBlock()`** reports a failed or truncated range
+  response by name, instead of an opaque fzstd "unexpected EOF".
+- **`MCO.initDrawer`** hides the drawer at init on a page that loads already
+  off-canvas. Before, it stayed tabbable (19 controls in explorer) until it
+  was first opened.
+- **`MCO.overlay`** returns focus to `fallbackFocus` when the opener is
+  `<body>` (a deep-link or programmatic open) or has been hidden (the sheet
+  grip).
+- **`MCO.initStepper`** clears its hold flag when a press is dragged off the
+  button, so the next keyboard activation isn't swallowed.
+- **A busy `.mco-chip` with no count** shows an ellipsis.
+- `tools/conformance.mjs` accepts the same contrast comments as
+  `lint-css.mjs`, including a ratio after the closing brace.
+
+### Added
+- `initSheet` / `initDrawer` `inertRoots` may be a function. To keep a
+  dialog the sheet opens usable: `() => MCO.overlay.siblingsOf(el, [dialog])`.
+
+### Docs
+- HOUSE-STYLE §1: apps with a live preview bot keep their own `og:image`.
+- HOUSE-STYLE §3: a bar that can't fit one row at 1060 sheds at 1400. Also,
+  focus across the segmented fallback needs the kit's `[hidden]` to be what
+  hides the losing side.
+- tools/verify: a config's `ready` function is serialized into the page and
+  can't call helpers.
+- CONSUMERS: all six on 0.11.2 and live, with the new scores.
+
 ## [0.11.2] — 2026-10-09
 
 Fixes found by the mesonet-photo-explorer re-point. PATCH: theme and core

@@ -465,6 +465,19 @@ HTML (HOUSE-STYLE §1) or pass `{canonical}`. Delete app workarounds for:
 - the WebKit date-input focus ring;
 - the tiled attribution icon.
 
+## Re-pointing an existing consumer: 0.11.2 → 0.11.3
+
+Tag bump with the README hashes: theme, core, and **cog** (snow). There is no
+contract change. Delete the app workarounds for:
+- the drawer at compact load (explorer hides it itself);
+- the overlay focus fallback (umrb focuses the map canvas);
+- snow's `allowProblems` entry for `[cog] OffscreenCanvas`, since that error
+  is gone.
+
+A sheet that opens a `<dialog>` can now pass
+`inertRoots: () => MCO.overlay.siblingsOf(sheet, [dialog])` instead of an
+array.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export is known duplication that the kit has **deliberately not
