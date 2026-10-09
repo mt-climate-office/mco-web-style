@@ -406,6 +406,41 @@ and after.
   non-monotonic bins).
 - Any app listening for theme flips → `document.addEventListener('mco:themechange', …)`.
 
+## Re-pointing an existing consumer: 0.9.x → 0.10.0
+
+No snippet changes, so **no CSP hash changes**. Pass 1 is a tag bump.
+
+**Pass 1, everyone**
+1. Tags `@0.9.0` → `@0.10.0` with the README hashes (font preloads, favicon
+   and og-card links too).
+2. **Re-check the navbar ladder.** The lockup grew from 10.4/8.8px to
+   12/11px, so a bar that just fit one row at some width may now wrap there.
+   Run `tools/verify/axe-matrix.mjs`, and look at the bar between 750 and
+   1400px.
+3. App-local translucent surfaces: if one is only readable because of
+   `backdrop-filter`, raise its fill alpha the way `--glass` did (HOUSE-STYLE
+   §3 Glass panels).
+
+**Pass 2, opt-ins** (one per commit)
+- **Map apps on landscape phones → `data-rail`** (HOUSE-STYLE §3 Short
+  landscape). Wrap `.brand`, `.controls` and `.nav-meta` in
+  `.mco-nav-drawer`, then add `.mco-rail` with a menu button and up to three
+  hot controls, a scrim, and `MCO.initNavRail`. Update the `/` shortcut to
+  check `rail.isRail()` first.
+  - **photos** replaces its app-local block: `.rail` → `.mco-rail`,
+    `.nav-drawer` → `.mco-nav-drawer`, and its drawer JS →
+    `MCO.initNavRail`.
+  - **explorer** already has `MCO.initDrawer` for its sidebar. It takes the
+    rail CSS and `initNavRail` for the bar only.
+- **Theme toggles → `{cycle: true}`** with an `iconContrast`, so high
+  contrast is reachable from the page.
+- **Link tabs → `aria-current="page"`**, and delete any local style for it.
+  This is the dashboard's kit-override.
+- **Long-scrolling pages → `.mco-navbar.is-sticky`**, and delete the local
+  `position: sticky` override. Keep the bar one row on compact.
+- **Hero readings → `.mco-num-display`**: dashboard tiles, and explorer
+  and status popups where the number is the headline.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export is known duplication that the kit has **deliberately not
