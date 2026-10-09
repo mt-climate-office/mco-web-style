@@ -246,8 +246,13 @@ for (const c of consumers) {
       const ne = added(both('errors'), k.errors); if (ne.length) issues.push(`new errors: ${ne.slice(0, 3).join(' | ')}`);
       const nc = added(both('csp'), k.csp); if (nc.length) issues.push(`new CSP violations: ${nc.slice(0, 3).join(' | ')}`);
       const na = added(both('axe'), k.axe); if (na.length) issues.push(`new axe: ${na.slice(0, 4).join(' | ')}`);
-      const strip = (l) => l.map((x) => x.replace(/ \d+x\d+$/, ''));
-      const ns = added([...strip(b.small), ...strip(b2.small)], strip(k.small));
+      // Compare targets by element identity (tag#id.classes), counted: their
+      // names carry live data ("Reported < 2 h ago 241 (98%)") that differs
+      // between loads, which made a name-based diff invent "new" targets.
+      const ident = (x) => x.replace(/ ".*" \d+x\d+$/, '').replace(/ \d+x\d+$/, '');
+      const tally = (l) => l.map(ident).reduce((m, x) => m.set(x, (m.get(x) || 0) + 1), new Map());
+      const tb = tally(b.small), tb2 = tally(b2.small), tk = tally(k.small);
+      const ns = [...tk].filter(([x, n]) => n > Math.max(tb.get(x) || 0, tb2.get(x) || 0)).map(([x, n]) => `${x} ×${n}`);
       if (ns.length) issues.push(`new small targets: ${ns.slice(0, 4).join(' | ')}`);
       const differs = (g1, g2) => g1.some((v, i) => Math.abs(v - g2[i]) > 2);
       const moved = [], gone = [], expected = [];
