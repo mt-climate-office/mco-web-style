@@ -142,6 +142,9 @@ for kit calls:
   Get it wrong and the basemap draws but no GeoJSON layer ever does, and the
   console says only "Worker failed to load. Check that the worker URL is
   correct", with no "Refused to…" line.
+- **WebKit ignores `min-height` on a native `<select>`** (found by the 0.9.0
+  WebKit pass). A select sized for touch with `min-height: 40px` stays about
+  20px tall on iPhone and iPad. Use `height` on selects.
 - **MapLibre paints can't read CSS variables** — resolve tokens with
   `getComputedStyle(document.documentElement).getPropertyValue('--x')`,
   after the kit stylesheet has loaded.

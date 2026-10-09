@@ -108,7 +108,9 @@
       border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
       font-family: inherit; font-size: 0.78rem;
     }
-    @media (hover: none) { .station-select { min-height: 40px; } }   /* §5.5 */
+    /* §5.5. height, not min-height: WebKit ignores min-height on a native
+       <select>, which left this 20px tall on iOS. */
+    @media (hover: none) { .station-select { height: 40px; } }
 
     /* Legend — an .mco-panel docked bottom-right over the map */
     #legend-panel { right: 0.75rem; bottom: 1.75rem; }

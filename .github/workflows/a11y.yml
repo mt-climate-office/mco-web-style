@@ -23,7 +23,7 @@ jobs:
         run: |
           npm init -y > /dev/null
           npm install --no-save playwright @axe-core/playwright
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
 
       - name: Run axe over demo (dark, light, high-contrast)
         run: node tools/a11y-audit.mjs
