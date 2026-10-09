@@ -173,6 +173,21 @@ async function run(browser, engine, base, c, theme, width, candidate) {
   return { errors, csp, axe, small, geom, shot, mapShot };
 }
 
+// A crashed or hung page is a RESULT, not a harness failure: retry once, then
+// record it so the comparison can tell "both sides crash" (environment:
+// Linux CI's WebKit crashed on two consumers whose macOS runs were clean)
+// from "only the candidate crashes" (a regression).
+async function runSafe(...a) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { return await run(...a); } catch (e) {
+      if (attempt === 1) {
+        return { crashed: String(e.message || e).split('\n')[0].slice(0, 160),
+          errors: [], csp: [], axe: [], small: [], geom: {}, shot: null, mapShot: null };
+      }
+    }
+  }
+}
+
 // Is a canvas screenshot more than one flat color? (A map that drew nothing
 // is a single clear color; one that drew a basemap has thousands.)
 function paints(buf) {
@@ -210,10 +225,22 @@ for (const c of consumers) {
       const tag = `${engine} ${theme} ${width}`;
       // Baseline TWICE: whatever differs between two loads of the same bytes
       // (live counts, polling, timing) is noise and never blamed on the kit.
-      const b = await run(browser, engine, base, c, theme, width, false);
-      const b2 = await run(browser, engine, base, c, theme, width, false);
-      const k = await run(browser, engine, base, c, theme, width, true);
+      const b = await runSafe(browser, engine, base, c, theme, width, false);
+      const b2 = await runSafe(browser, engine, base, c, theme, width, false);
+      const k = await runSafe(browser, engine, base, c, theme, width, true);
       const issues = [];
+      if (b.crashed || b2.crashed || k.crashed) {
+        const tag2 = `${engine} ${theme} ${width}`;
+        if (k.crashed && !b.crashed && !b2.crashed) {
+          regressions++;
+          console.log(`✗ ${tag2} — candidate CRASHED, baseline did not: ${k.crashed}`);
+          report.push(`| ${engine} | ${theme} | ${width} | ✗ candidate crashed: ${k.crashed} |`);
+        } else {
+          console.log(`⚠ ${tag2} — inconclusive, baseline crashed too (environment): ${b.crashed || b2.crashed}`);
+          report.push(`| ${engine} | ${theme} | ${width} | ⚠ inconclusive: baseline crashed too (${b.crashed || b2.crashed}) |`);
+        }
+        continue;
+      }
       const noisy = [];
       const both = (key) => [...new Set([...b[key], ...b2[key]])];
       const ne = added(both('errors'), k.errors); if (ne.length) issues.push(`new errors: ${ne.slice(0, 3).join(' | ')}`);
