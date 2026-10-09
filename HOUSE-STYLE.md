@@ -201,6 +201,13 @@ two places (CSS §6 comment and `MCO.viewport.COMPACT_MQ`) and they must stay in
 sync. Compact drives JS decisions: bottom sheet instead of anchored popup,
 panel auto-collapse, control relocation into a drawer.
 
+**First-paint hold** (0.9.0). The anti-flash snippet adds `html.mco-booting`.
+Until the app calls `MCO.ready()`, `[data-hold]` elements keep their layout
+but don't paint, and `[data-skeleton]` placeholders show. The snippet's own
+3 s timeout lifts the hold regardless. Hold the parts that would otherwise
+flash a wrong state (a default view before URL state is applied). Never hold
+`<main>`, the skip link, or a loading message.
+
 **Which overlay is which** (0.9.0). Every non-dialog overlay is built on
 `MCO.overlay`, so the family shares one focus rule and one Esc order:
 

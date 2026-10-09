@@ -18,7 +18,8 @@ pass's job. Each item cites the rule it checks.
 
 - [ ] Kit tags pinned `@X.Y.Z` + `integrity` + `crossorigin`, one version throughout (README § Versioning)
 - [ ] Both house font preloads, on the same version as the theme CSS (HOUSE-STYLE §1)
-- [ ] Anti-flash snippet inline in `<head>`, current body; with a CSP, **this page's** sha256 in `script-src` (README § CSP)
+- [ ] Anti-flash snippet inline in `<head>`, current body (0.9.0 adds the `mco-booting` hold); with a CSP, **this page's** sha256 in `script-src` (README § CSP)
+- [ ] `MCO.ready()` called once the first meaningful state is applied (HOUSE-STYLE §3)
 - [ ] `viewport-fit=cover` in the viewport meta (§3)
 - [ ] `<title>` is `<Short name> · <MT Mesonet|MCO>` (§1 Page title)
 - [ ] `og:title`, `twitter:title`, `og:site_name` (long family alone) and `rel=canonical` (§1)

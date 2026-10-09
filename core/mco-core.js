@@ -741,6 +741,24 @@
     };
   };
 
+  /* ── First-paint hold (0.9.0) ──────────────────────────────────────────────
+     The anti-flash snippet adds html.mco-booting before first paint; while it
+     is on, [data-hold] elements keep their layout but don't paint
+     (visibility, so nothing shifts), and [data-skeleton] placeholders show.
+     Call MCO.ready() once the app's first meaningful state is applied — data
+     drawn, URL state restored. The snippet's own 3 s timeout releases the
+     hold regardless, so a failed script never strands a page. Returns a
+     promise (also MCO.whenReady()) that later code can wait on. Never put
+     data-hold on <main> or the skip link. */
+  var _readyResolve;
+  var _readyP = new Promise(function (r) { _readyResolve = r; });
+  MCO.ready = function () {
+    document.documentElement.classList.remove('mco-booting');
+    _readyResolve();
+    return _readyP;
+  };
+  MCO.whenReady = function () { return _readyP; };
+
   /* ── Overlay metrics (0.9.0) ───────────────────────────────────────────────
      Layout measurements published as custom properties on <html>, so CSS can
      keep floating things clear of each other: --chrome-h (sticky navbar →

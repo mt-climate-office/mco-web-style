@@ -1025,6 +1025,11 @@ body {
 }
 @media (hover: none) { .is-compact .mco-sheet-grip { width: 88px; height: 44px; top: -10px; } .is-compact .mco-sheet-grip::before { top: 20px; left: 24px; right: 24px; } }
 
+/* First-paint hold (0.9.0): see MCO.ready(). visibility, never display, so
+   the reserved layout doesn't shift when the hold lifts. */
+html.mco-booting [data-hold] { visibility: hidden; }
+html:not(.mco-booting) [data-skeleton] { display: none; }
+
 /* Overlay metrics + auto-lift (0.9.0). --chrome-h / --sheet-h / --tabbar-h
    are written on <html> by MCO.metrics (the sheet publishes its own). Lifting
    the toast and MapLibre's bottom corners is opt-in via html.mco-autolift

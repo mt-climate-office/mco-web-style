@@ -14,6 +14,10 @@
      first paint. The query must match MCO.viewport.COMPACT_MQ in mco-core.js
      exactly (KEEP IN SYNC).
 
+     Since 0.9.0 it also adds .mco-booting, which MCO.ready() removes once the
+     app's first meaningful state is applied (a 3 s timeout here removes it
+     regardless). The CSP hash changed with it: recompute.
+
      If your page ships a CSP, script-src must carry the sha256 hash of
      EXACTLY the script element's contents below (whitespace included).
      Recompute after any edit (see README.md § CSP). -->
@@ -32,5 +36,9 @@
     root.setAttribute('data-theme', t);
     root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
     root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
+    // First-paint hold (0.9.0): [data-hold] stays invisible until MCO.ready();
+    // this timeout releases it anyway, so a failed script never strands a page.
+    root.classList.add('mco-booting');
+    setTimeout(function () { root.classList.remove('mco-booting'); }, 3000);
   })();
 </script>

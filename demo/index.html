@@ -27,6 +27,10 @@
       root.setAttribute('data-theme', t);
       root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
       root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
+      // First-paint hold (0.9.0): [data-hold] stays invisible until MCO.ready();
+      // this timeout releases it anyway, so a failed script never strands a page.
+      root.classList.add('mco-booting');
+      setTimeout(function () { root.classList.remove('mco-booting'); }, 3000);
     })();
   </script>
 
@@ -682,6 +686,9 @@
     if (searchCtl.isCollapsed()) searchCtl.open();
     else { demoSearchInput.focus(); demoSearchInput.select(); }
   });
+
+  // Everything above is wired: lift the first-paint hold (MCO.ready).
+  MCO.ready();
 </script>
 </body>
 </html>

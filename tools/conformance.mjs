@@ -47,6 +47,7 @@ const csp = (html.match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)
 const antiHash = `sha256-${createHash('sha256').update(anti).digest('base64')}`;
 check('Head', 'anti-flash inline (0.7.0 body) and, with a CSP, its sha256 allowed',
   antiOk && (!csp || csp.includes(antiHash)), csp ? (csp.includes(antiHash) ? 'hash ok' : `CSP lacks ${antiHash}`) : 'no CSP');
+check('Head', 'anti-flash carries the first-paint hold (mco-booting) — kit 0.9.0', /mco-booting/.test(anti));
 check('Head', 'viewport-fit=cover', /name="viewport"[^>]*viewport-fit=cover/.test(html));
 const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
 check('Head', 'title is "<Short name> · <MT Mesonet|MCO>"', /^[^·]+ · (MT Mesonet|MCO)$/.test(title.trim()), title);

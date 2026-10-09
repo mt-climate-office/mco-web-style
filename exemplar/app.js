@@ -419,6 +419,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
       addCustomLayers();
       note('');
       render();
+      MCO.ready();          // first meaningful state: lift the first-paint hold — §3
 
       // Deep-linked station — validated against real data before use (§4).
       if (selectedId && stationById.has(selectedId)) {
