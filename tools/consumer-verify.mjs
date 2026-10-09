@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-/* Consumer-app verification skeleton (MIGRATING.md § Verification recipe).
+/* ⚠️ Superseded in 0.9.0 by tools/verify/ (head, axe-matrix, keyboard,
+   lint-css), which runs from a kit checkout with no copying. See
+   tools/verify/README.md. Kept for apps mid-migration on the old recipe.
+
+   Consumer-app verification skeleton (MIGRATING.md § Verification recipe).
    COPY this file into the app repo being migrated (keep it untracked), fill
    in CONFIG, extend the app-specific section, and run it before the deploy
    gate. It is a starting point, not a complete gate — the URL-param matrix
