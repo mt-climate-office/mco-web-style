@@ -141,8 +141,8 @@ async function run(browser, engine, base, c, theme, width, candidate) {
   });
   const page = await ctx.newPage();
   const errors = [];
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
-  page.on('pageerror', (e) => errors.push('pageerror: ' + String(e).slice(0, 200)));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 600)); });
+  page.on('pageerror', (e) => errors.push('pageerror: ' + String(e).slice(0, 600)));
   // Settle on the NETWORK, not a fixed delay: live counts and attribution
   // arrive with the data, and a fixed wait races the API (a 6 s settle gave
   // a 200px "regression" on status that a rerun didn't reproduce). Wait for
@@ -221,7 +221,20 @@ function pixelDiff(a, b, file) {
   if (pct > 0) writeFileSync(file, PNG.sync.write(diff));
   return { pct };
 }
-const added = (before, after) => after.filter((x) => !before.includes(x));
+// Compare messages by what they SAY, not where the script was served from:
+// a stack names the kit file by its URL (jsDelivr @pin in the baseline,
+// /__mco-kit/ on a random local port in the candidate) and its line:col,
+// which move whenever the file does. Without this, a consumer's known error
+// reads as new on every kit PR.
+const norm = (x) => x
+  .replace(KIT_URL_G, '<kit>/').replace(/https?:\/\/127\.0\.0\.1:\d+\/__mco-kit\//g, '<kit>/')
+  .replace(/https?:\/\/127\.0\.0\.1:\d+/g, '<origin>')
+  .replace(/(\.m?js):\d+(:\d+)?/g, '$1')
+  .replace(/^(.{0,200}).*$/s, '$1');
+const added = (before, after) => {
+  const seen = new Set(before.map(norm));
+  return after.filter((x) => !seen.has(norm(x)));
+};
 
 /* ── Main ─────────────────────────────────────────────────────────────── */
 let regressions = 0;
