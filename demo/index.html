@@ -121,13 +121,22 @@
 
 <a class="mco-skip-link" href="#main">Skip to main content</a>
 
-<!-- is-sticky (0.10.0): this page scrolls, so the bar stays put. -->
-<header class="mco-navbar is-sticky">
+<!-- is-sticky (0.10.0): this page scrolls, so the bar stays put.
+     data-rail (0.10.0): on a landscape phone it becomes a left rail, and
+     .mco-nav-drawer holds the rest (MCO.initNavRail). -->
+<header class="mco-navbar is-sticky" data-rail>
   <a href="https://climate.umt.edu" target="_blank" rel="noopener noreferrer"
      class="logo-link" aria-label="Montana Climate Office">
     <img class="logo-img" src="../assets/mco-logo.png" alt="" width="40" height="40">
   </a>
+  <div class="mco-rail">
+    <button type="button" class="nav-btn icon-only" id="btn-rail-menu" aria-label="Menu"
+            aria-controls="nav-drawer" aria-expanded="false">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+  </div>
   <div class="nav-divider" aria-hidden="true"></div>
+  <div class="mco-nav-drawer" id="nav-drawer" aria-label="Menu">
   <div class="brand">
     <p class="brand-title">MCO Web Style</p>
     <span class="brand-subtitle">A service of the Montana Climate Office</span>
@@ -187,7 +196,9 @@
     </button>
     <button type="button" class="nav-btn mco-btn-info" id="btn-info" aria-label="About this demo">?</button>
   </div>
+  </div>
 </header>
+<div class="mco-scrim" id="rail-scrim" aria-hidden="true" hidden></div>
 
 <main id="main" tabindex="-1">
 
@@ -837,8 +848,16 @@
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     e.preventDefault();
-    if (searchCtl.isCollapsed()) searchCtl.open();
+    if (rail.isRail()) rail.open(demoSearchInput);
+    else if (searchCtl.isCollapsed()) searchCtl.open();
     else { demoSearchInput.focus(); demoSearchInput.select(); }
+  });
+
+  // Short-landscape rail (MCO.initNavRail): rotate a phone, or try 750×342.
+  const rail = MCO.initNavRail({
+    toggle: document.getElementById('btn-rail-menu'),
+    drawer: document.getElementById('nav-drawer'),
+    scrim: document.getElementById('rail-scrim'),
   });
 
   // Everything above is wired: lift the first-paint hold (MCO.ready).

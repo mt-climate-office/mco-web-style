@@ -201,6 +201,7 @@ controls must use a tier.
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
+| height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px left column; also compact |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
 its name must carry a permanent `aria-label`** — otherwise the button becomes
@@ -313,6 +314,29 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   `absolute` `#sidebar-scrim`; the dashboard's compact drawer was the second
   consumer that brought the option into the kit. The default stays
   viewport-`fixed`.
+
+**Short landscape: the rail** (0.10.0). A landscape phone (≈ 750×342) has
+width to spare and no height, and Montana's ≈ 1.75:1 fit is height-limited.
+Every pixel of a wrapped two-row bar costs map: photo-explorer's was 100 px,
+30% of the screen. Map apps opt in with `data-rail` on `.mco-navbar`: at
+`MCO.viewport.RAIL_MQ` (the landscape half of the compact query) the bar
+becomes a fixed 56 px rail at the left edge and the body is padded clear of
+it.
+- **The app picks the rail's contents.** `.mco-rail` holds the menu button
+  and one to three hot controls, such as a date stepper or a readout.
+- **Everything else** sits in `.mco-nav-drawer`, which is `display: contents`
+  outside rail mode, so the normal bar is unchanged.
+- **`MCO.initNavRail`** wires the drawer with the drawer contract: focus in
+  on open, the rest of the page inert, Esc, the scrim or the toggle to
+  close, and focus back to the toggle.
+- **The app owns three hand-offs.** `/` checks `rail.isRail()` before
+  `isCollapsed()` and opens the drawer on the search field. Choosing a
+  search result closes it with `{restoreFocus: false}`. A drawer button that
+  opens a dialog can leave the drawer open, because the dialog wins Esc and
+  returns focus inside it.
+- **Don't hide a drawer with `visibility`.** A child with its own transition
+  flips a frame late, and `focus()` in the same task silently fails. The kit
+  uses `display: none` plus `@starting-style`.
 
 **Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
 property, never `gap` directly: the brand lockup's divider margin is derived

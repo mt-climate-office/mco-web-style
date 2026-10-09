@@ -1271,6 +1271,89 @@ html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 
   .maplibregl-ctrl-attrib-button { width: 40px; height: 40px; border-radius: 20px; background-position: center; }
 }
 
+/* Short-landscape rail (0.10.0, #38) — opt-in: .mco-navbar[data-rail] +
+   MCO.initNavRail. On a landscape phone the bar wraps to two rows and eats
+   ~30% of the height, while width sits unused. In rail mode the bar becomes
+   a 56px column at the left edge (fixed, so it works whether the body is a
+   flex column or scrolls) and the page is padded clear of it; the app's
+   quick controls live in .mco-rail, everything else in .mco-nav-drawer,
+   which opens beside the rail.
+
+     <header class="mco-navbar" data-rail>
+       <a class="logo-link" …>…</a>
+       <div class="mco-rail">        <!-- display:none outside rail mode -->
+         <button class="nav-btn icon-only" aria-label="Menu" aria-expanded="false"
+                 aria-controls="nav-drawer">☰</button>   <!-- + 1–3 hot controls -->
+       </div>
+       <div class="nav-divider" aria-hidden="true"></div>
+       <div class="mco-nav-drawer" id="nav-drawer" aria-label="Menu">
+         <!-- display:contents outside rail mode: the bar lays out as before -->
+         <div class="brand">…</div> <div class="controls">…</div> <div class="nav-meta">…</div>
+       </div>
+     </header>
+     <div class="mco-scrim" aria-hidden="true" hidden></div>
+
+   KEEP IN SYNC with MCO.viewport.RAIL_MQ: the landscape half of the compact
+   query, not a new number. Pitfalls this encodes: the closed drawer is
+   display:none, not visibility:hidden (a transitioned child flips a frame
+   late and focus() fails); the navbar's backdrop-filter makes it the
+   containing block, so the drawer sits at left:100% of the rail; the plain
+   .mco-scrim (--z-map-panel) dims the page below the rail (--z-chrome-top). */
+.mco-rail { display: none; }
+.mco-nav-drawer { display: contents; }
+@media (max-height: 560px) and (orientation: landscape) {
+  body:has(> .mco-navbar[data-rail]) {
+    --rail-w: 56px;
+    padding-left: calc(var(--rail-w) + env(safe-area-inset-left));
+  }
+  /* The rail isn't above anything: nothing needs scroll padding for it. */
+  html:has(> body > .mco-navbar[data-rail]) { --chrome-h: 0px !important; }
+  .mco-navbar[data-rail] {
+    position: fixed; top: 0; bottom: 0; left: 0;
+    width: calc(var(--rail-w, 56px) + env(safe-area-inset-left));
+    min-height: 0;
+    flex-direction: column; flex-wrap: nowrap; justify-content: flex-start;
+    padding: max(0.4rem, env(safe-area-inset-top)) 0.4rem
+             max(0.4rem, env(safe-area-inset-bottom)) max(0.4rem, env(safe-area-inset-left));
+    border-bottom: 0; border-right: 1px solid var(--border);
+  }
+  .mco-navbar[data-rail]::after { top: 0; bottom: 0; left: auto; right: 0; width: 2px; height: auto; }
+  .mco-navbar[data-rail] > .nav-divider { display: none; }
+  .mco-navbar[data-rail] .mco-rail {
+    display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+    min-height: 0; overflow-y: auto; scrollbar-width: none;
+  }
+  .mco-navbar[data-rail] .mco-rail .nav-btn { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
+
+  .mco-navbar[data-rail] .mco-nav-drawer {
+    display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
+    position: absolute; top: 0; bottom: 0; left: 100%;
+    width: min(var(--drawer-w, 300px), calc(100vw - var(--rail-w, 56px) - env(safe-area-inset-left)));
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.9rem max(0.75rem, env(safe-area-inset-bottom));
+    overflow-y: auto; overscroll-behavior: contain;
+    background: var(--bg-surface); border-right: 1px solid var(--border); box-shadow: var(--shadow);
+    transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+  }
+  .mco-navbar[data-rail] .mco-nav-drawer.is-open { display: flex; }
+  /* Undo the bar-only collapses: the drawer has the room. */
+  .mco-navbar[data-rail] .mco-nav-drawer .brand,
+  .mco-navbar[data-rail] .mco-nav-drawer .control-label {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto;
+  }
+  .mco-navbar[data-rail] .mco-nav-drawer .brand-title,
+  .mco-navbar[data-rail] .mco-nav-drawer .brand-subtitle { white-space: normal; }
+  .mco-navbar[data-rail] .mco-nav-drawer .btn-label { display: inline; }
+  .mco-navbar[data-rail] .mco-nav-drawer .nav-btn:has(> .btn-label) { padding: 6px 12px; justify-content: flex-start; }
+  .mco-navbar[data-rail] .mco-nav-drawer .controls { flex-direction: column; align-items: stretch; }
+  .mco-navbar[data-rail] .mco-nav-drawer .nav-meta { margin-left: 0; flex-wrap: wrap; }
+  .mco-navbar[data-rail] .mco-nav-drawer .mco-search-collapse { display: flex; position: relative; }
+  .mco-navbar[data-rail] .mco-nav-drawer .mco-search > input { flex: 1; min-width: 0; }
+  .mco-navbar[data-rail] .mco-nav-drawer .mco-search-toggle { display: none; }
+}
+@starting-style {
+  .mco-navbar[data-rail] .mco-nav-drawer.is-open { transform: translateX(-12px); opacity: 0; }
+}
+
 /* Glass is legible on its own (0.10.0, #37): --glass is near-opaque and the
    backdrop blur is an enhancement on top, because an engine that drops it
    (headless WebKit, low-power modes) or a visitor who asks for Reduce

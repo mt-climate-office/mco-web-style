@@ -160,6 +160,9 @@
   var COMPACT_MQ = '(max-width: 640px), (max-height: 560px)';
   var _compactMq = window.matchMedia(COMPACT_MQ);
   var _touchMq = window.matchMedia('(hover: none)');
+  // The short-landscape rail (0.10.0): the landscape half of COMPACT_MQ.
+  var RAIL_MQ = '(max-height: 560px) and (orientation: landscape)';
+  var _railMq = window.matchMedia(RAIL_MQ);
   var _vpSubs = new Set();
   function _emitViewport() {
     document.documentElement.classList.toggle('is-compact', _compactMq.matches);
@@ -170,13 +173,16 @@
   }
   _compactMq.addEventListener('change', _emitViewport);
   _touchMq.addEventListener('change', _emitViewport);
+  _railMq.addEventListener('change', _emitViewport);
   _emitViewport(); // re-stamp (the snippet did first paint) and notify
 
   MCO.viewport = {
     COMPACT_MQ: COMPACT_MQ,
     isCompact: function () { return _compactMq.matches; },
     isTouch: function () { return _touchMq.matches; },
-    // Subscribe to compact/touch flips. Returns an unsubscribe function.
+    RAIL_MQ: RAIL_MQ,
+    isRail: function () { return _railMq.matches; },   // also compact
+    // Subscribe to compact/touch/rail flips. Returns an unsubscribe function.
     onChange: function (fn) {
       _vpSubs.add(fn);
       return function () { _vpSubs.delete(fn); };
@@ -1156,6 +1162,82 @@
         unsub();
         if (toggle) toggle.removeEventListener('click', toggleIt);
         drawer.removeEventListener('click', onDrawerClick);
+        if (scrim) scrim.removeEventListener('click', onScrim);
+      },
+    };
+  };
+
+  /* ── Short-landscape nav rail (0.10.0) ─────────────────────────────────────
+     The bar becomes a left rail on a landscape phone (.mco-navbar[data-rail],
+     markup in mco-theme.css §6); this wires its drawer. The same disclosure
+     model as MCO.initDrawer: while open, everything beside the drawer and
+     the rail is inert, Esc / the scrim / the toggle close it and focus
+     returns to the toggle. Closed it is display:none, so nothing off-screen
+     is reachable; outside rail mode it is display:contents and this is idle.
+
+       var rail = MCO.initNavRail({
+         toggle: menuBtn, drawer: navDrawerEl, scrim: scrimEl,   // scrim optional
+         onChange: function (open) {},
+       });
+       → {open(focusEl?), close({restoreFocus}), toggle, isOpen, isRail, destroy}
+
+     App side: a "/" shortcut checks rail.isRail() first and calls
+     rail.open(searchInput); choosing a search result closes with
+     {restoreFocus: false} and hands the toggle to whatever opens next; a
+     drawer button that opens a dialog closes the drawer first. */
+  MCO.initNavRail = function (opts) {
+    var drawer = opts.drawer;
+    var toggle = opts.toggle;
+    var scrim = opts.scrim || null;
+    var onChange = opts.onChange || null;
+    var openState = false;
+    var ov = MCO.overlay({
+      el: drawer,
+      opener: function () { return toggle; },
+      initialFocus: opts.initialFocus,
+      inert: function () { return MCO.overlay.siblingsOf(drawer, [toggle, scrim]); },
+      fallbackFocus: toggle,
+      onClose: function () { hide(); },
+    });
+    function hide() {
+      if (!openState) return;
+      openState = false;
+      drawer.classList.remove('is-open');
+      toggle.setAttribute('aria-expanded', 'false');
+      if (scrim) scrim.hidden = true;
+      if (onChange) onChange(false);
+    }
+    function open(focusEl) {
+      if (openState || !MCO.viewport.isRail()) return;
+      openState = true;
+      // display flips with the class, so the target is focusable right away.
+      drawer.classList.add('is-open');
+      toggle.setAttribute('aria-expanded', 'true');
+      if (scrim) scrim.hidden = false;
+      ov.open({ focus: !focusEl });
+      if (focusEl) focusEl.focus({ preventScroll: true });
+      if (onChange) onChange(true);
+    }
+    function close(o) {
+      if (!openState) return;
+      ov.close({ restoreFocus: !o || o.restoreFocus !== false });
+    }
+    function toggleIt() { if (openState) close(); else open(); }
+    function onScrim() { close(); }
+    var unsub = MCO.viewport.onChange(function () {
+      if (openState && !MCO.viewport.isRail()) close({ restoreFocus: false });
+    });
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.addEventListener('click', toggleIt);
+    if (scrim) scrim.addEventListener('click', onScrim);
+    return {
+      open: open, close: close, toggle: toggleIt,
+      isOpen: function () { return openState; },
+      isRail: MCO.viewport.isRail,
+      destroy: function () {
+        close({ restoreFocus: false });
+        unsub();
+        toggle.removeEventListener('click', toggleIt);
         if (scrim) scrim.removeEventListener('click', onScrim);
       },
     };
