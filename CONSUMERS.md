@@ -32,10 +32,13 @@ Kyle sequences it.
   - status and umrb shed at the 1400 rung (HOUSE-STYLE §3);
   - explorer and photos adopt clean-URL defaults and `pushUrlState`, so
     Back closes the drill-down.
-- **Decided, still to build:**
-  - a kit status/recency ramp in `MCO.palette`. Status's time-since bins
-    aren't monotonic in lightness, maintenance's light bins are all
-    orange-red, and umrb's batlow trial failed contrast.
+- **Decided 2026-10-09:**
+  - **Status ramps stay on Crameri roma** (Kyle: "I like it the best"). A
+    Crameri/ColorBrewer study (lajolla, batlow; YlGnBu, Purples for umrb's
+    stages) is on record, and roma's known costs were accepted with it:
+    lightness isn't monotonic across status's time-since bins, and the
+    fills alone fall under 3:1 on the light map. The dot strokes carry the
+    edge. No kit recency ramp.
   - Apps with a nightly preview bot keep their live `og:image` (HOUSE-STYLE
     §1).
 - **Found during the re-points and fixed in the kit:**
