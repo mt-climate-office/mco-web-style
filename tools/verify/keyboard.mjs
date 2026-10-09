@@ -27,7 +27,7 @@
      shortcuts: [{ key: '/', effect: () => document.activeElement?.type === 'search' }],
      probes: async ({ env, open, check, page }) => {},   // app-specific
    ========================================================================== */
-import { args, check, config, finish, open, start } from './lib.mjs';
+import { args, browsers, check, config, finish, open, start } from './lib.mjs';
 
 const a = args();
 const cfg = await config(a.config);
@@ -36,105 +36,122 @@ const page = a.page || cfg.page || 'index.html';
 const ready = cfg.ready ?? (cfg.scenarios && cfg.scenarios[0] && cfg.scenarios[0].ready);
 const baseQuery = cfg.query ?? (cfg.scenarios && cfg.scenarios[0] && cfg.scenarios[0].query) ?? '';
 const opts = { storage: cfg.storage || {}, ready, settleMs: cfg.settleMs ?? 1500 };
-const env = await start({ root, page });
-console.log(`keyboard: ${env.base}${page.split('/').pop()}`);
+for (const engine of browsers(a)) {
+  // Safari's default Tab reaches only form controls; ⌥Tab walks every link
+  // and button (the "Press Tab to highlight each item" setting). Probe the
+  // WebKit route a keyboard user actually takes.
+  const TAB = engine === 'webkit' ? 'Alt+Tab' : 'Tab';
+  const env = await start({ root, page, engine });
+  console.log(`keyboard (${engine}): ${env.base}${page.split('/').pop()}`);
 
-const focused = (p) => p.evaluate(() => {
-  const el = document.activeElement;
-  if (!el || el === document.body) return null;
-  const cs = getComputedStyle(el);
-  const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0;
-  const shadow = cs.boxShadow && cs.boxShadow !== 'none';
-  const name = (el.getAttribute('aria-label') || el.textContent || el.id || '').trim().replace(/\s+/g, ' ').slice(0, 30);
-  return {
-    desc: `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${[...el.classList].slice(0, 2).map((c) => '.' + c).join('')} "${name}"`,
-    ring: outline || shadow, skip: el.matches('.mco-skip-link'), id: el.id,
-    // Identity, not description: two controls may share a label.
-    revisit: el.dataset.verifyStop === '1' ? true : (el.dataset.verifyStop = '1', false),
-  };
-});
-
-/* 1 + 2. Skip link first; a focus ring on every Tab stop. */
-{
-  const { page: p, close } = await open(env, baseQuery, opts);
-  // A first-visit modal may be open (seed its storage key to avoid it): close
-  // it so Tab starts from the top of the document, not inside the dialog.
-  await p.evaluate(() => {
-    document.querySelectorAll('dialog[open]').forEach((d) => d.close());
-    if (document.activeElement) document.activeElement.blur();
+  const focused = (p) => p.evaluate(() => {
+    const el = document.activeElement;
+    if (!el || el === document.body) return null;
+    const cs = getComputedStyle(el);
+    const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0;
+    const shadow = cs.boxShadow && cs.boxShadow !== 'none';
+    const name = (el.getAttribute('aria-label') || el.textContent || el.id || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+    return {
+      desc: `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${[...el.classList].slice(0, 2).map((c) => '.' + c).join('')} "${name}"`,
+      ring: outline || shadow, skip: el.matches('.mco-skip-link'), id: el.id,
+      // Identity, not description: two controls may share a label.
+      revisit: el.dataset.verifyStop === '1' ? true : (el.dataset.verifyStop = '1', false),
+    };
   });
-  await p.keyboard.press('Tab');
-  const first = await focused(p);
-  check('skip link is the first Tab stop', !!first && first.skip, first ? first.desc : 'nothing focused');
-  if (first && first.skip) {
-    await p.keyboard.press('Enter');
-    await p.waitForTimeout(150);
-    const after = await focused(p);
-    check('activating the skip link focuses #main', !!after && after.id === 'main', after ? after.desc : 'nothing focused');
-  }
-  // Ring audit from the top of the page.
-  await p.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });
-  await p.keyboard.press('Tab');
-  const seen = new Set();
-  const missing = [];
-  const max = cfg.tabStops || 40;
-  for (let i = 0; i < max; i++) {
-    const f = await focused(p);
-    if (!f) break;
-    if (f.revisit) break;                  // wrapped around
-    seen.add(f.desc + ' @' + i);
-    if (!f.ring) missing.push(f.desc);
-    await p.keyboard.press('Tab');
-  }
-  check(`focus ring visible on every Tab stop (${seen.size} checked)`, missing.length === 0, missing.slice(0, 5).join(' | '));
-  await close();
-}
 
-/* 3. Dialog: open with Enter, focus inside, Esc closes, focus returns. */
-{
-  const sel = cfg.dialogOpener || '.mco-btn-info';
-  const { page: p, close } = await open(env, baseQuery, opts);
-  const opener = await p.$(sel);
-  if (!opener) {
-    console.log(`– dialog probe skipped: no ${sel} on the page`);
-  } else {
-    // A first-visit modal may already be open; close it first.
-    await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
-    await opener.focus();
-    await p.keyboard.press('Enter');
-    await p.waitForTimeout(400);
-    const st = await p.evaluate(() => {
-      const d = document.querySelector('dialog[open]');
-      return { open: !!d, inside: !!d && d.contains(document.activeElement), labelled: !!d && !!(d.getAttribute('aria-labelledby') || d.getAttribute('aria-label')) };
+  /* 1 + 2. Skip link first; a focus ring on every Tab stop. */
+  {
+    const { page: p, close } = await open(env, baseQuery, opts);
+    // A first-visit modal may be open (seed its storage key to avoid it): close
+    // it so Tab starts from the top of the document, not inside the dialog.
+    await p.evaluate(() => {
+      document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+      if (document.activeElement) document.activeElement.blur();
     });
-    check(`${sel} opens a labelled <dialog> with focus inside`, st.open && st.inside && st.labelled, JSON.stringify(st));
-    await p.keyboard.press('Escape');
-    await p.waitForTimeout(400);
-    const back = await p.evaluate((sel) => ({
-      open: !!document.querySelector('dialog[open]'),
-      onOpener: document.activeElement === document.querySelector(sel),
-    }), sel);
-    check('Esc closes the dialog and focus returns to its opener', !back.open && back.onOpener, JSON.stringify(back));
-  }
-  await close();
-}
-
-/* 4. Single-key shortcuts and ?kbd=off. */
-for (const sc of cfg.shortcuts || []) {
-  for (const off of [false, true]) {
-    const q = baseQuery + (off ? (baseQuery.includes('?') ? '&' : '?') + 'kbd=off' : '');
-    const { page: p, close } = await open(env, q, opts);
-    await p.evaluate(() => { document.activeElement && document.activeElement.blur(); });
-    await p.keyboard.press(sc.key);
-    await p.waitForTimeout(300);
-    const took = await p.evaluate(sc.effect);
-    check(off ? `"${sc.key}" does nothing under ?kbd=off` : `"${sc.key}" shortcut works`, off ? !took : !!took);
+    await p.keyboard.press(TAB);
+    const first = await focused(p);
+    check('skip link is the first Tab stop', !!first && first.skip, first ? first.desc : 'nothing focused');
+    if (first && first.skip) {
+      await p.keyboard.press('Enter');
+      await p.waitForTimeout(150);
+      const after = await focused(p);
+      check('activating the skip link focuses #main', !!after && after.id === 'main', after ? after.desc : 'nothing focused');
+    }
+    // Ring audit from the top of the page.
+    // Clear the visit marks the skip-link check left: WebKit restarts Tab from
+    // the top after blur(), so the skip link would read as a wrap-around and
+    // stop the audit at 0 stops (Chromium resumes after #main instead).
+    await p.evaluate(() => {
+      document.querySelectorAll('[data-verify-stop]').forEach((el) => delete el.dataset.verifyStop);
+      window.scrollTo(0, 0);
+      // Start the walk AT the skip link in every engine: after blur() Chromium
+      // resumes from #main while WebKit restarts at the top, so the two would
+      // audit different stretches of the page.
+      const skip = document.querySelector('.mco-skip-link');
+      if (skip) skip.focus(); else if (document.activeElement) document.activeElement.blur();
+    });
+    if (!(await p.evaluate(() => document.activeElement && document.activeElement.matches('.mco-skip-link')))) await p.keyboard.press(TAB);
+    const seen = new Set();
+    const missing = [];
+    const max = cfg.tabStops || 40;
+    for (let i = 0; i < max; i++) {
+      const f = await focused(p);
+      if (!f) break;
+      if (f.revisit) break;                  // wrapped around
+      seen.add(f.desc + ' @' + i);
+      if (!f.ring) missing.push(f.desc);
+      await p.keyboard.press(TAB);
+    }
+    check(`focus ring visible on every Tab stop (${seen.size} checked)`, missing.length === 0, missing.slice(0, 5).join(' | '));
     await close();
   }
+
+  /* 3. Dialog: open with Enter, focus inside, Esc closes, focus returns. */
+  {
+    const sel = cfg.dialogOpener || '.mco-btn-info';
+    const { page: p, close } = await open(env, baseQuery, opts);
+    const opener = await p.$(sel);
+    if (!opener) {
+      console.log(`– dialog probe skipped: no ${sel} on the page`);
+    } else {
+      // A first-visit modal may already be open; close it first.
+      await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
+      await opener.focus();
+      await p.keyboard.press('Enter');
+      await p.waitForTimeout(400);
+      const st = await p.evaluate(() => {
+        const d = document.querySelector('dialog[open]');
+        return { open: !!d, inside: !!d && d.contains(document.activeElement), labelled: !!d && !!(d.getAttribute('aria-labelledby') || d.getAttribute('aria-label')) };
+      });
+      check(`${sel} opens a labelled <dialog> with focus inside`, st.open && st.inside && st.labelled, JSON.stringify(st));
+      await p.keyboard.press('Escape');
+      await p.waitForTimeout(400);
+      const back = await p.evaluate((sel) => ({
+        open: !!document.querySelector('dialog[open]'),
+        onOpener: document.activeElement === document.querySelector(sel),
+      }), sel);
+      check('Esc closes the dialog and focus returns to its opener', !back.open && back.onOpener, JSON.stringify(back));
+    }
+    await close();
+  }
+
+  /* 4. Single-key shortcuts and ?kbd=off. */
+  for (const sc of cfg.shortcuts || []) {
+    for (const off of [false, true]) {
+      const q = baseQuery + (off ? (baseQuery.includes('?') ? '&' : '?') + 'kbd=off' : '');
+      const { page: p, close } = await open(env, q, opts);
+      await p.evaluate(() => { document.activeElement && document.activeElement.blur(); });
+      await p.keyboard.press(sc.key);
+      await p.waitForTimeout(300);
+      const took = await p.evaluate(sc.effect);
+      check(off ? `"${sc.key}" does nothing under ?kbd=off` : `"${sc.key}" shortcut works`, off ? !took : !!took);
+      await close();
+    }
+  }
+
+  /* App-specific probes. */
+  if (cfg.probes) await cfg.probes({ env, open: (q, o) => open(env, q, { ...opts, ...o }), check });
+
+  await env.close();
 }
-
-/* App-specific probes. */
-if (cfg.probes) await cfg.probes({ env, open: (q, o) => open(env, q, { ...opts, ...o }), check });
-
-await env.close();
 finish('keyboard');

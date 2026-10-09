@@ -363,12 +363,17 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     dialog: document.getElementById('info-modal'),
     trigger: document.getElementById('btn-info'),
   });
-  // First-visit auto-open, suppressed for deep links and later visits — §4
+  // First-visit auto-open, suppressed for deep links and later visits — §4.
+  // Also suppressed once the visitor has started using the page: this runs
+  // after MapLibre arrives, and opening a modal under someone who is already
+  // tabbing or clicking yanks their focus mid-action (WCAG 3.2.1/3.2.2). Found
+  // by the verify harness's keyboard probe racing it.
   const hasDeepLink = ['station', 'net', 'lng'].some((k) => params.has(k));
   if (!MCO.lsGet('mco-exemplar-seen-intro') && !hasDeepLink) {
     setTimeout(() => {
       const dlg = document.getElementById('info-modal');
-      if (!dlg.open) dlg.showModal();
+      const busy = document.activeElement && document.activeElement !== document.body;
+      if (!dlg.open && !busy) dlg.showModal();
       MCO.lsSet('mco-exemplar-seen-intro', '1');
     }, 350);
   }

@@ -38,6 +38,11 @@ export const VIEWPORTS = [
 ];
 
 /** Tiny argv parser: --key value, --flag. */
+/** Engines to run: --browsers a,b or $BROWSERS, default both (Safari is WebKit). */
+export function browsers(a = {}) {
+  return String(a.browsers || process.env.BROWSERS || 'chromium,webkit').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
 export function args(argv = process.argv.slice(2)) {
   const out = {};
   for (let i = 0; i < argv.length; i++) {
@@ -61,10 +66,11 @@ const MIME = {
 };
 
 /**
- * Serve `root` statically on 127.0.0.1 and launch Chromium. `base` is the URL of
- * `page`'s directory (e.g. …/docs/ for docs/index.html). Call close() when done.
+ * Serve `root` statically on 127.0.0.1 and launch `engine` (chromium |
+ * webkit). `base` is the URL of `page`'s directory (e.g. …/docs/ for
+ * docs/index.html). Call close() when done.
  */
-export async function start({ root = '.', page = 'index.html' } = {}) {
+export async function start({ root = '.', page = 'index.html', engine = 'chromium' } = {}) {
   const dir = resolve(root);
   const server = createServer(async (req, res) => {
     try {
@@ -80,16 +86,17 @@ export async function start({ root = '.', page = 'index.html' } = {}) {
     } catch { res.writeHead(404).end(); }
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  const { chromium } = await load('playwright');
-  const browser = await chromium.launch({
+  const pw = await load('playwright');
+  if (!pw[engine]) throw new Error(`unknown browser ${engine}`);
+  const browser = await pw[engine].launch(engine === 'chromium' ? {
     channel: process.env.VERIFY_CHANNEL || undefined,
     // MapLibre needs WebGL2; GPU-less machines only get it from SwiftShader.
     args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'],
-  });
+  } : {});
   const pageDir = page.includes('/') ? page.slice(0, page.lastIndexOf('/') + 1) : '';
   const base = `http://127.0.0.1:${server.address().port}/${pageDir}`;
   return {
-    base, browser,
+    base, browser, engine,
     async close() { await browser.close(); await new Promise((r) => server.close(r)); },
   };
 }
@@ -107,7 +114,10 @@ export async function open(env, query = '', { viewport = VIEWPORTS[0], storage =
     reducedMotion,
     timezoneId: 'America/Denver',
     locale: 'en-US',
-    ...(viewport.touch ? { isMobile: true, hasTouch: true } : {}),
+    // WebKit: hasTouch alone matches (hover: none); its isMobile (iOS)
+    // emulation reports unstyled getComputedStyle(<body>) on long pages,
+    // which sends axe false contrast failures. Chromium needs isMobile.
+    ...(viewport.touch ? { hasTouch: true, isMobile: env.engine !== 'webkit' } : {}),
   });
   await ctx.addInitScript((kv) => {
     window.__csp = [];
@@ -122,7 +132,17 @@ export async function open(env, query = '', { viewport = VIEWPORTS[0], storage =
     if (m.type() === 'error') errors.push(`console: ${m.text().slice(0, 240)}`);
   });
   page.on('pageerror', (e) => errors.push(`pageerror: ${String(e.message || e).slice(0, 240)}`));
+  // Network quiet before anything else: apps finish booting after `load`
+  // (MapLibre's import, first-visit modals, data), and a probe that runs
+  // mid-boot races them — a modal opening under the skip-link probe made it
+  // flaky. 1.5 s with nothing in flight, capped at 20 s for polling apps.
+  let inflight = 0, lastChange = Date.now();
+  page.on('request', () => { inflight++; lastChange = Date.now(); });
+  const doneReq = () => { inflight = Math.max(0, inflight - 1); lastChange = Date.now(); };
+  page.on('requestfinished', doneReq);
+  page.on('requestfailed', doneReq);
   await page.goto(env.base + query, { waitUntil: 'load', timeout: 45000 });
+  for (const t0 = Date.now(); Date.now() - t0 < 20000 && !(inflight === 0 && Date.now() - lastChange > 1500);) await page.waitForTimeout(200);
   if (typeof ready === 'function') await page.waitForFunction(ready, null, { timeout });
   else if (typeof ready === 'string') await page.waitForSelector(ready, { timeout });
   if (settleMs) await page.waitForTimeout(settleMs);
