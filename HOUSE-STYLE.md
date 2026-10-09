@@ -19,11 +19,37 @@ variable, to be migrated), and the mailing-list templates ship `#52adc8`
 (a drift to be corrected — its own README claims it matches the website, and it
 doesn't). New work uses the tokens; never introduce a fourth blue.
 
-**Logo.** `assets/mco-logo.png` (vendored copy of the canonical
-`MCO_logo_icon_only.png`). In a navbar it is 40×40, wrapped in a link to
-`https://climate.umt.edu`, with `aria-label="Montana Climate Office"` on the
-link and empty `alt` on the image. Do not hot-link the logo from
-`climate.umt.edu` in new work — one property already links a path that 404s.
+**Logo.** The brand assets live here, in `assets/` (0.11.0). This repo is
+their source of truth; a copy anywhere else is a copy of these.
+
+| File | What | Use |
+|---|---|---|
+| `mco-logo.png` | the badge, 300 px | the navbar (vendored) |
+| `mco-logo.svg` | the same badge as a vector: the centered square crop of the mark, pixel-identical to the PNG | badges drawn larger than 40 px, exports |
+| `mco-wordmark.svg` | the badge mark and "Montana Climate Office", text in `currentColor` | inline, where it inherits the theme's text color |
+| `mco-wordmark-on-dark.svg` / `-on-light.svg` | fixed-color twins: white text / the artwork's `#1A1919` | `<img>` and canvas exports, where `currentColor` doesn't exist |
+
+The source artwork leaves the swoosh and highlights **unfilled**. They are
+white only because the paper is, so on a dark surface the mark went dark. Every
+kit asset backs the mark with white, as the PNG badge always has.
+
+- **Badge in the navbar, wordmark in footers and exports.** In a navbar the
+  badge is 40×40, wrapped in a link to `https://climate.umt.edu`, with
+  `aria-label="Montana Climate Office"` on the link and empty `alt` on the
+  image. It stays vendored, so it paints with no CDN hop.
+- **A footer** uses the `.mco-wordmark` pair (`is-on-dark` + `is-on-light`)
+  and lets the theme show one, or inlines `mco-wordmark.svg`.
+- **Exports draw from the kit,** never from `climate.umt.edu`. Load the
+  fixed-color twin from the pinned tag with `crossOrigin = 'anonymous'`.
+  jsDelivr sends CORS, so the canvas stays exportable. `img-src` already
+  allows `https://cdn.jsdelivr.net`. Pick the twin by the export's
+  background, not the page theme.
+- **Clear space** on every side is at least the badge's corner radius:
+  15% of the mark's height, 6 px at 40 px.
+- **Minimum size:** the badge is 24 px, and the wordmark is 40 px tall, below
+  which "Office" stops reading.
+- **Never recolor the mark,** stretch it, or set the text in a font: the
+  wordmark is outlined artwork.
 
 **Naming.** App title in the navbar brand block, uppercase, `--text-muted`;
 beneath it the subtitle line, italic, `--text-dim`:

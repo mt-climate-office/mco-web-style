@@ -30,13 +30,13 @@
        byte on the CDN differs from the hash below, the browser refuses the
        file and the matching row goes red. This is the definitive end-to-end
        release check (README § Releasing). -->
-  <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/fonts/outfit-latin.woff2"
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/fonts/outfit-latin.woff2"
         as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/fonts/space-mono-latin.woff2"
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/fonts/space-mono-latin.woff2"
         as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/theme/mco-theme.css"
-        integrity="sha384-wZCY6EP4EQ0SDjkqDvQkAFd9f5tUJCATMjCvcs18/I19mKfE6nxqsQiUURF8nRKx"
+        href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/theme/mco-theme.css"
+        integrity="sha384-o2qizMsS3Rv2zcFIzQFUM1uiR59BnI6yKZOjmGiKG3dqP6p8jBkMaJCjg2dYN/eA"
         crossorigin="anonymous">
 
   <style>
@@ -66,19 +66,20 @@
     <li id="r-cog"><span>map/cog-protocol.js</span><span class="status">…</span></li>
     <li id="r-palette"><span>palette/mco-palette.js</span><span class="status">…</span></li>
     <li id="r-fonts"><span>fonts/ (Outfit + Space Mono)</span><span class="status">…</span></li>
+    <li id="r-brand"><span>assets/ brand SVGs (CORS, for exports)</span><span class="status">…</span></li>
   </ul>
 </main>
 
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/core/mco-core.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/core/mco-core.js"
         integrity="sha384-F/YeBkOPRU4+DPRf7McL88FjA76l+QnIEhFBUYDSrjBHcr4guZyDQvcG5x1VMjo/"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/palette/mco-palette.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/palette/mco-palette.js"
         integrity="sha384-P+8vdCR12oZ388lO/orPRnm6Tcz69x6mhN32l7AWP7j8S7KCNijXDZrmYjWuXm8J"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/map/mco-map.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/map/mco-map.js"
         integrity="sha384-tmDqtqi4yYiDHOxkZikwzXF3Lpkb63b0Tu6K7jeCpU9gJkPB2GbpFHLasGHka6zP"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/map/cog-protocol.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/map/cog-protocol.js"
         integrity="sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm"
         crossorigin="anonymous"></script>
 <script>
@@ -111,6 +112,13 @@
   var pinned = (document.querySelector('script[src*="mco-web-style@"]') || {}).src || '';
   var m = pinned.match(/mco-web-style@([\d.]+)/);
   document.getElementById('pinned-version').textContent = m ? 'v' + m[1] : 'unpinned';
+  // Brand SVGs on the same tag, fetched with CORS the way an export draws
+  // them onto a canvas: decode() fails on a 404, a CSP block or no CORS.
+  var base = pinned.replace(/core\/mco-core\.js$/, '');
+  Promise.all(['mco-logo.svg', 'mco-wordmark.svg', 'mco-wordmark-on-dark.svg', 'mco-wordmark-on-light.svg'].map(function (f) {
+    var img = new Image(); img.crossOrigin = 'anonymous'; img.src = base + 'assets/' + f;
+    return img.decode();
+  })).then(function () { mark('r-brand', true); }, function () { mark('r-brand', false); });
 </script>
 </body>
 </html>

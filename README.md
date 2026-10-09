@@ -25,9 +25,9 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/theme/mco-theme.css"
-      integrity="sha384-wZCY6EP4EQ0SDjkqDvQkAFd9f5tUJCATMjCvcs18/I19mKfE6nxqsQiUURF8nRKx" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.10.0/core/mco-core.js"
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/theme/mco-theme.css"
+      integrity="sha384-o2qizMsS3Rv2zcFIzQFUM1uiR59BnI6yKZOjmGiKG3dqP6p8jBkMaJCjg2dYN/eA" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/core/mco-core.js"
         integrity="sha384-F/YeBkOPRU4+DPRf7McL88FjA76l+QnIEhFBUYDSrjBHcr4guZyDQvcG5x1VMjo/" crossorigin="anonymous"></script>
 ```
 
@@ -56,15 +56,15 @@ CSS custom properties, kept in lockstep by CI.
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
 | `fonts/` | Outfit + Space Mono woff2 (latin + latin-ext; SIL OFL, license texts alongside), declared by `mco-theme.css` | every page (preload the two latin files — `snippets/head.html`) |
-| `assets/` | MCO logo (vendored), favicon set, OG card | every page |
+| `assets/` | The brand: badge (PNG, vendored in navbars; SVG), wordmark (`currentColor` + on-dark / on-light), favicon set, OG card. Source of truth (HOUSE-STYLE §1) | every page |
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.10.0
+## SRI hashes — v0.11.0
 
 ```
-theme/mco-theme.css      sha384-wZCY6EP4EQ0SDjkqDvQkAFd9f5tUJCATMjCvcs18/I19mKfE6nxqsQiUURF8nRKx
+theme/mco-theme.css      sha384-o2qizMsS3Rv2zcFIzQFUM1uiR59BnI6yKZOjmGiKG3dqP6p8jBkMaJCjg2dYN/eA
 core/mco-core.js         sha384-F/YeBkOPRU4+DPRf7McL88FjA76l+QnIEhFBUYDSrjBHcr4guZyDQvcG5x1VMjo/
 map/mco-map.js           sha384-tmDqtqi4yYiDHOxkZikwzXF3Lpkb63b0Tu6K7jeCpU9gJkPB2GbpFHLasGHka6zP
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm

@@ -49,7 +49,9 @@ legible lockup and glass (#37). Its anti-flash snippet is unchanged from
 0.9.0, so an app on 0.9.0 re-points with a tag bump and a check of its
 navbar wrap points. The six consumers are being re-pointed to 0.9.0 first,
 one PR per app, because the MapLibre 6 fix can't wait on this release.
-#27 (logo) is still waiting on brand-owner sign-off.
+#27 (logo) shipped in 0.11.0 the same day: Kyle settled that the brand lives
+in mco-web-style, so the kit's `assets/` is now the source of truth for the
+badge and wordmark.
 
 ### 0. 0.9.0 shipped the same day (2026-10-08)
 

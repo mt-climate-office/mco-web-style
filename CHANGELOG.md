@@ -8,6 +8,27 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.11.0] — 2026-10-09
+
+The brand release: the MCO logo assets now live in the kit, and this repo is
+their source of truth (#27). Additive: new files and one new class.
+Re-pointing is a tag bump with no CSP hash change. MIGRATING § 0.10.x →
+0.11.0.
+
+### Added
+- **`assets/mco-logo.svg`**: the badge as a vector, pixel-identical to
+  `mco-logo.png`.
+- **`assets/mco-wordmark.svg`** (text in `currentColor`, for inline use), plus
+  **`-on-dark.svg`** and **`-on-light.svg`**, fixed-color twins for `<img>`
+  and canvas exports. Every kit asset backs the mark with white: the source
+  artwork leaves the swoosh unfilled, so it went dark on dark surfaces.
+- **`.mco-wordmark`** with `.is-on-dark` / `.is-on-light`: the theme shows
+  one of the pair. It is centered in `.mco-footer`.
+- HOUSE-STYLE §1 logo rules: badge in the navbar, wordmark in footers and
+  exports, exports drawn from the pinned tag with CORS (never
+  climate.umt.edu), clear space, and minimum sizes.
+- `demo/cdn.html` CORS-decodes the four brand SVGs from the tag.
+
 ## [0.10.0] — 2026-10-09
 
 The navbar release: a landscape-phone rail, a sticky bar for scrolling
