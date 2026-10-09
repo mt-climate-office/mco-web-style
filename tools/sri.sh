@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-for f in theme/mco-theme.css core/mco-core.js map/mco-map.js map/cog-protocol.js; do
+for f in theme/mco-theme.css core/mco-core.js map/mco-map.js map/cog-protocol.js palette/mco-palette.js; do
   hash=$(openssl dgst -sha384 -binary "$f" | openssl base64 -A)
   printf '%-24s sha384-%s\n' "$f" "$hash"
 done

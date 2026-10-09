@@ -347,9 +347,10 @@ CONSUMERS.md.
 
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
-Branded PNG export and a `charts/` palettes module are known duplication that
-the kit has **deliberately not absorbed yet** (each needs a design pass across
-its divergent app implementations first). Leave the app's versions in place,
+Branded PNG export is known duplication that the kit has **deliberately not
+absorbed yet** (it needs a design pass across its divergent app
+implementations first). The palettes module left this list in 0.9.0
+(`palette/mco-palette.js`, HOUSE-STYLE §6). Leave the app's versions in place,
 swapping only their internals onto kit helpers where trivial (e.g. the logo
 asset, MT time). If a migration makes one of these converge naturally, propose
 it as a kit MINOR — that's the intended path to absorption.

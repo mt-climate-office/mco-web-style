@@ -23,6 +23,7 @@ jobs:
           node --check core/mco-core.js
           node --check map/mco-map.js
           node --check map/cog-protocol.js
+          node --check palette/mco-palette.js
           node --check exemplar/app.js
 
       - name: Token parity (CSS themes ↔ tokens.json)

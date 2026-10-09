@@ -426,6 +426,26 @@ these rules:
 - **Prefer lightness-monotonic sequential ramps** — they survive grayscale and
   every CVD type.
 
+**`MCO.palette`** (`palette/mco-palette.js`, 0.9.0) holds the approved ramps,
+ported from the dashboard's tested module (so its samples match the
+dashboard's exactly):
+- the ramps: batlow, romaO, RdBu, BrBG, YlGnBu, YlOrRd, Blues, PuRd, and Tol
+  bright/muted/high-contrast
+- `sample()` / `colorAt()`, interpolated in OKLab
+- `span(name, theme)`: the part of a sequential ramp whose every color
+  clears 3:1 on that theme's `--bg-surface`, so it can draw lines, markers and
+  bars. Diverging and cyclic ramps have no span. They are for fills, with the
+  `midpoint` labelled.
+- `categorical(n, theme)`, `contrast()`, and `isBanned('Spectral')`
+
+CI gates every span. **Roles stay app-local**: "air temperature is rose" is
+domain knowledge. Each app keeps **one role registry**, with per-theme values
+and a contrast test, as the dashboard's `roles.ts` does. The one cross-app role
+set is the station networks, `MCO.palette.NETWORK` / `network(name, theme)`:
+**network = shape + color, data value = fill.** HydroMet is a filled circle,
+AgriMet a hollow circle, and Cooperator a ring, so the network survives
+grayscale. The legend swatch uses the same `data-shape`.
+
 Known issues in fielded palettes (fix on migration, tracked in CONSUMERS.md):
 the status map's roma-sampled bins put its two semantic extremes at nearly the
 same lightness (fresh teal L≈0.20 vs dead red L≈0.14 — indistinguishable in
