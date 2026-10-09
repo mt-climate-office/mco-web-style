@@ -110,7 +110,10 @@ meets a newer kit.
   `--threshold` (0.5%). Settling waits for 1.5 s of network quiet, then
   `--settle` ms.
 - **Expected changes:** list them in `canary-accept.json` with the reason
-  (CHANGELOG), and empty it after the release is tagged. Anything else that
+  (CHANGELOG), and empty it once the consumers have re-pointed past the
+  release. An entry's `maxPixels` (percent) lets the accepted move explain a
+  pixel diff up to that size, and only when nothing unaccepted moved: the
+  0.10.0 lockup shifts the whole bar, about 0.6% of a 1440 frame. Anything else that
   moved is a regression until someone explains it.
 - **CI:** `.github/workflows/canary.yml` runs it for all six consumers on every
   PR. Each job's report lands in the job summary and the images in an

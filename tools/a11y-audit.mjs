@@ -62,6 +62,8 @@ for (const engine of BROWSERS) {
   const viewports = [
     { name: 'wide', width: 1440, height: 900 },
     { name: 'narrow', width: 390, height: 800, touch: true },
+    // Short landscape phone (0.10.0): the demo's navbar is a rail here.
+    { name: 'landscape', width: 750, height: 342, touch: true },
   ];
 
   for (const path of pages) {
@@ -199,6 +201,29 @@ for (const engine of BROWSERS) {
     }));
     probe('radio segmented: arrows move the choice; the fallback select mirrors it', radio.checked === 'metric' && radio.select === 'metric', JSON.stringify(radio));
     await context.close();
+
+    // Nav rail (0.10.0) on a short landscape viewport.
+    const rctx = await browser.newContext({ viewport: { width: 750, height: 342 } });
+    const rp = await rctx.newPage();
+    await rp.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
+    await rp.waitForTimeout(1000);
+    await rp.click('#btn-rail-menu');
+    await rp.waitForTimeout(400);   // past the 180ms fade-in, or axe reads mid-transition text
+    const r1 = await rp.evaluate(() => ({
+      inDrawer: document.getElementById('nav-drawer').contains(document.activeElement),
+      mainInert: document.getElementById('main').inert,
+      expanded: document.getElementById('btn-rail-menu').getAttribute('aria-expanded'),
+    }));
+    probe('rail: the menu opens the drawer, moves focus in, the page is inert', r1.inDrawer && r1.mainInert && r1.expanded === 'true', JSON.stringify(r1));
+    const rbad = (await new AxeBuilder({ page: rp }).analyze()).violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    probe('axe: open rail drawer has no serious/critical violations', rbad.length === 0, rbad.map((v) => v.id).join(', '));
+    await rp.keyboard.press('Escape');
+    const r2 = await rp.evaluate(() => ({
+      focus: document.activeElement.id, mainInert: document.getElementById('main').inert,
+      shown: getComputedStyle(document.getElementById('nav-drawer')).display !== 'none',
+    }));
+    probe('rail: Esc closes, focus returns to the menu, inert released', r2.focus === 'btn-rail-menu' && !r2.mainInert && !r2.shown, JSON.stringify(r2));
+    await rctx.close();
   }
 
 

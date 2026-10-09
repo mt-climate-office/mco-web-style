@@ -1,9 +1,49 @@
 {
-  "$comment": "Downstream changes the NEXT kit release makes on purpose (see CHANGELOG [Unreleased] / the release being cut). The canary reports geometry moves on these selectors at these widths as expected instead of failing. Empty this list after each release is tagged.",
+  "$comment": "Downstream changes the NEXT kit release makes on purpose (see CHANGELOG [Unreleased] / the release being cut). The canary reports geometry moves on these selectors at these widths as expected instead of failing. Empty this list after each release is tagged. maxPixels (percent) lets an accepted move explain a pixel diff up to that size, but only when nothing unaccepted moved.",
   "accept": [
-    { "selector": ".maplibregl-ctrl-top-right", "widths": [390], "why": "0.9.0: MapLibre zoom/fit buttons 29→40px on touch" },
-    { "selector": ".maplibregl-ctrl-top-left", "widths": [390], "why": "0.9.0: MapLibre zoom/fit buttons 29→40px on touch" },
-    { "selector": ".maplibregl-ctrl-bottom-right", "widths": [390], "why": "0.9.0: compact attribution ⓘ 24→40px on touch" },
-    { "selector": ".mco-panel", "widths": [390], "why": "0.9.0: .mco-panel-toggle 36→40px on touch" }
+    {
+      "selector": ".maplibregl-ctrl-top-right",
+      "widths": [
+        390
+      ],
+      "why": "0.9.0: MapLibre zoom/fit buttons 29→40px on touch"
+    },
+    {
+      "selector": ".maplibregl-ctrl-top-left",
+      "widths": [
+        390
+      ],
+      "why": "0.9.0: MapLibre zoom/fit buttons 29→40px on touch"
+    },
+    {
+      "selector": ".maplibregl-ctrl-bottom-right",
+      "widths": [
+        390
+      ],
+      "why": "0.9.0: compact attribution ⓘ 24→40px on touch"
+    },
+    {
+      "selector": ".mco-panel",
+      "widths": [
+        390
+      ],
+      "why": "0.9.0: .mco-panel-toggle 36→40px on touch"
+    },
+    {
+      "selector": ".brand",
+      "widths": [
+        1440
+      ],
+      "maxPixels": 1.5,
+      "why": "0.10.0: brand lockup 10.4/8.8 → 12/11px (#37)"
+    },
+    {
+      "selector": ".controls",
+      "widths": [
+        1440
+      ],
+      "maxPixels": 1.5,
+      "why": "0.10.0: pushed right by the wider lockup (#37)"
+    }
   ]
 }

@@ -81,7 +81,12 @@ sweep — see its CONSUMERS.md row.
 
 **Typography.** `--font-ui` — **Outfit** (400/500/600/700) for UI text.
 `--font-mono` — **Space Mono** for numerals, station IDs, timestamps, scale
-labels, `<kbd>`. Kit-hosted in `fonts/` and declared by `mco-theme.css` with
+labels, `<kbd>`. **One exception (0.10.0): display-size readings**, the hero
+and tile values at ≥ 1.75 rem, use `.mco-num-display` (`--font-display-num`:
+Outfit with tabular figures and slightly tightened tracking). Space Mono's
+monospaced advance spreads big digits ("8 4 7 . 0") and reads as a terminal.
+Tabular figures keep the digits from jittering as a value ticks. Below the
+threshold every numeral stays mono. Kit-hosted in `fonts/` and declared by `mco-theme.css` with
 `font-display: block`; pages preload the two latin files (`snippets/head.html`)
 so the first frame is already in Outfit — no system-font flash, no swap. The tokens
 carry system fallbacks. Don't add other families — the drought dashboard's Inter
@@ -161,8 +166,26 @@ variant), segmented groups `.seg-btns > .seg-btn`, info button `.mco-btn-info`.
 `--accent` with `--text-on-accent`. Never hand-roll `color: #fff` on the
 accent, which is 2.2:1 in high contrast.
 
+**Long-scrolling pages** add `.is-sticky` (0.10.0): the bar sticks at the
+top on `--z-chrome-top`, clears the notch, and the kit publishes its height
+as `--chrome-h` so `scroll-padding-top` keeps anchors and focus out from under
+it. A sticky bar costs height on every screen of the page, so on compact it
+must stay **one row** (≤ 64 px): put the view tabs and the overflow controls
+in an `MCO.initDrawer` drawer, or shed labels to icon-only buttons, rather
+than letting the bar wrap. Two rows (the dashboard's 92 px at 390 px) is 11%
+of a phone screen, permanently. Full-viewport map apps keep the in-flow bar.
+
+The lockup is 12 px title / 11 px subtitle (0.10.0). Don't shrink it to buy
+a row: shed controls into a drawer or the rail instead.
+
 **Glass panels** (`.mco-panel`): floating surfaces over the map (legend,
 filters). Head + collapsible body; wire with `MCO.initCollapsible`.
+**Legibility never depends on the blur** (0.10.0): `--glass` is near-opaque
+(0.92 dark, 0.94 light, 0.96 high contrast) and `backdrop-filter` only
+softens what shows through. Engines and modes that drop the blur get the
+bare fill, and `prefers-reduced-transparency: reduce` makes every glass
+surface solid `--bg-surface`. An app-local glass surface follows the same
+rule: never a translucent fill that is only readable when blurred.
 
 **Z-index ladder**: add to a tier, never invent a number. Tiers (from
 `--z-map-ctrl: 2` to `--z-toast: 400`) are documented in the CSS. MapLibre's
@@ -178,6 +201,7 @@ controls must use a tier.
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
+| height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px left column; also compact |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
 its name must carry a permanent `aria-label`** — otherwise the button becomes
@@ -291,6 +315,29 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   consumer that brought the option into the kit. The default stays
   viewport-`fixed`.
 
+**Short landscape: the rail** (0.10.0). A landscape phone (≈ 750×342) has
+width to spare and no height, and Montana's ≈ 1.75:1 fit is height-limited.
+Every pixel of a wrapped two-row bar costs map: photo-explorer's was 100 px,
+30% of the screen. Map apps opt in with `data-rail` on `.mco-navbar`: at
+`MCO.viewport.RAIL_MQ` (the landscape half of the compact query) the bar
+becomes a fixed 56 px rail at the left edge and the body is padded clear of
+it.
+- **The app picks the rail's contents.** `.mco-rail` holds the menu button
+  and one to three hot controls, such as a date stepper or a readout.
+- **Everything else** sits in `.mco-nav-drawer`, which is `display: contents`
+  outside rail mode, so the normal bar is unchanged.
+- **`MCO.initNavRail`** wires the drawer with the drawer contract: focus in
+  on open, the rest of the page inert, Esc, the scrim or the toggle to
+  close, and focus back to the toggle.
+- **The app owns three hand-offs.** `/` checks `rail.isRail()` before
+  `isCollapsed()` and opens the drawer on the search field. Choosing a
+  search result closes it with `{restoreFocus: false}`. A drawer button that
+  opens a dialog can leave the drawer open, because the dialog wins Esc and
+  returns focus inside it.
+- **Don't hide a drawer with `visibility`.** A child with its own transition
+  flips a frame late, and `focus()` in the same task silently fails. The kit
+  uses `display: none` plus `@starting-style`.
+
 **Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
 property, never `gap` directly: the brand lockup's divider margin is derived
 from it (`calc(0.4rem - var(--nav-gap))`), so setting `gap` alone desynchronises
@@ -340,7 +387,10 @@ them.
 **Theme switching** re-styles the map (`map.setStyle(...)` wipes custom
 sources/layers — re-add them in `map.once('style.load', …)`). Use
 `MCO.initThemeToggle`; it maintains the icon swap and the button's
-`aria-label`.
+`aria-label`, which names the theme a press switches **to**. Prefer
+`{cycle: true}` (0.10.0): dark → light → high contrast, so high contrast is
+one press away instead of hidden behind `?theme=`. A cycling toggle passes an
+`iconContrast` for the light state.
 
 **Notices** (`MCO.notice`, `.mco-notice`, 0.8.0) for anything that must
 persist or offer an action: a failed load with Retry, a data caveat, an
@@ -407,6 +457,8 @@ themes.
 7. **`aria-pressed` is the styling source of truth** for toggles — CSS keys off
    `[aria-pressed="true"]`, so the accessible state can never drift from the
    visual state. Pair with swapped `aria-label`s where the action inverts.
+   A tab that is a **link** to a view is not a toggle: it carries
+   `aria-current="page"`, which `.nav-btn` styles the same way (0.10.0).
    **Legend rows** are `.mco-legend-row` buttons wired by
    `MCO.initLegendToggles` (0.8.0). "Off" dims the swatch and strikes the label
    through. **Never put opacity on the row**: parent opacity composites the

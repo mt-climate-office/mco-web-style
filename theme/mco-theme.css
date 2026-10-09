@@ -132,6 +132,10 @@
 :root {
   --font-ui:        'Outfit', 'Outfit Fallback', system-ui, -apple-system, sans-serif;
   --font-mono:      'Space Mono', 'Space Mono Fallback', ui-monospace, monospace;
+  /* Display-size readings (≥ 1.75rem hero and tile values, 0.10.0): Outfit,
+     with tabular figures from .mco-num-display. Space Mono stays for every
+     other numeral (tables, IDs, timestamps, axes, scale labels, <kbd>). */
+  --font-display-num: 'Outfit', 'Outfit Fallback', system-ui, -apple-system, sans-serif;
 
   --bg-deep:        #161b22;
   --bg-surface:     #1e2530;
@@ -152,7 +156,7 @@
   --accent-fill-hover: #114f80;   /* .nav-btn.is-primary hover; --text-on-accent ≥ 4.5:1 on it */
   --selection-ring: #5aaee8;
   --brand-gradient: linear-gradient(90deg, var(--accent-dk), var(--accent), var(--accent-light), var(--accent));
-  --glass:          rgba(30,37,48,0.82);
+  --glass:          rgba(30,37,48,0.92);   /* legible WITHOUT the blur (0.10.0) */
   --shadow:         0 4px 24px rgba(0,0,0,0.4);
   --transition:     0.2s cubic-bezier(0.4,0,0.2,1);
   --radius-sm:      4px;
@@ -160,7 +164,7 @@
   --radius-lg:      12px;
   --dot-stroke:     #ffffff;
   --input-bg:       #232a35;
-  --scrim:          rgba(0,0,0,0.45);
+  --scrim:          rgba(0,0,0,0.55);
   --ctrl-icon-filter: invert(1);
   /* Status tones (0.8.0) — CHROME, not data (HOUSE-STYLE §2): form errors,
      notices, the basemap-failure banner. Never the only channel: pair with
@@ -197,11 +201,11 @@
   --accent-fill-hover: #0d4f7a;
   --selection-ring: #1563a0;
   --brand-gradient: linear-gradient(90deg, #0a4a7a, #1266a8, #0d7fd4, #1266a8, #0a4a7a);
-  --glass:          rgba(255,255,255,0.88);
+  --glass:          rgba(255,255,255,0.94);
   --shadow:         0 4px 24px rgba(0,0,0,0.1);
   --dot-stroke:     #2a2a3a;
   --input-bg:       #f4f5f7;
-  --scrim:          rgba(0,0,0,0.35);
+  --scrim:          rgba(0,0,0,0.45);
   --ctrl-icon-filter: none;
   --danger:         #c2271c;
   --danger-fill:    #f8e5e4;
@@ -286,9 +290,9 @@
    visible snaps, so that sweep is MAJOR). --nav-gap stays, defaulting to
    --space-4. */
 :root {
-  --fs-2xs:     0.55rem;   /* lockup subtitle only */
-  --fs-xs:      0.65rem;   /* brand title, mono meta, tooltip sub */
-  --fs-sm:      0.75rem;   /* panel titles, seg/tooltip, captions */
+  --fs-2xs:     0.55rem;   /* unused by the kit since 0.10.0 (the lockup subtitle is 11px) */
+  --fs-xs:      0.65rem;   /* mono meta, tooltip sub */
+  --fs-sm:      0.75rem;   /* brand title, panel titles, seg/tooltip, captions */
   --fs-md:      0.8125rem;   /* buttons, toast, eyebrow h3 */
   --fs-base:    0.875rem;   /* prose, table cells */
   --fs-lg:      1.0625rem;   /* modal and card titles */
@@ -358,6 +362,18 @@ body {
   font-weight: 600; font-size: 0.85rem; text-decoration: none;
 }
 .mco-skip-link:focus { top: 0.5rem; }
+
+/* Display numerals (0.10.0, #36): a hero reading in Outfit with tabular
+   figures, so digits keep their column as values tick (the hosted subset
+   carries tnum) without Space Mono's terminal spacing at 2–4rem. Size is
+   the app's (≥ 1.75rem; --fs-2xl is 2rem). Below that, numerals stay mono. */
+.mco-num-display {
+  font-family: var(--font-display-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--lh-tight);
+}
 
 /* ── 4. MapLibre control polish ───────────────────────────────────────────
    Glass treatment for the vendor controls so they read as part of the app
@@ -473,6 +489,15 @@ body {
   flex-wrap: wrap; row-gap: 0.4rem;
   z-index: var(--z-chrome-top);
 }
+/* Sticky (0.10.0, #4), opt-in for long-scrolling pages; full-viewport map
+   apps keep the in-flow bar. It stays on --z-chrome-top, clears the notch,
+   and core publishes its height as --chrome-h, which html's
+   scroll-padding-top reads. Needs the DOCUMENT to scroll: a body with
+   overflow: hidden or a fixed height defeats position: sticky. */
+.mco-navbar.is-sticky {
+  position: sticky; top: 0;
+  padding-top: max(0.4rem, env(safe-area-inset-top));
+}
 .mco-navbar::after {
   content: ''; position: absolute; bottom: 0; left: 0; right: 0;
   height: 2px; background: var(--brand-gradient); pointer-events: none;
@@ -488,8 +513,11 @@ body {
    becomes −0.1rem, holding the 0.4rem rhythm either way. */
 .mco-navbar > .nav-divider { margin-inline: calc(0.4rem - var(--nav-gap)); }
 .brand { display: flex; flex-direction: column; justify-content: center; flex-shrink: 0; line-height: 1.2; }
-.brand-title    { font-size: 0.65rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; margin: 0; }
-.brand-subtitle { font-size: 0.55rem; font-weight: 400; letter-spacing: 0.04em; font-style: italic; color: var(--text-dim); white-space: nowrap; }
+/* 12px title, 11px subtitle (0.10.0; were 10.4 and 8.8px, below a legible
+   floor — #37). The lockup is wider for it: apps tuned to a wrap point
+   re-check their ladder. */
+.brand-title    { font-size: var(--fs-sm); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; margin: 0; }
+.brand-subtitle { font-size: 0.6875rem; font-weight: 400; letter-spacing: 0.04em; font-style: italic; color: var(--text-dim); white-space: nowrap; }
 .controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; row-gap: 0.3rem; }
 .nav-meta { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; margin-left: auto; }
 
@@ -508,6 +536,10 @@ body {
 .nav-btn svg { flex-shrink: 0; stroke: currentColor; }
 .nav-btn.icon-only { padding: 0.4rem; min-width: 34px; justify-content: center; }
 .nav-btn[aria-pressed="true"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+/* Navigation state (0.10.0, #3): a tab that is a LINK to a view carries
+   aria-current="page", not aria-pressed (a toggle). Same look either way. */
+.nav-btn[aria-current="page"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+a.nav-btn { text-decoration: none; }
 .nav-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
 /* Primary action (0.8.0): the one button per view that does the thing — Apply,
    Download, Retry. A filled --accent with --text-on-accent, the pairing the
@@ -1237,4 +1269,101 @@ html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 
   .maplibregl-ctrl-group button { width: 40px; height: 40px; }
   .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 40px; padding-right: 40px; }
   .maplibregl-ctrl-attrib-button { width: 40px; height: 40px; border-radius: 20px; background-position: center; }
+}
+
+/* Short-landscape rail (0.10.0, #38) — opt-in: .mco-navbar[data-rail] +
+   MCO.initNavRail. On a landscape phone the bar wraps to two rows and eats
+   ~30% of the height, while width sits unused. In rail mode the bar becomes
+   a 56px column at the left edge (fixed, so it works whether the body is a
+   flex column or scrolls) and the page is padded clear of it; the app's
+   quick controls live in .mco-rail, everything else in .mco-nav-drawer,
+   which opens beside the rail.
+
+     <header class="mco-navbar" data-rail>
+       <a class="logo-link" …>…</a>
+       <div class="mco-rail">        <!-- display:none outside rail mode -->
+         <button class="nav-btn icon-only" aria-label="Menu" aria-expanded="false"
+                 aria-controls="nav-drawer">☰</button>   <!-- + 1–3 hot controls -->
+       </div>
+       <div class="nav-divider" aria-hidden="true"></div>
+       <div class="mco-nav-drawer" id="nav-drawer">
+         <!-- display:contents outside rail mode: the bar lays out as before -->
+         <div class="brand">…</div> <div class="controls">…</div> <div class="nav-meta">…</div>
+       </div>
+     </header>
+     <div class="mco-scrim" aria-hidden="true" hidden></div>
+
+   KEEP IN SYNC with MCO.viewport.RAIL_MQ: the landscape half of the compact
+   query, not a new number. Pitfalls this encodes: the closed drawer is
+   display:none, not visibility:hidden (a transitioned child flips a frame
+   late and focus() fails); the navbar's backdrop-filter makes it the
+   containing block, so the drawer sits at left:100% of the rail; the plain
+   .mco-scrim (--z-map-panel) dims the page below the rail (--z-chrome-top). */
+.mco-rail { display: none; }
+.mco-nav-drawer { display: contents; }
+@media (max-height: 560px) and (orientation: landscape) {
+  body:has(> .mco-navbar[data-rail]) {
+    --rail-w: 56px;
+    padding-left: calc(var(--rail-w) + env(safe-area-inset-left));
+  }
+  /* The rail isn't above anything: nothing needs scroll padding for it. */
+  html:has(> body > .mco-navbar[data-rail]) { --chrome-h: 0px !important; }
+  .mco-navbar[data-rail] {
+    position: fixed; top: 0; bottom: 0; left: 0;
+    width: calc(var(--rail-w, 56px) + env(safe-area-inset-left));
+    min-height: 0;
+    flex-direction: column; flex-wrap: nowrap; justify-content: flex-start;
+    padding: max(0.4rem, env(safe-area-inset-top)) 0.4rem
+             max(0.4rem, env(safe-area-inset-bottom)) max(0.4rem, env(safe-area-inset-left));
+    border-bottom: 0; border-right: 1px solid var(--border);
+  }
+  .mco-navbar[data-rail]::after { top: 0; bottom: 0; left: auto; right: 0; width: 2px; height: auto; }
+  .mco-navbar[data-rail] > .nav-divider { display: none; }
+  .mco-navbar[data-rail] .mco-rail {
+    display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+    min-height: 0; overflow-y: auto; scrollbar-width: none;
+  }
+  .mco-navbar[data-rail] .mco-rail .nav-btn { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
+
+  .mco-navbar[data-rail] .mco-nav-drawer {
+    display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
+    position: absolute; top: 0; bottom: 0; left: 100%;
+    width: min(var(--drawer-w, 300px), calc(100vw - var(--rail-w, 56px) - env(safe-area-inset-left)));
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.9rem max(0.75rem, env(safe-area-inset-bottom));
+    overflow-y: auto; overscroll-behavior: contain;
+    background: var(--bg-surface); border-right: 1px solid var(--border); box-shadow: var(--shadow);
+    transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+  }
+  .mco-navbar[data-rail] .mco-nav-drawer.is-open { display: flex; }
+  /* Undo the bar-only collapses: the drawer has the room. */
+  .mco-navbar[data-rail] .mco-nav-drawer .brand,
+  .mco-navbar[data-rail] .mco-nav-drawer .control-label {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto;
+  }
+  .mco-navbar[data-rail] .mco-nav-drawer .brand-title,
+  .mco-navbar[data-rail] .mco-nav-drawer .brand-subtitle { white-space: normal; }
+  .mco-navbar[data-rail] .mco-nav-drawer .btn-label { display: inline; }
+  .mco-navbar[data-rail] .mco-nav-drawer .nav-btn:has(> .btn-label) { padding: 6px 12px; justify-content: flex-start; }
+  .mco-navbar[data-rail] .mco-nav-drawer .controls { flex-direction: column; align-items: stretch; }
+  .mco-navbar[data-rail] .mco-nav-drawer .nav-meta { margin-left: 0; flex-wrap: wrap; }
+  .mco-navbar[data-rail] .mco-nav-drawer .mco-search-collapse { display: flex; position: relative; }
+  .mco-navbar[data-rail] .mco-nav-drawer .mco-search > input { flex: 1; min-width: 0; }
+  .mco-navbar[data-rail] .mco-nav-drawer .mco-search-toggle { display: none; }
+}
+@starting-style {
+  .mco-navbar[data-rail] .mco-nav-drawer.is-open { transform: translateX(-12px); opacity: 0; }
+}
+
+/* Glass is legible on its own (0.10.0, #37): --glass is near-opaque and the
+   backdrop blur is an enhancement on top, because an engine that drops it
+   (headless WebKit, low-power modes) or a visitor who asks for Reduce
+   Transparency gets the bare fill. Under that preference every glass surface
+   goes solid: --glass becomes --bg-surface, and the blur is dropped.
+   html:root outranks the [data-theme] blocks without matching their selector. */
+@media (prefers-reduced-transparency: reduce) {
+  html:root { --glass: var(--bg-surface); }
+  .mco-navbar, .mco-panel, .mco-card.is-glass, .mco-tooltip, .maplibregl-ctrl-group,
+  .mco-navbar .mco-search-collapse.is-open, .mco-modal::backdrop {
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
 }

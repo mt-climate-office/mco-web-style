@@ -8,6 +8,50 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.10.0] — 2026-10-09
+
+The navbar release: a landscape-phone rail, a sticky bar for scrolling
+pages, a legible lockup and glass that reads without blur, plus a 3-state
+theme toggle and display numerals. Every open kit issue except #27 (logo
+assets, waiting on brand-owner sign-off). **The anti-flash snippet is
+unchanged**, so no page's CSP hash moves: re-pointing is a tag bump.
+MIGRATING § 0.9.x → 0.10.0.
+
+### Added
+- **Short-landscape rail**: `.mco-navbar[data-rail]`, `.mco-rail`,
+  `.mco-nav-drawer` and **`MCO.initNavRail`** (#38). At
+  `MCO.viewport.RAIL_MQ`, the landscape half of the compact query, the bar
+  becomes a fixed 56px left rail and its drawer opens beside it, with the
+  drawer focus/inert/Esc contract. Also `MCO.viewport.isRail()`. Adapted
+  from mesonet-photo-explorer.
+- **`.mco-navbar.is-sticky`** for long-scrolling pages (#4). Core publishes
+  its height as `--chrome-h`, so `scroll-padding-top` keeps anchors and focus
+  clear of it.
+- **`.nav-btn[aria-current="page"]`**: link tabs share the pressed look (#3).
+- **`MCO.initThemeToggle({cycle: true, iconContrast})`**: dark → light → high
+  contrast, with the label naming the next theme. Also
+  `MCO.toggleTheme({cycle})` and `MCO.THEME_CYCLE` (#3).
+- **`--font-display-num` + `.mco-num-display`**: hero readings (≥ 1.75rem) in
+  Outfit with tabular figures. Space Mono stays for every other numeral
+  (#36).
+- **`prefers-reduced-transparency: reduce`**: glass surfaces go solid and
+  drop the blur (#37).
+- The kit's a11y gate adds a 750×342 landscape pass and rail probes.
+
+### Changed (visible defaults: MINOR under the pre-1.0 convention)
+- **Brand lockup 12px / 11px**, up from 10.4 / 8.8px (#37). The lockup is
+  wider, so an app tuned to a navbar wrap point re-checks it.
+- **`--glass` near-opaque**: dark 0.82 → 0.92, light 0.88 → 0.94 (#37).
+  The blur is an enhancement, not the thing that makes text legible.
+- **`--scrim` stronger**: dark 0.45 → 0.55, light 0.35 → 0.45 (#37).
+
+By the letter of the README policy a default change is MAJOR. As with
+0.7.0, call it if you'd rather this be 1.0.0.
+
+### Fixed
+- The 2-state theme toggle in high contrast said "Switch to light theme" and
+  showed the sun, then switched to dark. It now names and shows dark.
+
 ## [0.9.0] — 2026-10-08
 
 The mobile and data release: overlays with one focus and Esc model,

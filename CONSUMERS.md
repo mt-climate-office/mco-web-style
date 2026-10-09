@@ -41,6 +41,16 @@ Fonts stylesheet) is gone with the stylesheet.
   snowpack's title is a `<span>`, so nothing is lost today). Reconcile on its
   next pass.
 
+### 0a. 0.10.0 (2026-10-09)
+
+0.10.0 is the navbar release: the rail (#38), the sticky bar (#4),
+`aria-current` and the 3-state toggle (#3), display numerals (#36) and the
+legible lockup and glass (#37). Its anti-flash snippet is unchanged from
+0.9.0, so an app on 0.9.0 re-points with a tag bump and a check of its
+navbar wrap points. The six consumers are being re-pointed to 0.9.0 first,
+one PR per app, because the MapLibre 6 fix can't wait on this release.
+#27 (logo) is still waiting on brand-owner sign-off.
+
 ### 0. 0.9.0 shipped the same day (2026-10-08)
 
 The 0.9.0 set (#5–#7, #9–#11, #13, #14, #17, #18, #22, #23, #25, #26, #28,

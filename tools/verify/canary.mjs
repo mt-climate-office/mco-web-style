@@ -256,20 +256,24 @@ for (const c of consumers) {
       if (ns.length) issues.push(`new small targets: ${ns.slice(0, 4).join(' | ')}`);
       const differs = (g1, g2) => g1.some((v, i) => Math.abs(v - g2[i]) > 2);
       const moved = [], gone = [], expected = [];
+      let pxAllow = 0;   // an accepted move may explain a pixel diff up to its maxPixels
       for (const sel of Object.keys(b.geom)) {
         if (!b2.geom[sel] || differs(b.geom[sel], b2.geom[sel])) { noisy.push(sel); continue; }
         if (!k.geom[sel]) gone.push(`${sel} missing`);
         else if (differs(b.geom[sel], k.geom[sel])) {
           const msg = `${sel} ${b.geom[sel].join(',')}→${k.geom[sel].join(',')}`;
           const ok = accepted(sel, width);
-          if (ok) expected.push(`${msg} (${ok.why})`); else moved.push(msg);
+          if (ok) { expected.push(`${msg} (${ok.why})`); pxAllow = Math.max(pxAllow, ok.maxPixels || 0); } else moved.push(msg);
         }
       }
       if (moved.length || gone.length) issues.push(`geometry: ${[...moved, ...gone].slice(0, 5).join(' | ')}`);
       const slug = `${c.name}-${engine}-${theme}-${width}`;
       const floor = pixelDiff(b.shot, b2.shot, join(OUT, `${slug}-noise.png`)).pct;
       const pd = pixelDiff(b.shot, k.shot, join(OUT, `${slug}-diff.png`));
-      if (pd.pct > floor + THRESHOLD) {
+      // Only when nothing unexplained moved: an accepted shift repaints the
+      // pixels behind it, but it can't vouch for a change elsewhere.
+      const allow = moved.length || gone.length ? 0 : pxAllow;
+      if (pd.pct > floor + Math.max(THRESHOLD, allow)) {
         writeFileSync(join(OUT, `${slug}-base.png`), b.shot);
         writeFileSync(join(OUT, `${slug}-cand.png`), k.shot);
         issues.push(`pixels: ${pd.pct.toFixed(2)}% differ (noise ${floor.toFixed(2)}%)${pd.note ? ' (' + pd.note + ')' : ''} — ${slug}-{base,cand,diff}.png`);
