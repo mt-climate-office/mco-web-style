@@ -72,7 +72,7 @@
     .demo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); }
     .demo-label { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-secondary); }
     .demo-readout { font-family: var(--font-mono); font-size: var(--fs-md); min-width: 9rem; text-align: center; }
-    .demo-load-box { position: relative; display: grid; gap: var(--space-3); padding: var(--space-4); min-height: 9rem; }
+    .demo-load-box { position: relative; display: grid; gap: var(--space-3); min-height: 9rem; }
     .demo-skel-short { width: 60%; }
     .demo-ramps { display: grid; gap: 4px; margin-bottom: var(--space-3); }
     .demo-ramp { display: flex; height: 14px; border-radius: var(--radius-sm); overflow: hidden; }
@@ -300,7 +300,7 @@
           </select>
         </div>
       </section>
-      <section class="mco-card is-flush" aria-labelledby="card-load-title">
+      <section class="mco-card" aria-labelledby="card-load-title">
         <div class="mco-card-head">
           <h3 class="mco-card-title" id="card-load-title">Loading</h3>
           <div class="mco-card-actions">
