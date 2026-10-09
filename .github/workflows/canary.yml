@@ -12,16 +12,17 @@ on:
 jobs:
   consumer:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
+    # One job per consumer × browser (0.11.1): the two engines run side by
+    # side instead of one after the other, which halves the wall clock.
+    name: ${{ matrix.repo }} · ${{ matrix.browser }}
     strategy:
       fail-fast: false
       matrix:
+        repo: [mesonet-status, mesonet-explorer, mesonet-maintenance, mesonet-umrb-build, mco-snowpack-explorer, mesonet-photo-explorer]
+        browser: [chromium, webkit]
         include:
-          - { repo: mesonet-status, page: index.html }
-          - { repo: mesonet-explorer, page: index.html }
-          - { repo: mesonet-maintenance, page: index.html }
-          - { repo: mesonet-umrb-build, page: index.html }
-          - { repo: mco-snowpack-explorer, page: index.html }
+          - { page: index.html }
           - { repo: mesonet-photo-explorer, page: docs/index.html }
     steps:
       - uses: actions/checkout@v5
@@ -36,11 +37,12 @@ jobs:
         run: |
           npm init -y > /dev/null
           npm install --no-save playwright @axe-core/playwright pngjs pixelmatch
-          npx playwright install --with-deps chromium webkit
+          npx playwright install --with-deps ${{ matrix.browser }}
       - name: Canary
         run: >
           node tools/verify/canary.mjs
           --consumer consumer/${{ matrix.repo }}:${{ matrix.page }}
+          --browsers ${{ matrix.browser }}
           --accept tools/verify/canary-accept.json
           --out canary-out
       - name: Report
@@ -49,5 +51,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: canary-${{ matrix.repo }}
+          name: canary-${{ matrix.repo }}-${{ matrix.browser }}
           path: canary-out/

@@ -6,11 +6,17 @@
 
    For each consumer page × browser × theme × width it loads the page twice:
      baseline   — exactly as committed: its pinned kit from jsDelivr.
-     candidate  — every request for mco-web-style@<any version>/<path> is
-                  answered from THIS checkout, and the kit tags' integrity
-                  attributes are stripped from the served HTML (the hashes
-                  are for the pinned bytes). The origin stays cdn.jsdelivr.net,
-                  so the consumer's real CSP is exercised unchanged.
+     candidate  — the consumer as served by a second local server that
+                  rewrites every mco-web-style@<any version>/ URL (in its
+                  kit tags, scripts and stylesheets) to /__mco-kit/ on the
+                  same origin, answered from THIS checkout. Integrity is
+                  stripped from the kit tags (the hashes are for the pinned
+                  bytes), and 'self' is added to the CSP directives that
+                  already allow cdn.jsdelivr.net, so the consumer's real CSP
+                  is still enforced. No request interception (0.11.1):
+                  Playwright WebKit on macOS breaks every blob: worker, so
+                  MapLibre 6 draws nothing, as soon as ANY context.route()
+                  exists, even one that matches nothing.
    and reports what the candidate changed:
      - new console errors, page errors, CSP violations
      - new axe serious/critical violations
@@ -27,7 +33,7 @@
      node tools/verify/canary.mjs --consumer ../mesonet-status \
        --consumer ../mesonet-photo-explorer:docs/index.html \
        [--browsers chromium,webkit] [--themes dark,light,high-contrast] \
-       [--widths 1440,390] [--settle 6000] [--threshold 0.5] [--out ./canary-out]
+       [--widths 1440,390] [--settle 2000] [--quiet-cap 8000] [--threshold 0.5] [--out ./canary-out]
 
    Tooling (ephemeral, never committed — AGENTS rule 1):
      npm i --no-save playwright @axe-core/playwright pngjs pixelmatch
@@ -56,6 +62,9 @@ const BROWSERS = opt('browsers', 'chromium,webkit').split(',');
 const THEMES = opt('themes', 'dark,light,high-contrast').split(',');
 const WIDTHS = opt('widths', '1440,390').split(',').map(Number);
 const SETTLE = Number(opt('settle', 2000));
+// Longest wait for network quiet. A page that streams (photos, polling)
+// never goes quiet; past this it is treated as settled (was 25 s).
+const QUIET_CAP = Number(opt('quiet-cap', 8000));
 const THRESHOLD = Number(opt('threshold', 0.5));        // % of pixels
 const OUT = resolve(opt('out', './canary-out'));
 // Changes this release makes ON PURPOSE (CHANGELOG): geometry moves on these
@@ -77,22 +86,37 @@ const MIME = {
   '.fgb': 'application/octet-stream', '.tif': 'image/tiff',
 };
 
-/* ── One static server per consumer; ?mco-canary=1 serves the candidate HTML ── */
-function serve(root) {
+/* ── Two static servers per consumer: as committed, and the candidate ──── */
+const KIT_URL_G = new RegExp(KIT_URL.source, 'g');
+const KIT_PATH = '/__mco-kit/';
+// Candidate HTML: rewrite kit URLs inside START TAGS only (never inside an
+// inline script, whose CSP hash would break), strip their integrity, and let
+// the CSP's jsDelivr directives also allow 'self', where the kit now lives.
+function candidateHtml(html) {
+  return html
+    .replace(/<(script|link|img|source)\b[^>]*>/g, (tag) => (KIT_URL.test(tag)
+      ? tag.replace(/\s+integrity="[^"]*"/, '').replace(KIT_URL_G, KIT_PATH) : tag))
+    .replace(/(<meta\b[^>]*http-equiv=["']Content-Security-Policy["'][^>]*content=")([^"]*)(")/i, (m, a, csp, z) =>
+      a + csp.split(';').map((d) => (/https:\/\/cdn\.jsdelivr\.net/.test(d) && !/'self'/.test(d) ? d + " 'self'" : d)).join(';') + z);
+}
+function serve(root, candidate) {
   const srv = createServer(async (req, res) => {
     try {
       const u = new URL(req.url, 'http://x');
       let p = decodeURIComponent(u.pathname);
+      let dir = root;
+      if (candidate && p.startsWith(KIT_PATH)) { dir = KIT; p = p.slice(KIT_PATH.length - 1); }
       if (p.endsWith('/')) p += 'index.html';
-      const f = normalize(join(root, p));
-      if (!f.startsWith(root)) { res.writeHead(403).end(); return; }
+      const f = normalize(join(dir, p));
+      if (!f.startsWith(dir)) { res.writeHead(403).end(); return; }
       let body = await readFile(f);
-      if (extname(f) === '.html' && req.headers['x-mco-canary'] === '1') {
-        // Strip integrity from kit tags only: <script|link …mco-web-style@…>.
-        body = Buffer.from(body.toString('utf8').replace(/<(script|link)\b[^>]*>/g, (tag) =>
-          KIT_URL.test(tag) ? tag.replace(/\s+integrity="[^"]*"/, '') : tag));
+      const ext = extname(f);
+      if (candidate && dir === root) {
+        if (ext === '.html') body = Buffer.from(candidateHtml(body.toString('utf8')));
+        // App code that builds kit URLs itself (an export's logo, say).
+        else if (['.js', '.mjs', '.css'].includes(ext)) body = Buffer.from(body.toString('utf8').replace(KIT_URL_G, KIT_PATH));
       }
-      res.writeHead(200, { 'content-type': MIME[extname(f)] || 'application/octet-stream' });
+      res.writeHead(200, { 'content-type': MIME[ext] || 'application/octet-stream', 'access-control-allow-origin': '*' });
       res.end(body);
     } catch { res.writeHead(404).end(); }
   });
@@ -109,23 +133,12 @@ async function run(browser, engine, base, c, theme, width, candidate) {
     viewport: { width, height: touch ? 800 : 900 },
     hasTouch: touch, isMobile: touch && engine === 'chromium',   // see a11y-audit.mjs on WebKit isMobile
     reducedMotion: 'reduce', timezoneId: 'America/Denver',
-    extraHTTPHeaders: candidate ? { 'x-mco-canary': '1' } : {},
   });
   await ctx.addInitScript(() => {
     window.__mcoCsp = [];
     document.addEventListener('securitypolicyviolation', (e) =>
       window.__mcoCsp.push(`${e.violatedDirective} ${e.blockedURI}`));
   });
-  if (candidate) {
-    await ctx.route(/https:\/\/cdn\.jsdelivr\.net\/gh\/mt-climate-office\/mco-web-style@[^/]+\/.*/, async (route) => {
-      const path = new URL(route.request().url()).pathname.replace(/^\/gh\/mt-climate-office\/mco-web-style@[^/]+\//, '');
-      try {
-        const body = readFileSync(join(KIT, path));
-        await route.fulfill({ status: 200, body, headers: {
-          'content-type': MIME[extname(path)] || 'application/octet-stream', 'access-control-allow-origin': '*' } });
-      } catch { await route.fulfill({ status: 404, body: 'not in kit checkout' }); }
-    });
-  }
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
@@ -133,7 +146,7 @@ async function run(browser, engine, base, c, theme, width, candidate) {
   // Settle on the NETWORK, not a fixed delay: live counts and attribution
   // arrive with the data, and a fixed wait races the API (a 6 s settle gave
   // a 200px "regression" on status that a rerun didn't reproduce). Wait for
-  // 1.5 s with nothing in flight (polling apps: capped at 25 s), then SETTLE
+  // 1.5 s with nothing in flight (streaming apps: capped at QUIET_CAP), then SETTLE
   // more for rendering.
   let inflight = 0, lastChange = Date.now();
   page.on('request', () => { inflight++; lastChange = Date.now(); });
@@ -142,7 +155,7 @@ async function run(browser, engine, base, c, theme, width, candidate) {
   page.on('requestfailed', doneReq);
   await page.goto(`${base}/${c.page}?theme=${theme}`, { waitUntil: 'load', timeout: 45000 }).catch((e) => errors.push('goto: ' + e.message));
   const t0 = Date.now();
-  while (Date.now() - t0 < 25000 && !(inflight === 0 && Date.now() - lastChange > 1500)) await page.waitForTimeout(200);
+  while (Date.now() - t0 < QUIET_CAP && !(inflight === 0 && Date.now() - lastChange > 1500)) await page.waitForTimeout(200);
   await page.waitForTimeout(SETTLE);
   // First-visit info modals open in both runs; close them so they don't hide the page.
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close())).catch(() => {});
@@ -214,8 +227,9 @@ const added = (before, after) => after.filter((x) => !before.includes(x));
 let regressions = 0;
 const report = [`# Kit canary — ${new Date().toISOString()}`, '', `Candidate kit: ${KIT}`, ''];
 for (const c of consumers) {
-  const srv = await serve(c.root);
+  const srv = await serve(c.root, false), srvK = await serve(c.root, true);
   const base = `http://127.0.0.1:${srv.address().port}`;
+  const baseK = `http://127.0.0.1:${srvK.address().port}`;
   console.log(`\n=== ${c.name} (${c.page})`);
   report.push(`## ${c.name}`, '', '| browser | theme | width | result |', '|---|---|---|---|');
   for (const engine of BROWSERS) {
@@ -227,7 +241,7 @@ for (const c of consumers) {
       // (live counts, polling, timing) is noise and never blamed on the kit.
       const b = await runSafe(browser, engine, base, c, theme, width, false);
       const b2 = await runSafe(browser, engine, base, c, theme, width, false);
-      const k = await runSafe(browser, engine, base, c, theme, width, true);
+      const k = await runSafe(browser, engine, baseK, c, theme, width, true);
       const issues = [];
       if (b.crashed || b2.crashed || k.crashed) {
         const tag2 = `${engine} ${theme} ${width}`;
@@ -289,7 +303,7 @@ for (const c of consumers) {
     await browser.close();
   }
   report.push('');
-  srv.close();
+  srv.close(); srvK.close();
 }
 writeFileSync(join(OUT, 'report.md'), report.join('\n') + '\n');
 console.log(`\n${regressions ? regressions + ' run(s) changed' : 'no consumer changed'} — report: ${join(OUT, 'report.md')}`);
