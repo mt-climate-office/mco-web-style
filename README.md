@@ -25,10 +25,10 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/theme/mco-theme.css"
-      integrity="sha384-x9dp9SwDeJ4J69qkuo74FgLlhHT/0n6ObXSYq2iLxfLGPTD/GhPqCF2Vc7M66qP8" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/core/mco-core.js"
-        integrity="sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb" crossorigin="anonymous"></script>
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/theme/mco-theme.css"
+      integrity="sha384-qVWCeYiqMV4ZHkUNHf/Aq1VhShNzyLWBcnsYYrmUzbquyQDmm6gIIUoFHYBJG9xo" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/core/mco-core.js"
+        integrity="sha384-yknmet0AW3oohpwhoHolSpFs3O+rLzc5OxHp60If3eqmF/ENZRfrILPIsCWm08Hf" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -61,12 +61,12 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.8.0
+## SRI hashes — v0.9.0
 
 ```
-theme/mco-theme.css      sha384-x9dp9SwDeJ4J69qkuo74FgLlhHT/0n6ObXSYq2iLxfLGPTD/GhPqCF2Vc7M66qP8
-core/mco-core.js         sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb
-map/mco-map.js           sha384-pmyiDS5SNzBxK1AyD/ONb7mFLrfklj+Pvyd6KCxYKzLOQnqiK+07+3liQR5Zr16x
+theme/mco-theme.css      sha384-qVWCeYiqMV4ZHkUNHf/Aq1VhShNzyLWBcnsYYrmUzbquyQDmm6gIIUoFHYBJG9xo
+core/mco-core.js         sha384-yknmet0AW3oohpwhoHolSpFs3O+rLzc5OxHp60If3eqmF/ENZRfrILPIsCWm08Hf
+map/mco-map.js           sha384-tmDqtqi4yYiDHOxkZikwzXF3Lpkb63b0Tu6K7jeCpU9gJkPB2GbpFHLasGHka6zP
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm
 palette/mco-palette.js   sha384-P+8vdCR12oZ388lO/orPRnm6Tcz69x6mhN32l7AWP7j8S7KCNijXDZrmYjWuXm8J
 ```
