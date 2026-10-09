@@ -511,6 +511,10 @@ body {
 .nav-btn svg { flex-shrink: 0; stroke: currentColor; }
 .nav-btn.icon-only { padding: 0.4rem; min-width: 34px; justify-content: center; }
 .nav-btn[aria-pressed="true"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+/* Navigation state (0.10.0, #3): a tab that is a LINK to a view carries
+   aria-current="page", not aria-pressed (a toggle). Same look either way. */
+.nav-btn[aria-current="page"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+a.nav-btn { text-decoration: none; }
 .nav-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
 /* Primary action (0.8.0): the one button per view that does the thing — Apply,
    Download, Retry. A filled --accent with --text-on-accent, the pairing the

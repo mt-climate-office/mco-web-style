@@ -349,7 +349,10 @@ them.
 **Theme switching** re-styles the map (`map.setStyle(...)` wipes custom
 sources/layers — re-add them in `map.once('style.load', …)`). Use
 `MCO.initThemeToggle`; it maintains the icon swap and the button's
-`aria-label`.
+`aria-label`, which names the theme a press switches **to**. Prefer
+`{cycle: true}` (0.10.0): dark → light → high contrast, so high contrast is
+one press away instead of hidden behind `?theme=`. A cycling toggle passes an
+`iconContrast` for the light state.
 
 **Notices** (`MCO.notice`, `.mco-notice`, 0.8.0) for anything that must
 persist or offer an action: a failed load with Retry, a data caveat, an
@@ -416,6 +419,8 @@ themes.
 7. **`aria-pressed` is the styling source of truth** for toggles — CSS keys off
    `[aria-pressed="true"]`, so the accessible state can never drift from the
    visual state. Pair with swapped `aria-label`s where the action inverts.
+   A tab that is a **link** to a view is not a toggle: it carries
+   `aria-current="page"`, which `.nav-btn` styles the same way (0.10.0).
    **Legend rows** are `.mco-legend-row` buttons wired by
    `MCO.initLegendToggles` (0.8.0). "Off" dims the swatch and strikes the label
    through. **Never put opacity on the row**: parent opacity composites the

@@ -358,37 +358,54 @@
     var source = o && o.source;
     return (source ? source + ' · ' : '') + 'Montana Climate Office · climate.umt.edu';
   };
-  MCO.toggleTheme = function () {
-    var next = MCO.getTheme() === 'dark' ? 'light' : 'dark';
+  // The order the 3-state toggle steps through (0.10.0).
+  MCO.THEME_CYCLE = ['dark', 'light', 'high-contrast'];
+  var THEME_NAMES = { dark: 'dark', light: 'light', 'high-contrast': 'high contrast' };
+  function nextTheme(cycle) {
+    var cur = MCO.getTheme();
+    if (!cycle) return cur === 'dark' ? 'light' : 'dark';
+    var i = MCO.THEME_CYCLE.indexOf(cur);
+    return MCO.THEME_CYCLE[(i + 1) % MCO.THEME_CYCLE.length];
+  }
+  // dark ↔ light; {cycle: true} steps dark → light → high contrast → dark.
+  MCO.toggleTheme = function (opts) {
+    var next = nextTheme(opts && opts.cycle);
     MCO.setTheme(next);
     return next;
   };
 
-  // Wire a theme toggle button. iconSun shows in dark mode ("switch to
-  // light"), iconMoon in light mode. Map re-styling, pushState, etc. go in
-  // onChange — e.g.:
+  // Wire a theme toggle button. The icon shown is the theme a press switches
+  // TO: iconSun in dark ("switch to light"), iconMoon in light. Map
+  // re-styling, pushState, etc. go in onChange — e.g.:
   //   MCO.initThemeToggle({ button, iconSun, iconMoon, onChange: (t) => {
   //     map.setStyle(MCO.map.cartoStyleUrl());
   //     map.once('style.load', addCustomLayers);   // setStyle wipes sources
   //   }});
+  // cycle: true (0.10.0) makes it a 3-state toggle, dark → light → high
+  // contrast, so high contrast is reachable from the page and not only from
+  // ?theme= or storage. iconContrast shows in light (next: high contrast;
+  // the moon is used if it is absent), the moon in high contrast (next:
+  // dark). The aria-label always names the next theme.
   MCO.initThemeToggle = function (opts) {
     var button = opts.button;
     var iconSun = opts.iconSun || null;
     var iconMoon = opts.iconMoon || null;
+    var cycle = !!opts.cycle;
+    var iconContrast = cycle ? (opts.iconContrast || null) : null;
     var setAriaLabel = opts.setAriaLabel !== false;
     var onChange = opts.onChange || null;
 
     function sync() {
-      var dark = MCO.getTheme() !== 'light';
-      if (iconMoon) iconMoon.style.display = dark ? 'none' : '';
-      if (iconSun) iconSun.style.display = dark ? '' : 'none';
-      if (setAriaLabel) {
-        button.setAttribute('aria-label',
-          dark ? 'Switch to light theme' : 'Switch to dark theme');
-      }
+      var next = nextTheme(cycle);
+      var show = next === 'light' ? iconSun
+        : next === 'high-contrast' ? (iconContrast || iconMoon) : iconMoon;
+      [iconSun, iconMoon, iconContrast].forEach(function (ic) {
+        if (ic) ic.style.display = ic === show ? '' : 'none';
+      });
+      if (setAriaLabel) button.setAttribute('aria-label', 'Switch to ' + THEME_NAMES[next] + ' theme');
     }
     function toggle() {
-      var next = MCO.toggleTheme();
+      var next = MCO.toggleTheme({ cycle: cycle });
       sync();
       if (onChange) onChange(next);
       return next;
