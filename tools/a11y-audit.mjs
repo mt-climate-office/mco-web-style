@@ -19,6 +19,7 @@ import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { AxeBuilder } from '@axe-core/playwright';
+import { smallTargets } from './verify/lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIME = {
@@ -50,7 +51,7 @@ const pages = ['/demo/', '/exemplar/'];
 // search) — where a display:none'd label silently costs an input its name.
 const viewports = [
   { name: 'wide', width: 1440, height: 900 },
-  { name: 'narrow', width: 390, height: 800 },
+  { name: 'narrow', width: 390, height: 800, touch: true },
 ];
 let failed = false;
 
@@ -58,13 +59,21 @@ for (const path of pages) {
   for (const theme of themes) {
     for (const vp of viewports) {
       // @axe-core/playwright requires pages created from an explicit context.
-      const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+      const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height },
+        hasTouch: !!vp.touch, isMobile: !!vp.touch });
       const page = await context.newPage();
       await page.goto(`http://127.0.0.1:${port}${path}?theme=${theme}`, { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(1500); // let fonts/controls settle; map isn't awaited
       const results = await new AxeBuilder({ page }).analyze();
       const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
       const label = `${path} ${theme} ${vp.name}(${vp.width}px)`;
+      // Touch targets (§5.5, 0.9.0): 40px, 44px for close buttons, on the
+      // touch pass. The verify harness found kit controls under it in 0.8.0.
+      const small = vp.touch ? await smallTargets(page) : [];
+      if (small.length) {
+        failed = true;
+        console.error(`\n[${label}] ${small.length} touch target(s) under 40px:\n    → ` + small.slice(0, 8).join('\n    → '));
+      }
       if (bad.length) {
         failed = true;
         console.error(`\n[${label}] ${bad.length} serious/critical violation(s):`);
@@ -136,6 +145,45 @@ for (const path of pages) {
   await page.waitForTimeout(150);
   const announcedLater = await page.evaluate(() => document.querySelector('.sr-only[aria-live="polite"]').textContent);
   probe('Enter selects: list closes, onSelect ran', s6.expanded === 'false' && /selected/.test(announced + announcedLater), JSON.stringify(s6));
+
+  /* 0.9.0: drawer, sheet, stepper, radio segmented. */
+  await page.keyboard.press('Escape');
+  await page.focus('#btn-drawer');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(400);
+  const d1 = await page.evaluate(() => ({
+    inDrawer: document.getElementById('demo-drawer').contains(document.activeElement),
+    mainInert: document.getElementById('main').inert,
+    expanded: document.getElementById('btn-drawer').getAttribute('aria-expanded'),
+  }));
+  probe('drawer: open moves focus in, the rest is inert, aria-expanded', d1.inDrawer && d1.mainInert && d1.expanded === 'true', JSON.stringify(d1));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  const d2 = await page.evaluate(() => ({
+    focus: document.activeElement.id, hidden: document.getElementById('demo-drawer').hidden,
+    mainInert: document.getElementById('main').inert,
+  }));
+  probe('drawer: Esc closes, focus returns, inert released, [hidden] after the slide', d2.focus === 'btn-drawer' && d2.hidden && !d2.mainInert, JSON.stringify(d2));
+  await page.focus('#btn-sheet');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(400);
+  const k1 = await page.evaluate(() => document.activeElement.id);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  const k2 = await page.evaluate(() => ({ focus: document.activeElement.id, state: document.getElementById('demo-sheet').dataset.state }));
+  probe('sheet: open focuses its title; Esc closes and returns focus', k1 === 'demo-sheet-title' && k2.focus === 'btn-sheet' && k2.state === 'closed', JSON.stringify([k1, k2]));
+  const before = await page.textContent('#date-readout');
+  await page.focus('#step-prev');
+  await page.keyboard.press('Enter');
+  const after = await page.textContent('#date-readout');
+  const nextDisabled = await page.evaluate(() => document.getElementById('step-next').disabled);
+  probe('stepper: Enter steps once; next is disabled at today', before !== after && nextDisabled === false, JSON.stringify([before, after]));
+  await page.focus('#units-seg input:checked');
+  await page.keyboard.press('ArrowRight');
+  const radio = await page.evaluate(() => ({
+    checked: document.querySelector('#units-seg input:checked').value, select: document.getElementById('units-select').value,
+  }));
+  probe('radio segmented: arrows move the choice; the fallback select mirrors it', radio.checked === 'metric' && radio.select === 'metric', JSON.stringify(radio));
   await context.close();
 }
 
