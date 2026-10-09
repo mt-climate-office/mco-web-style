@@ -886,6 +886,10 @@
       return function () { ro.disconnect(); };
     },
   };
+  // A sticky navbar (0.10.0) publishes its own height, so scroll-padding-top
+  // keeps anchor targets and focused elements out from under it (WCAG 2.4.11).
+  var _stickyBar = document.querySelector('.mco-navbar.is-sticky');
+  if (_stickyBar) MCO.metrics.observe('--chrome-h', _stickyBar);
 
   /* ── Overlays: focus, inert, Esc (0.9.0) ───────────────────────────────────
      Native <dialog> (MCO.initInfoModal) handles focus itself. Everything else

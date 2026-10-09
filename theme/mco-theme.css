@@ -473,6 +473,15 @@ body {
   flex-wrap: wrap; row-gap: 0.4rem;
   z-index: var(--z-chrome-top);
 }
+/* Sticky (0.10.0, #4), opt-in for long-scrolling pages; full-viewport map
+   apps keep the in-flow bar. It stays on --z-chrome-top, clears the notch,
+   and core publishes its height as --chrome-h, which html's
+   scroll-padding-top reads. Needs the DOCUMENT to scroll: a body with
+   overflow: hidden or a fixed height defeats position: sticky. */
+.mco-navbar.is-sticky {
+  position: sticky; top: 0;
+  padding-top: max(0.4rem, env(safe-area-inset-top));
+}
 .mco-navbar::after {
   content: ''; position: absolute; bottom: 0; left: 0; right: 0;
   height: 2px; background: var(--brand-gradient); pointer-events: none;

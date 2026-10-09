@@ -161,6 +161,15 @@ variant), segmented groups `.seg-btns > .seg-btn`, info button `.mco-btn-info`.
 `--accent` with `--text-on-accent`. Never hand-roll `color: #fff` on the
 accent, which is 2.2:1 in high contrast.
 
+**Long-scrolling pages** add `.is-sticky` (0.10.0): the bar sticks at the
+top on `--z-chrome-top`, clears the notch, and the kit publishes its height
+as `--chrome-h` so `scroll-padding-top` keeps anchors and focus out from under
+it. A sticky bar costs height on every screen of the page, so on compact it
+must stay **one row** (≤ 64 px): put the view tabs and the overflow controls
+in an `MCO.initDrawer` drawer, or shed labels to icon-only buttons, rather
+than letting the bar wrap. Two rows (the dashboard's 92 px at 390 px) is 11%
+of a phone screen, permanently. Full-viewport map apps keep the in-flow bar.
+
 The lockup is 12 px title / 11 px subtitle (0.10.0). Don't shrink it to buy
 a row: shed controls into a drawer or the rail instead.
 
