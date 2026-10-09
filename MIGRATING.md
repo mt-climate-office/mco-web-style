@@ -441,6 +441,20 @@ No snippet changes, so **no CSP hash changes**. Pass 1 is a tag bump.
 - **Hero readings → `.mco-num-display`**: dashboard tiles, and explorer
   and status popups where the number is the headline.
 
+## Re-pointing an existing consumer: 0.10.x → 0.11.0
+
+Additive. Tags `@0.10.0` → `@0.11.0` with the README hashes (only the theme
+changed). No snippet or CSP hash change. Then, where they apply:
+- **Exports** that draw the logo load
+  `…@0.11.0/assets/mco-wordmark-on-light.svg` (or `-on-dark`, chosen by
+  the export's background) with `crossOrigin = 'anonymous'`.
+  **snow's PNG export has never carried its logo:** it hot-links
+  `climate.umt.edu/…/MCO_logo_icon_only.png`, which its own CSP blocks.
+  photos' branded export should come from the kit too.
+- **Footers** (`.mco-footer`) take the `.mco-wordmark` pair.
+- A vendored `assets/mco-logo.png` stays, but it is a copy: compare it with
+  the kit's (`shasum`) and replace it if it drifted.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export is known duplication that the kit has **deliberately not
