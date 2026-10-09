@@ -122,6 +122,9 @@
                                          never use them on --bg-raised
      --accent-line                     ≥ 3:1 on all three surfaces (1.4.11)
      --text-on-accent                  ≥ 4.5:1 on --accent
+     --danger, --warning, --success    ≥ 4.5:1 on deep, surface, raised, and
+                                          on their own --*-fill
+     --text-on-danger/-warning/-success ≥ 4.5:1 on the matching --*-fill
 
    --accent is the MCO brand blue. On dark surfaces it only clears ~2.3–2.9:1,
    so it is a FILL color: use it behind --text-on-accent. For borders, icons,
@@ -146,6 +149,7 @@
   --accent-line:    #5aaee8;
   --accent-hover:   rgba(26,111,175,0.10);
   --text-on-accent: #ffffff;
+  --accent-fill-hover: #114f80;   /* .nav-btn.is-primary hover; --text-on-accent ≥ 4.5:1 on it */
   --selection-ring: #5aaee8;
   --brand-gradient: linear-gradient(90deg, var(--accent-dk), var(--accent), var(--accent-light), var(--accent));
   --glass:          rgba(30,37,48,0.82);
@@ -158,6 +162,19 @@
   --input-bg:       #232a35;
   --scrim:          rgba(0,0,0,0.45);
   --ctrl-icon-filter: invert(1);
+  /* Status tones (0.8.0) — CHROME, not data (HOUSE-STYLE §2): form errors,
+     notices, the basemap-failure banner. Never the only channel: pair with
+     a tone word or icon. Each tone is ≥ 4.5:1 on deep/surface/raised and on
+     its own -fill; --text-on-* is ≥ 4.5:1 on that fill (check-contrast). */
+  --danger:         #ed8780;
+  --danger-fill:    #37313a;
+  --text-on-danger: #e8ecf0;
+  --warning:        #df9412;
+  --warning-fill:   #35322c;
+  --text-on-warning: #e8ecf0;
+  --success:        #36ba6d;
+  --success-fill:   #213737;
+  --text-on-success: #e8ecf0;
 }
 
 [data-theme="light"] {
@@ -177,6 +194,7 @@
   --accent-line:    #1563a0;
   --accent-hover:   rgba(26,111,175,0.08);
   --text-on-accent: #ffffff;
+  --accent-fill-hover: #0d4f7a;
   --selection-ring: #1563a0;
   --brand-gradient: linear-gradient(90deg, #0a4a7a, #1266a8, #0d7fd4, #1266a8, #0a4a7a);
   --glass:          rgba(255,255,255,0.88);
@@ -185,6 +203,15 @@
   --input-bg:       #f4f5f7;
   --scrim:          rgba(0,0,0,0.35);
   --ctrl-icon-filter: none;
+  --danger:         #c2271c;
+  --danger-fill:    #f8e5e4;
+  --text-on-danger: #1a1a2e;
+  --warning:        #8a5b0b;
+  --warning-fill:   #f1ebe2;
+  --text-on-warning: #1a1a2e;
+  --success:        #217343;
+  --success-fill:   #e4eee8;
+  --text-on-success: #1a1a2e;
 }
 
 /* High-contrast: pure-black surfaces, brightened accent, near-white text.
@@ -209,6 +236,7 @@
   --accent-line:    #93d0ff;
   --accent-hover:   rgba(91,180,255,0.15);
   --text-on-accent: #000000;
+  --accent-fill-hover: #93d0ff;   /* lighter, not darker: black text fails on --accent-dk (3.9:1) */
   --selection-ring: #93d0ff;
   --brand-gradient: linear-gradient(90deg, #2a9aff, #6ec0ff, #a0d8ff, #6ec0ff, #2a9aff);
   --glass:          rgba(0,0,0,0.96);
@@ -217,6 +245,15 @@
   --input-bg:       #121212;
   --scrim:          rgba(0,0,0,0.8);
   --ctrl-icon-filter: invert(1);
+  --danger:         #f47a71;
+  --danger-fill:    #1d0f0e;
+  --text-on-danger: #ffffff;
+  --warning:        #dc8d06;
+  --warning-fill:   #1a1101;
+  --text-on-warning: #ffffff;
+  --success:        #26b562;
+  --success-fill:   #05160c;
+  --text-on-success: #ffffff;
 }
 
 /* ── 2. Stacking ladder ───────────────────────────────────────────────────
@@ -319,8 +356,55 @@ body {
   background-repeat: no-repeat;
 }
 .maplibregl-ctrl-attrib { background: var(--glass) !important; color: var(--text-muted) !important; }
-.maplibregl-ctrl-attrib a { color: var(--text-secondary) !important; }
+.maplibregl-ctrl-attrib a { color: var(--text-secondary) !important; text-decoration: underline; text-underline-offset: 2px; }
 .maplibregl-ctrl-attrib button.maplibregl-ctrl-attrib-button { filter: var(--ctrl-icon-filter, none); }
+/* Attribution links are underlined (0.8.0): against the surrounding credit
+   text they differ by color alone, 1.74:1 on dark and 1.25:1 on
+   high-contrast, and WCAG 1.4.1 wants 3:1 or a non-color cue. axe flags it
+   once hillshade's "Terrain: Mapzen/AWS Open Data" credit turns the bar into
+   a text block. Same remedy as prose links in .info-section. */
+
+/* Popups (0.8.0): MapLibre's popup is white with a black tip in every theme.
+   Repainted from tokens, and put on the --z-detail tier: the vendor sheet
+   gives popups NO z-index, so the map controls (z 2) drew over them. Close
+   button 44px on touch. Content comes from MCO.map.popupContent()
+   (.mco-popup / .mco-facts below), never setHTML of API strings (§7). */
+.maplibregl-popup { z-index: var(--z-detail); }
+.maplibregl-popup-content {
+  background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  padding: 0.55rem 0.75rem; font-family: var(--font-ui); font-size: 0.8rem;
+}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--bg-surface); }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--bg-surface); }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--bg-surface); }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--bg-surface); }
+.maplibregl-popup-close-button {
+  width: 28px; height: 28px; top: 2px; right: 2px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted); font-size: 1.1rem; line-height: 1;
+}
+.maplibregl-popup-close-button:hover { background: var(--accent-hover); color: var(--text-primary); }
+.mco-popup { min-width: 10rem; }
+.maplibregl-popup-content:has(.maplibregl-popup-close-button) .mco-popup { padding-right: 1.4rem; }
+.mco-popup-title { margin: 0; font-size: 0.85rem; font-weight: 600; line-height: 1.25; color: var(--text-primary); }
+.mco-popup-sub { margin: 0.1rem 0 0; font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); }
+.mco-popup-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+.mco-popup-actions a.nav-btn { text-decoration: none; }
+/* Label/value facts: a two-column <dl>, also used by detail sheets and
+   cards so a popup and a sheet render a station the same way. Labels are
+   --text-muted, which is allowed on deep and surface only (never --bg-raised). */
+.mco-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.75rem; margin: 0.45rem 0 0; font-size: 0.78rem; }
+.mco-facts > div { display: contents; }
+.mco-facts dt { color: var(--text-muted); }
+.mco-facts dd { margin: 0; color: var(--text-primary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
 /* Vendor default is 2; restated so the whole stacking ladder is greppable.
    With viewport-fit=cover the corner containers need the safe-area insets
    themselves, or the attribution lands under the home indicator. NOTE:
@@ -394,6 +478,14 @@ body {
 .nav-btn.icon-only { padding: 0.4rem; min-width: 34px; justify-content: center; }
 .nav-btn[aria-pressed="true"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
 .nav-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+/* Primary action (0.8.0): the one button per view that does the thing — Apply,
+   Download, Retry. A filled --accent with --text-on-accent, the pairing the
+   contrast contract guarantees in all three themes. Never color: #fff on
+   --accent: it is 2.2:1 in high contrast, where the accent brightens and
+   --text-on-accent flips to black. */
+.nav-btn.is-primary { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
+.nav-btn.is-primary:hover { background: var(--accent-fill-hover); border-color: var(--accent-line); color: var(--text-on-accent); }
+.nav-btn.is-primary[disabled]:hover { background: var(--accent); }
 .nav-btn[disabled]:hover { background: none; border-color: var(--ctrl-border); color: var(--text-secondary); }
 
 .mco-btn-info {
@@ -455,6 +547,46 @@ body {
 }
 .mco-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* Notice (0.8.0): the persistent, actionable twin of the toast — a load
+   failure with Retry, a data caveat, an outage. The toast is text-only and
+   pointer-events: none, so it can't hold a button. Built by MCO.notice() or
+   written in markup:
+     <div class="mco-notice" data-tone="warning">
+       <svg class="mco-notice-icon" aria-hidden="true">…</svg>
+       <p class="mco-notice-text"><strong class="mco-notice-tone">Warning</strong> …</p>
+       <div class="mco-notice-actions"><button class="nav-btn">Retry</button></div>
+       <button class="modal-close" aria-label="Dismiss">×</button>
+     </div>
+   data-tone: info (default) | warning | danger | success. The tone WORD is
+   always present (.mco-notice-tone), so color is never the only channel.
+   In flow by default; data-place="over" floats it at the top of the nearest
+   positioned ancestor (a map container) on the --z-map-notice tier.
+   .mco-empty is the same shell with no tone: the empty-state callout. */
+.mco-notice, .mco-empty {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.85rem;
+  background: var(--bg-surface); color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem; line-height: 1.5;
+}
+.mco-notice { border-left: 3px solid var(--notice-edge, var(--accent-line)); }
+.mco-notice-icon { flex-shrink: 0; width: 16px; height: 16px; color: var(--notice-edge, var(--accent-line)); }
+.mco-notice-text { flex: 1; min-width: 0; margin: 0; }
+.mco-notice-tone { font-weight: 600; color: var(--notice-tone, var(--text-primary)); }
+.mco-notice-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.mco-notice-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+.mco-notice[data-tone="danger"]  { --notice-edge: var(--danger);  --notice-tone: var(--danger);  background: var(--danger-fill);  color: var(--text-on-danger); }
+.mco-notice[data-tone="warning"] { --notice-edge: var(--warning); --notice-tone: var(--warning); background: var(--warning-fill); color: var(--text-on-warning); }
+.mco-notice[data-tone="success"] { --notice-edge: var(--success); --notice-tone: var(--success); background: var(--success-fill); color: var(--text-on-success); }
+.mco-notice[data-place="over"], .mco-empty[data-place="over"] {
+  position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: min(34rem, calc(100% - 1.5rem));
+  box-shadow: var(--shadow);
+  z-index: var(--z-map-notice);
+}
+.mco-empty { justify-content: center; text-align: center; padding: 0.9rem 1.1rem; }
+
 /* Pointer-following tooltip. Decorative for AT: keep it aria-hidden and route
    the same content through a live region (see HOUSE-STYLE.md §5). */
 .mco-tooltip {
@@ -494,13 +626,35 @@ body {
    (backdrop click closes, focus restores to the opener). */
 .mco-modal { background: transparent; border: none; padding: 1rem; position: fixed; inset: 0; margin: auto; width: fit-content; height: fit-content; max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); }
 .mco-modal::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+/* Long modals (0.8.0, back-ported from mesonet-explorer, the family's
+   tallest): the header sticks so the title and close button stay reachable
+   while the body scrolls, scrolling never chains to the page behind, and a
+   soft shade at the bottom edge says "there's more". The shade is two
+   layers: a --bg-surface cover attached to the END of the content (local)
+   over a shade pinned to the box's bottom edge (scroll). Mid-scroll the
+   cover is out of view and the shade shows; at the end it slides over the
+   shade and hides it. A modal that doesn't overflow never shows it. */
 .info-modal-box {
   background: var(--bg-surface); border: 1px solid var(--border);
   border-radius: 10px; width: min(540px, calc(100vw - 4rem));
   max-height: calc(100dvh - 4rem); overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 1.5rem; box-shadow: var(--shadow);
+  background-image:
+    linear-gradient(var(--bg-surface), var(--bg-surface)),
+    linear-gradient(to top, rgba(0,0,0,0.42), rgba(0,0,0,0));
+  background-repeat: no-repeat;
+  background-size: 100% 32px, 100% 22px;
+  background-position: 0 100%, 0 100%;
+  background-attachment: local, scroll;
 }
-.info-modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; gap: 1rem; }
+.info-modal-header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+  position: sticky; top: -1.5rem; z-index: 1;
+  margin: -1.5rem -1.5rem 1.25rem; padding: 1.5rem 1.5rem 0.75rem;
+  background: var(--bg-surface);
+  border-radius: 10px 10px 0 0;
+}
 .info-modal-title    { font-size: 1.05rem; font-weight: 700; color: var(--accent-line); margin: 0; }
 .info-modal-subtitle { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
 .modal-close { display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; line-height: 1; flex-shrink: 0; min-width: 34px; min-height: 34px; transition: var(--transition); }
@@ -582,6 +736,105 @@ body {
 }
 .mco-panel-body.is-collapsing { max-height: 0; opacity: 0; }
 
+/* Legend rows (0.8.0) — click to show/hide a category, wired by
+   MCO.initLegendToggles. aria-pressed is the styling source of truth (§5.7):
+     <button class="mco-legend-row" aria-pressed="true" data-key="fresh">
+       <span class="mco-legend-swatch" style="--swatch: #2a8a86" aria-hidden="true"></span>
+       <span class="mco-legend-label">Fresh</span><span class="mco-legend-count">42</span>
+     </button>
+   The ROW never gets opacity: parent opacity composites the whole subtree,
+   so no child rule can restore the label's contrast (three apps shipped
+   `.legend-row.off { opacity: .4 }`, a 2.7:1 label). Off dims the swatch
+   only and strikes the label through, a non-color cue. The label stays
+   --text-secondary: the panel is glass over an arbitrary basemap, where
+   --text-muted's surface-only guarantee doesn't hold.
+   Swatches always carry a --border edge, so a white "near normal" bin can't
+   vanish on light glass. data-shape matches the map mark: circle | hollow |
+   ring | line | dash (default: rounded square, a fill). */
+.mco-legend-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  width: 100%; min-height: 28px; padding: 2px 4px;
+  background: none; border: 0; border-radius: var(--radius-sm);
+  color: var(--text-secondary); font: inherit; font-size: 0.78rem; text-align: left;
+  cursor: pointer; transition: background var(--transition);
+}
+.mco-legend-row:hover { background: var(--accent-hover); color: var(--text-primary); }
+.mco-legend-swatch {
+  width: 14px; height: 14px; flex-shrink: 0;
+  background: var(--swatch, transparent);
+  border: 1px solid var(--border); border-radius: 3px;
+  transition: opacity var(--transition);
+}
+.mco-legend-swatch[data-shape="circle"] { border-radius: 50%; }
+.mco-legend-swatch[data-shape="hollow"] { border-radius: 50%; background: transparent; border: 2px solid var(--swatch); }
+.mco-legend-swatch[data-shape="ring"]   { border-radius: 50%; background: transparent; border: 3.5px solid var(--swatch); }
+.mco-legend-swatch[data-shape="line"]   { height: 3px; width: 16px; border: 0; border-radius: 2px; }
+.mco-legend-swatch[data-shape="dash"]   { height: 3px; width: 16px; border: 0; border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--swatch) 0 4px, transparent 4px 7px); }
+.mco-legend-label { flex: 1; min-width: 0; }
+.mco-legend-count { margin-left: auto; padding-left: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
+.mco-legend-row[aria-pressed="false"] .mco-legend-swatch { opacity: 0.35; }
+.mco-legend-row[aria-pressed="false"] .mco-legend-label { text-decoration: line-through; text-decoration-thickness: 1px; }
+@media (hover: none) { .mco-legend-row { min-height: 40px; } }
+
+/* Search combobox (0.8.0) — MCO.initSearchBox. Field, icon and listbox are
+   the kit's now; five apps carried ~90 lines each of this, plus the same
+   search-icon data URI stroked in a banned drift value (%237a8190). The icon
+   is a CSS mask, so it takes currentColor (--text-dim) in every theme.
+     .mco-search > .mco-search-icon + input.mco-search-input + .mco-search-list
+   The active option is marked by an inset --accent-line bar as well as the
+   tint, the current one by ✓ (alt text empty, so it isn't read), so neither
+   is color alone. The list sits on the --z-flyout tier. */
+.mco-search { position: relative; display: inline-flex; align-items: center; }
+.mco-search-icon {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  width: 14px; height: 14px; pointer-events: none;
+  color: var(--text-dim); background: currentColor;
+  -webkit-mask: var(--mco-search-glyph) center / contain no-repeat;
+          mask: var(--mco-search-glyph) center / contain no-repeat;
+  --mco-search-glyph: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='m20 20-3.6-3.6'/></svg>");
+}
+.mco-search-input {
+  background-color: var(--input-bg); color: var(--text-primary);
+  border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
+  height: 32px; width: 220px; max-width: 100%;
+  padding: 0 10px 0 29px;
+  font: inherit; font-size: 0.82rem;
+  transition: border-color var(--transition);
+}
+.mco-search-input:hover { border-color: var(--accent-line); }
+.mco-search-input::placeholder { color: var(--text-dim); opacity: 1; }
+.mco-search-list {
+  position: absolute; top: calc(100% + 4px); left: 0;
+  min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 1.5rem));
+  max-height: min(340px, 60vh); overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow);
+  z-index: var(--z-flyout);
+}
+.mco-search-group {
+  padding: 6px 8px 2px;
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.mco-search-option {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
+  min-height: 32px; padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem; color: var(--text-primary); cursor: pointer;
+}
+.mco-search-option:hover { background: var(--accent-hover); }
+.mco-search-option[aria-selected="true"] { background: var(--accent-hover); box-shadow: inset 3px 0 0 var(--accent-line); }
+.mco-search-option.is-current { font-weight: 600; }
+.mco-search-option.is-current > :first-child::before { content: "\2713\00a0"; content: "\2713\00a0" / ""; }
+.mco-search-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
+.mco-search-note { padding: 6px 8px; font-size: 0.75rem; color: var(--text-secondary); cursor: default; }
+@media (hover: none) {
+  .mco-search-input { min-height: 40px; }
+  .mco-search-option { min-height: 40px; align-items: center; }
+}
+
 /* Collapsible search (MCO.initSearchCollapse) ───────────────────────────────
    At compact widths a navbar search field costs more width than it earns, but
    hiding it strands the only keyboard route to a named feature. Instead it
@@ -596,10 +849,11 @@ body {
    (mesonet-status) still wrapped to a third row between 461 and 527px, and the
    wrap point drifted with live data in the labels.
 
-   The kit owns only the COLLAPSE mechanics; the field itself stays app-owned
-   (the search combobox is deliberately not in the kit). Add .mco-search-collapse
-   to your existing search wrapper and .mco-search-toggle to the button:
-     <div class="search-wrap mco-search-collapse" id="search-wrap"> … </div>
+   This is the COLLAPSE mechanics only; the field is .mco-search +
+   MCO.initSearchBox above (0.8.0), or still an app's own. Add
+   .mco-search-collapse to the search wrapper and .mco-search-toggle to the
+   button:
+     <div class="mco-search mco-search-collapse" id="search-wrap"> … </div>
      <button class="nav-btn icon-only mco-search-toggle"
              aria-expanded="false" aria-controls="search-wrap"> … </button>
    Inner selectors are generic on purpose (input[type=search], kbd), so this
@@ -630,15 +884,23 @@ body {
   /* A "press /" hint is a physical-keyboard affordance; in the overlay it would
      sit on top of the text being typed. */
   .mco-navbar .mco-search-collapse.is-open kbd { display: none; }
+  /* The overlay's padding moves the field in; the kit icon follows it. */
+  .mco-navbar .mco-search-collapse.is-open .mco-search-icon { left: calc(max(0.75rem, env(safe-area-inset-left)) + 9px); }
 }
 
 /* Scrim behind off-canvas drawers on compact viewports. Pair with a panel at
-   --z-drawer; the scrim sits one tier below it. */
+   --z-drawer; the scrim sits one tier below it. Always aria-hidden="true"
+   (it is a click target, not content); clicking it closes its owner.
+   data-scope="container" (0.8.0) fills its nearest positioned ancestor
+   instead of the viewport, so a drawer inside the map frame can dim the map
+   without dimming the navbar above it (explorer's #sidebar-scrim, and the
+   dashboard's compact drawer). */
 .mco-scrim {
   position: fixed; inset: 0;
   background: var(--scrim);
   z-index: var(--z-map-panel);
 }
+.mco-scrim[data-scope="container"] { position: absolute; }
 
 /* ── 6. Responsive & touch ────────────────────────────────────────────────
    Breakpoint ladder (HOUSE-STYLE.md §3): 1400 shed button labels · 1060
@@ -717,5 +979,7 @@ body {
   .nav-btn.icon-only, .mco-navbar .nav-btn:has(> .btn-label) { min-width: 40px; }
   .mco-btn-info { width: 40px; height: 40px; }
   .modal-close { min-width: 44px; min-height: 44px; }
+  .maplibregl-popup-close-button { width: 44px; height: 44px; top: 0; right: 0; }
+  .maplibregl-popup-content:has(.maplibregl-popup-close-button) .mco-popup { padding-right: 2.4rem; }
   .mco-panel-toggle { width: 36px; height: 36px; }
 }

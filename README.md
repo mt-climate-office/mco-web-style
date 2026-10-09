@@ -12,6 +12,7 @@ files — the same way the apps already load MapLibre.**
 - 🤖 **[AGENTS.md](AGENTS.md)** — guardrails for developers, human or AI (the sideboards)
 - 🗺 **[CONSUMERS.md](CONSUMERS.md)** — which MCO properties use the kit, per-app migration intel
 - 🚚 **[MIGRATING.md](MIGRATING.md)** — the migration playbook (start here when converting an existing app)
+- ✅ **[CONFORMANCE.md](CONFORMANCE.md)** — the per-app checklist; `node tools/conformance.mjs <repo>` scores the automatic half
 - 🧪 **demo/** — a [living demo](demo/index.html) exercising every component (also a CI axe target)
 - 🧭 **exemplar/** — a [complete single-page station map](exemplar/index.html) built the house way; **copy this directory to start a new MCO map app** — but swap its relative kit paths for the pinned + SRI CDN tags from `snippets/head.html` (and add `https://cdn.jsdelivr.net` to its CSP), since the exemplar deliberately loads the kit locally for in-repo development
 
@@ -24,14 +25,16 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.1/theme/mco-theme.css"
-      integrity="sha384-dktZyfU+lLz1JEFe+npkBVrH8FsSdtYYOPC7bJQtZwEJnvD3IiENV+UUgyXeFpnl" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.1/core/mco-core.js"
-        integrity="sha384-ZOGCREEJsO8sY1wJ7eS/Q7K7NdZAHF+LxSMoO3ZGqBtEVISX3616cGomCW418hXH" crossorigin="anonymous"></script>
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/theme/mco-theme.css"
+      integrity="sha384-x9dp9SwDeJ4J69qkuo74FgLlhHT/0n6ObXSYq2iLxfLGPTD/GhPqCF2Vc7M66qP8" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/core/mco-core.js"
+        integrity="sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
-Map apps add `map/mco-map.js` (requires MapLibre GL 5.x) and, for COG rasters,
+Map apps add `map/mco-map.js` (targets MapLibre GL 6.x, which it imports for
+you — `MCO.map.loadMapLibre()`; the import map in `snippets/head.html` carries
+MapLibre's SRI hashes) and, for COG rasters,
 `map/cog-protocol.js` (exposes `window.CogProtocol`). The API surface is
 documented in the source headers and JSDoc-style comments of
 `core/mco-core.js` and `map/mco-map.js` — read them for argument shapes
@@ -46,8 +49,8 @@ CSS custom properties, kept in lockstep by CI.
 | File | What | Who needs it |
 |---|---|---|
 | `theme/mco-theme.css` | Tokens (dark / light / high-contrast), z-index ladder, reset + a11y utilities, MapLibre control polish, component shells | every page |
-| `core/mco-core.js` | `window.MCO`: storage, Mountain-time, fetch + promise cache, viewport, toast, theme, live region, modal, collapsible, URL state | every page |
-| `map/mco-map.js` | `window.MCO.map`: Montana bounds, basemap URLs, controls, zoom floor, overlay paints | MapLibre apps |
+| `core/mco-core.js` | `window.MCO`: storage, Mountain-time, fetch + promise cache, viewport, announcer (`announce`) + toast, notice, theme, modal, collapsible, sr-table twin, legend toggles, search combobox + model, URL state (replace / push / restore) | every page |
+| `map/mco-map.js` | `window.MCO.map`: MapLibre 6 loader, Montana bounds, basemap URLs + failure watch, controls, zoom floor, DOM popups, cursor tooltip, hillshade, overlay paints | MapLibre apps |
 | `map/cog-protocol.js` | `cog://` raster protocol (`window.CogProtocol`) | COG raster apps |
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
@@ -55,13 +58,14 @@ CSS custom properties, kept in lockstep by CI.
 | `assets/` | MCO logo (vendored), favicon set, OG card | every page |
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
+| `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.7.1
+## SRI hashes — v0.8.0
 
 ```
-theme/mco-theme.css      sha384-dktZyfU+lLz1JEFe+npkBVrH8FsSdtYYOPC7bJQtZwEJnvD3IiENV+UUgyXeFpnl
-core/mco-core.js         sha384-ZOGCREEJsO8sY1wJ7eS/Q7K7NdZAHF+LxSMoO3ZGqBtEVISX3616cGomCW418hXH
-map/mco-map.js           sha384-0aF67+MSXmcocGs8r3qiehgDNzgXo9F48olS5OX575wO2llw2cuGcqLpd6+L7D76
+theme/mco-theme.css      sha384-x9dp9SwDeJ4J69qkuo74FgLlhHT/0n6ObXSYq2iLxfLGPTD/GhPqCF2Vc7M66qP8
+core/mco-core.js         sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb
+map/mco-map.js           sha384-pmyiDS5SNzBxK1AyD/ONb7mFLrfklj+Pvyd6KCxYKzLOQnqiK+07+3liQR5Zr16x
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm
 ```
 
@@ -80,7 +84,7 @@ Rules that keep consumers safe:
 
 - **Never use `@latest`** (or `@0.1`-style ranges). They float on a ~12 h CDN
   edge cache and SRI will hard-fail nondeterministically when content moves.
-  Pin `@X.Y.Z` + hash, exactly like the apps pin `maplibre-gl@5.18.0`.
+  Pin `@X.Y.Z` + hash, exactly like the apps pin `maplibre-gl@6.11.2`.
 - **Never re-point a tag.** jsDelivr caches tag content permanently; a re-pointed
   tag produces split-brain edges forever. A bad release gets a new patch tag.
 - Because SRI pins bytes, no consumer ever silently upgrades — version numbers
@@ -114,6 +118,19 @@ GitHub-Pages meta-tag pattern) need:
   `https://fonts.googleapis.com` from `style-src` and
   `https://fonts.gstatic.com` from `font-src`.
 - `img-src`: add `https://cdn.jsdelivr.net` if you hot-link kit assets
+- **map apps** (MapLibre 6, since kit 0.8.0):
+  - `script-src`: `https://unpkg.com` and the MapLibre import map's hash,
+    `'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI='`. An import map is
+    an inline script as far as CSP is concerned. Because the snippet's map is
+    one line, this hash is the same on every page that copies it byte for
+    byte; `tools/check-sri.mjs` re-derives it, so a MapLibre bump that
+    forgets to update it fails CI.
+  - `worker-src`: `blob: https://unpkg.com`. **Both.** MapLibre 6 starts its
+    worker from a `blob:` URL that then `import`s the worker chunk from
+    unpkg, and a module worker's imports are checked against `worker-src`,
+    not `script-src`. MapLibre's migration guide lists only `blob:`. With
+    `blob:` alone the map draws its basemap and then nothing else, and the
+    only console line is "Worker failed to load", with no mention of CSP.
 - the inline anti-flash script's **sha256** in `script-src` — recompute it
   whenever that snippet changes (it did in 0.7.0, gaining the
   `.is-compact`/`.is-touch` stamp):

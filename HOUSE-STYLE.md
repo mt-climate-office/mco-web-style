@@ -94,7 +94,9 @@ The contrast contract, enforced by CI (`tools/check-contrast.mjs`):
 | `--text-primary`, `--text-secondary` | deep, surface, raised | ≥ 4.5:1 |
 | `--text-muted`, `--text-dim` | deep, surface **only** | ≥ 4.5:1 |
 | `--accent-line` | deep, surface, raised | ≥ 3:1 |
-| `--text-on-accent` | `--accent` fills | ≥ 4.5:1 |
+| `--text-on-accent` | `--accent` and `--accent-fill-hover` fills | ≥ 4.5:1 |
+| `--danger`, `--warning`, `--success` | deep, surface, raised, and their own `--*-fill` | ≥ 4.5:1 (so ≥ 3:1 as lines) |
+| `--text-on-danger`, `-warning`, `-success` | the matching `--*-fill` | ≥ 4.5:1 |
 
 Hard-won rules encoded here:
 
@@ -110,6 +112,13 @@ Hard-won rules encoded here:
   which fails AA at subtitle size — the single clearest argument for these
   tokens being shared. Fix on migration.
 - `--selection-ring` tokenizes the map selection-halo color that apps hard-coded.
+- **Status tones are chrome, not data** (0.8.0). `--danger` / `--warning` /
+  `--success` and their `-fill` / `text-on-` companions are for form errors,
+  notices (`.mco-notice`) and failure banners. They replace the per-app
+  `--c-warn` / `--warn-bg` copies (maint, umrb) and explorer's uncommented
+  `.scale-hint` hexes. A station's "dead" or "stale" **category is data**: it
+  takes a data palette under §6, never a status token. Tone never stands
+  alone. Always pair it with a word ("Error", "Warning") or an icon.
 
 **Theming.** Three themes: `dark` (default), `light`, `high-contrast`, switched
 by `data-theme` on `<html>`. The high-contrast theme is a first-class citizen
@@ -125,6 +134,9 @@ three** blocks — CI enforces parity.
 underline via `::after`. Order: logo → divider → brand → `.controls` →
 `.nav-meta` (right-aligned). Buttons are `.nav-btn` (34 px, `.icon-only`
 variant), segmented groups `.seg-btns > .seg-btn`, info button `.mco-btn-info`.
+**One primary action per view** is `.nav-btn.is-primary` (0.8.0): a filled
+`--accent` with `--text-on-accent`. Never hand-roll `color: #fff` on the
+accent, which is 2.2:1 in high contrast.
 
 **Glass panels** (`.mco-panel`): floating surfaces over the map (legend,
 filters). Head + collapsible body; wire with `MCO.initCollapsible`.
@@ -192,6 +204,13 @@ panel auto-collapse, control relocation into a drawer.
   edge-hugging chrome.
 - Segmented button groups that don't fit under 1060 px get a `<select>`
   fallback (photo explorer pattern).
+- **Search is `MCO.initSearchBox`** (0.8.0) on `.mco-search`: the APG
+  combobox with `aria-activedescendant`, a disabled `role=option` for “No
+  matches”, polite result counts, and Esc that closes, then clears, then passes
+  through (stopping propagation, so the next layer out only closes on a later
+  press). Ranking is the dashboard's model (`MCO.searchModel`). Accent- and
+  typo-tolerant, so “bozman” finds Bozeman. Five hand-rolled copies retire
+  with it.
 - A navbar **search field collapses to a disclosure** at compact widths (≤640 px)
   rather than being hidden: `MCO.initSearchCollapse` moves focus into the field on open and
   back to the button on close, and the app keeps control of Esc precedence and
@@ -203,14 +222,13 @@ panel auto-collapse, control relocation into a drawer.
   of that — deferred 2026-08-04 as its own design pass rather than riding along
   on a breakpoint change.
 
-  mesonet-explorer is the working reference for the *pattern*, but note it
-  deliberately does **not** use `.mco-scrim` (checked on its 2026-08-16
-  migration): the kit's scrim is viewport-`fixed`, and the explorer's is
-  `absolute` inside its map container so the drawer dims the map without
-  dimming the navbar above it. If a consumer needs that, it wants the
-  explorer's `#sidebar-scrim` rule, not the kit class — and if a second
-  consumer needs it too, the kit should grow a positioning option rather than
-  both hand-rolling it.
+  mesonet-explorer is the working reference for the *pattern*. A scrim that
+  should dim the map but not the navbar above it is
+  `<div class="mco-scrim" data-scope="container" aria-hidden="true">` inside
+  the positioned map frame (0.8.0). It replaces explorer's hand-rolled
+  `absolute` `#sidebar-scrim`; the dashboard's compact drawer was the second
+  consumer that brought the option into the kit. The default stays
+  viewport-`fixed`.
 
 **Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
 property, never `gap` directly: the brand lockup's divider margin is derived
@@ -225,10 +243,32 @@ fixed in v0.5.0.
 **URL is the primary state.** Read once at boot with precedence
 **URL param > localStorage > default**, validating every value against a
 whitelist (helpers: `MCO.getParamLower`, `MCO.splitTokens`). Mirror state back
-with `MCO.replaceUrlState()` on every mutation and on map `moveend`
-(`MCO.map.cameraParams` for the canonical precision). All-defaults views emit a
-clean URL. Share buttons copy `location.href` — the URL must already be the
-complete view.
+on every mutation and on map `moveend`. Share buttons copy `location.href`, so
+the URL must already be the complete view.
+
+**Replace vs push** (0.8.0):
+- **`MCO.replaceUrlState(params)`** is for *view adjustments*: camera,
+  filters, theme, variable, date scrubbing.
+- **`MCO.pushUrlState(params, {state})`** is for *drill-down*, where a user
+  expects Back to undo it: opening a station detail or sheet, switching a
+  top-level section, opening a shareable gallery item. Push only on the
+  **first** step from a "no detail" state, and replace while the detail stays
+  open. Pushing on every station click floods the history.
+- **Back closes the detail.** It does not re-open the previous station's
+  camera. A close button on a pushed detail calls `history.back()` (mark the
+  entry with `{state: {mcoDetail: id}}` so it can tell), and
+  `MCO.onUrlState(fn)` applies the result. On Back/Forward the app announces
+  the restored view (“Station closed”, “Ag tab”, §5.1) and moves focus to the
+  restored surface's heading, or to `#main`.
+- Name app wrappers for what they do (`writeUrl`). Three apps called a
+  `replaceUrlState` wrapper `pushState`, which is now a different thing.
+- **Clean URLs:** an all-defaults view has no query string. Write the camera
+  with `MCO.map.cameraParamsIfDefault(map)` (it returns `{}` at the default
+  extent) and `theme` only when it differs from `MCO.osTheme()`.
+- Write the URL at most once per task. A hash that carries state (a tab) needs
+  `{keepHash: true}` on both writers until 1.0.0 makes it the default.
+- `?kbd=off` is re-emitted by both writers and stays out of share links
+  (§5.9).
 
 **localStorage namespace.** `mco-theme` is deliberately shared org-wide on an
 origin — a theme choice follows the user between apps. Everything else is
@@ -240,6 +280,15 @@ them.
 sources/layers — re-add them in `map.once('style.load', …)`). Use
 `MCO.initThemeToggle`; it maintains the icon swap and the button's
 `aria-label`.
+
+**Notices** (`MCO.notice`, `.mco-notice`, 0.8.0) for anything that must
+persist or offer an action: a failed load with Retry, a data caveat, an
+outage. `data-tone` is info, warning, danger or success, built on the status
+tokens (§2), and the tone word is always visible text. Over a map, use
+`place: 'over'` (`data-place="over"`), which sits on the `--z-map-notice` tier.
+Never invent a `calc(var(--z-map-notice) + 1)`. `.mco-empty` is the same shell
+for an empty state. `role=alert` semantics (an assertive announcement) are for
+failures only. Dismissal keys are app-prefixed and session-scoped.
 
 **Toasts** (`MCO.showToast`) for transient status, 2800 ms default (canonical —
 three apps had drifted to 2200/2400/2800). Longer explicit per-call durations
@@ -258,11 +307,31 @@ implementation in the family; CI runs axe over the kit demo in all three
 themes.
 
 1. **Live region for canvas changes.** Anything a sighted user learns from the
-   map/canvas re-render (“42 stations shown”, “Station X opened”) is announced
-   via `MCO.createLiveRegion()`. *(mesonet-status `#sr-announce`)*
-2. **Hidden-table twin.** Every canvas/WebGL data layer has an `.sr-only`
-   `<table>` rebuilt per render, with `scope`d headers and textual state
-   (“no data”, “(stale)”). *(mesonet-explorer `#sr-station-table` — best in family)*
+   map/canvas re-render is announced through **`MCO.announce(text)`**, the
+   page's one announcer (0.8.0). Don't hand-make an `#sr-announce`: the kit's
+   regions exist from script load (a region created with its first message is
+   often not read), clear before setting (so a repeat is re-read), and drop
+   duplicates within 500 ms. **What must be announced:**
+   - filter or count changes (“42 stations shown: HydroMet”)
+   - a selection opened or closed (“Bozeman opened”, “Station closed”)
+   - load failures (`{politeness: 'assertive'}`; the only assertive case)
+   - tab, section or view changes, including Back/Forward (“Ag tab”)
+
+   A toast is itself `role=status`. When the same words already went through
+   `MCO.announce`, show the toast with `MCO.showToast(msg, ms, {announce:
+   false})` or screen readers hear it twice.
+2. **Hidden-table twin.** Every canvas/WebGL data layer has a hidden table
+   rebuilt per render from the same features the canvas drew, with a caption,
+   `scope`d headers, a row-header column and textual state (“no data”,
+   “(stale)”). Build it with **`MCO.srTable`** (0.8.0). It puts `.sr-only` on a
+   wrapping `div` (a `<table>` ignores `height: 1px`), uses textContent
+   only, caps at 500 rows with a closing “…and N more” row, and rebuilds only
+   when the rows change. `selectable: true` makes the twin the map's keyboard
+   route: one Tab stop, arrows/Home/End, Enter selects, `aria-current` on the
+   selection *(the dashboard's map twin)*. Give the canvas an `aria-label`
+   ending “The data is in the table that follows.” Never wire the table to a
+   live region: announcements say what changed (rule 1), and the table is
+   what is there.
 3. **Reduced motion, two layers.** The CSS blanket comes with the kit; JS
    camera moves and paced reveals gate on `MCO.reducedMotion()` — which is
    live, not a boot snapshot.
@@ -275,6 +344,11 @@ themes.
 7. **`aria-pressed` is the styling source of truth** for toggles — CSS keys off
    `[aria-pressed="true"]`, so the accessible state can never drift from the
    visual state. Pair with swapped `aria-label`s where the action inverts.
+   **Legend rows** are `.mco-legend-row` buttons wired by
+   `MCO.initLegendToggles` (0.8.0). "Off" dims the swatch and strikes the label
+   through. **Never put opacity on the row**: parent opacity composites the
+   label too, and no child rule can win it back. Three apps shipped a 2.7:1
+   label that way, a 1.4.3 failure.
 8. **Keyboard twin for every pointer gesture.** Double-click-to-isolate gets
    Shift+Enter; hover-only reads get a click/focus path. A hover tooltip over
    canvas is `aria-hidden` decoration — the same content must reach AT another
@@ -326,16 +400,49 @@ boundary needs an outline on light basemaps.
 
 ## 7. Maps
 
-- **MapLibre GL 5.x is the house map library**, pinned + SRI'd from CDN
-  (currently `5.18.0`). Leaflet pages adopt the theme/core layers now and
-  migrate opportunistically; the kit will not ship Leaflet support.
+- **MapLibre GL 6.x is the house map library**, pinned + SRI'd from CDN
+  (currently `6.11.2`; moved from 5.18.0 in kit 0.8.0 for the critical
+  attribution-control XSS GHSA-jrc7-96c5-q579, fixed only in 6.4.1+). 6.x is
+  ES-modules only, so pages no longer load it with `<script src>`:
+  `MCO.map.loadMapLibre()` imports the pin and resolves with the namespace
+  (also published as `window.maplibregl`), and the page's import map
+  (`snippets/head.html`) carries the SRI hashes for the entry and shared
+  chunks. **Known gap:** MapLibre re-imports the worker and shared chunks
+  inside its web worker from a `blob:` URL, where no import map reaches, so
+  those two fetches are pinned by the exact version in the URL (unpkg
+  serves version paths immutably) but not by hash. It is the one place in the
+  family where CDN code runs without SRI; revisit if MapLibre ships a way to
+  pass integrity to its worker. WebGL2 is required (MapLibre 6 dropped
+  WebGL1; the `Map` constructor throws `GPUInitializationError` without it).
+  Leaflet pages adopt the theme/core layers now and migrate opportunistically;
+  the kit will not ship Leaflet support.
 - Basemaps: `MCO.map.cartoStyleUrl()` (CARTO Dark Matter / Positron — neutral,
   keyless, data stays the primary read). Other providers via
   `MCO.map.themedStyleUrl({dark, light})` — **API keys live in the consuming
   app, never in shared code**, and must be domain-restricted at the provider.
 - Controls: `MCO.map.addNavigation` (no compass — rotation is off in these
   apps), `MCO.map.addFitControl` fused into the same group,
-  `MCO.map.installZoomFloor` so the region always fills the viewport.
+  `MCO.map.installZoomFloor` so the region always fills the viewport. Since
+  0.8.0 the floor ignores chrome-only resizes (a phone URL bar) and takes
+  `onBeforeSnap` for app policy ("not while a detail is open").
+- **Basemap failure is handled, not hoped away** (0.8.0). Every map calls
+  `MCO.map.watchBasemap(map)`. If the style 404s or hangs, the watch retries
+  once after 5 s and then falls back to `MCO.map.blankStyle()`, a background in
+  `--bg-deep`. That style does load, so `style.load` adds the data and
+  boundaries and the map is useful without streets. A notice with Retry stays
+  over the map. Start data loading from `style.load` (or from `load`, which
+  the fallback also fires), never from a basemap-specific signal.
+- **Popup, tooltip, sheet and table content is DOM-built** (0.8.0, M4). Use DOM
+  APIs and `textContent`: `MCO.map.popupContent({title, subtitle, facts,
+  actions})` with `popup.setDOMContent(…)`, `MCO.map.initCursorTooltip` for
+  hover, `MCO.srTable` for the twin. `setHTML` and `innerHTML` take only
+  static, author-written strings, never one with an API value in it, escaped
+  or not. A URL from an API goes through `MCO.map.safeUrl(u)` (`https:` only)
+  and is set as `img.src`/`a.href`, or as
+  `` el.style.backgroundImage = `url(${JSON.stringify(u)})` ``. Never build it
+  into a `style="…"` string: that is attribute and CSS injection (maint's
+  `p.thumb`). The kit styles the popup shell from tokens on the `--z-detail`
+  tier, so apps delete their local popup CSS.
 - **Topography**: `MCO.map.addHillshade(map)` — live-shaded from the keyless
   AWS terrain DEM, `igor` method, themed paints (highlights carry the relief
   on dark; exaggeration 0.70 dark / 0.50 light / 0.80 high-contrast). Chosen

@@ -7,6 +7,9 @@
                                           that pair fails by design; don't use it)
      --accent-line                     ≥ 3:1  on deep, surface, raised (1.4.11)
      --text-on-accent                  ≥ 4.5:1 on --accent
+     --danger, --warning, --success    ≥ 4.5:1 on deep, surface, raised, and
+                                          their own --*-fill (0.8.0)
+     --text-on-danger/-warning/-success ≥ 4.5:1 on the matching --*-fill
 
    Only hex tokens participate; rgba()/gradients are out of scope here.
    Zero dependencies. */
@@ -35,7 +38,13 @@ const MATRIX = [
   ['--text-muted', '--bg-deep', 4.5], ['--text-muted', '--bg-surface', 4.5],
   ['--text-dim', '--bg-deep', 4.5], ['--text-dim', '--bg-surface', 4.5],
   ['--accent-line', '--bg-deep', 3.0], ['--accent-line', '--bg-surface', 3.0], ['--accent-line', '--bg-raised', 3.0],
-  ['--text-on-accent', '--accent', 4.5],
+  ['--text-on-accent', '--accent', 4.5], ['--text-on-accent', '--accent-fill-hover', 4.5],
+  // Status tones (0.8.0): readable as text on every surface AND on their own
+  // notice fill; the fill's text token likewise.
+  ...['--danger', '--warning', '--success'].flatMap((t) => [
+    [t, '--bg-deep', 4.5], [t, '--bg-surface', 4.5], [t, '--bg-raised', 4.5],
+    [t, `${t}-fill`, 4.5], [`--text-on-${t.slice(2)}`, `${t}-fill`, 4.5],
+  ]),
 ];
 
 const errors = [];

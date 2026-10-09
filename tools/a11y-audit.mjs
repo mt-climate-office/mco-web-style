@@ -80,6 +80,65 @@ for (const path of pages) {
   }
 }
 
+/* ── Keyboard probes (0.8.0) ──────────────────────────────────────────────
+   Behavior axe can't see. The search combobox, after the dashboard's
+   keyboard check: the kit's version replaced five hand-rolled ones, so
+   drift here would ship to all of them. axe also runs with the list OPEN,
+   where listbox/option roles actually exist. */
+{
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  await page.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
+  const probe = (label, ok, detail) => {
+    if (!ok) failed = true;
+    console[ok ? 'log' : 'error'](`[keyboard] ${ok ? 'OK' : 'FAIL'} — ${label}${ok ? '' : ' ' + detail}`);
+  };
+  const cb = () => page.evaluate(() => {
+    const i = document.getElementById('demo-search');
+    const ad = i.getAttribute('aria-activedescendant');
+    const a = ad && document.getElementById(ad);
+    return {
+      expanded: i.getAttribute('aria-expanded'), value: i.value,
+      active: a ? a.textContent : null, selected: a ? a.getAttribute('aria-selected') : null,
+      options: document.querySelectorAll('#demo-search-list [role="option"]').length,
+      disabled: [...document.querySelectorAll('#demo-search-list [role="option"][aria-disabled="true"]')].map((o) => o.textContent),
+    };
+  });
+  // Counties arrive with the map overlays; wait for them, but don't fail the
+  // probe on a slow map — an empty list still exercises the empty state.
+  await page.waitForFunction(() => /loaded from/.test(document.getElementById('map-note')?.textContent || ''), null, { timeout: 30000 }).catch(() => {});
+  await page.focus('#demo-search');
+  await page.keyboard.type('gal');
+  const s1 = await cb();
+  probe('typing opens the list and makes the best match active (aria-activedescendant + aria-selected)',
+    s1.expanded === 'true' && /^Gallatin/.test(s1.active || '') && s1.selected === 'true', JSON.stringify(s1));
+  const results = await new AxeBuilder({ page }).include('#search-wrap').analyze();
+  const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+  probe('axe: open listbox has no serious/critical violations', bad.length === 0, bad.map((v) => v.id).join(', '));
+  await page.keyboard.press('Escape');
+  const s2 = await cb();
+  probe('Esc closes the list and restores the text from before it opened', s2.expanded === 'false' && s2.value === '', JSON.stringify(s2));
+  await page.keyboard.type('qqqzz');
+  const s3 = await cb();
+  probe('no match → one disabled role=option ("No matches"), nothing active',
+    s3.disabled.length === 1 && /No matches/.test(s3.disabled[0]) && s3.active === null, JSON.stringify(s3));
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowUp');
+  const s4 = await cb();
+  await page.keyboard.press('ArrowDown');
+  const s5 = await cb();
+  probe('Down opens on the first option; Up wraps to the last; Down wraps back',
+    s4.expanded === 'true' && s4.options > 1 && s5.active !== s4.active, JSON.stringify([s4.active, s5.active]));
+  await page.keyboard.press('Enter');
+  const s6 = await cb();
+  const announced = await page.evaluate(() => document.querySelector('.sr-only[aria-live="polite"]').textContent);
+  await page.waitForTimeout(150);
+  const announcedLater = await page.evaluate(() => document.querySelector('.sr-only[aria-live="polite"]').textContent);
+  probe('Enter selects: list closes, onSelect ran', s6.expanded === 'false' && /selected/.test(announced + announcedLater), JSON.stringify(s6));
+  await context.close();
+}
+
 await browser.close();
 server.close();
 process.exit(failed ? 1 : 0);

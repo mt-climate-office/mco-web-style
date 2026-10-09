@@ -6,58 +6,79 @@ policy in README.md.
 
 ## [Unreleased]
 
-### Planned for 0.8.0 — absorptions approved 2026-08-16
-Moved from 0.7.0, which shipped the first-paint work alone (2026-09-30).
-Agreed after auditing the two mesonet_app maps; each is code that now exists
-byte-identically in two or more consumers. **Consumers land on @0.7.0 first**,
-then re-point as a separate reviewed pass.
+(Nothing yet.)
 
-- **`MCO.osTheme()` + `MCO.map.cameraParamsIfDefault(map)`** — the clean-URL
-  default-elision pair, currently identical in mesonet-status's UMRB map, the
-  maintenance map, and mesonet-explorer (3 consumers). Shipping it as
-  `cameraParamsIfDefault` rather than lifting `atDefaultExtent` verbatim
-  collapses the check and the emit into one call, and retires the
-  `MT_FIT_BOUNDS`/`FIT_OPTS` aliases that now exist only to feed it.
-- **`MCO.map.initCursorTooltip({layers, render})`** — element, cursor+14
-  positioning, `.visible` toggle, the mousemove→`queryRenderedFeatures`
-  dispatcher, `cursor: pointer` and mouseleave cleanup. `render(feature)`
-  returns `{name, sub, line}`. Also puts the `.tooltip-*` classes under the
-  same owner as the CSS that styles them.
-- **`MCO.initSearchBox({input, dropdown, items, renderRow, onSelect})`** —
-  takes the search combobox **off** the kit-deferred list below. The two maps'
-  keyboard handling differs only in whitespace; `showSearchDropdown` differs in
-  exactly two lines, both of which are `renderRow`.
-- **`MCO.initLegendToggles({rows, visible, onChange})`** — click-to-toggle,
-  double-click-to-isolate, the click/dblclick timer, and the Shift+Enter
-  keyboard equivalent. `renderLegend` stays app-specific.
-- **`MCO.srTable({tbody, columns, rows})`** — the screen-reader twin of a
-  WebGL canvas. Thin, and the point is codifying the pattern (one row per
-  drawn feature, rebuilt from the same features, never wired to a live region)
-  so the next map neither reinvents nor skips it.
-- **Underline `.maplibregl-ctrl-attrib a`** — attribution links are separated
-  from the surrounding credit text by colour alone (1.74:1 on dark, 1.25:1 on
-  high-contrast; WCAG 1.4.1 wants 3:1 or a non-colour cue). It only trips axe
-  once **hillshade** adds its "Terrain: Mapzen/AWS Open Data" credit and turns
-  the attribution bar into a text block — and the kit tells every map app to
-  adopt hillshade, so this is the kit's to fix, not each consumer's. Same remedy
-  the kit already applied to prose links in v0.1.1. Found on mesonet-explorer,
-  which carries a local override until this ships.
-- **`MCO.map.installZoomFloor` hardening** — two generic defects found against
-  mesonet-explorer, whose local version already guards both:
-  1. **Spring-back re-entrancy.** `snapBack()` animates, and an animated
-     `fitBounds` raises further `zoomend` events while still in flight; each
-     re-tests `getZoom() < fitZoom`, which is still true mid-flight, so the
-     snap can re-fire and stutter. Needs explorer's `_springingBack` latch
-     (set on snap, cleared on the following `moveend`) and its `SPRING_EPS`
-     tolerance.
-  2. **Chrome-only resizes move the camera.** A mobile URL bar showing or
-     hiding changes the map container's HEIGHT only, which changes `fitZoom`
-     and triggers a snap-back. Explorer skips a resize whose width is
-     unchanged and whose height moved < 120px. The three consumers already on
-     `installZoomFloor` inherit this until it ships.
-  Also add an `onBeforeSnap` hook returning false to veto — explorer needs it
-  for "don't yank the camera while a station detail is open" and "a sidebar
-  toggle IS the user asking to re-fit", which stay app policy.
+## [0.8.0] — 2026-10-08
+
+MapLibre 6 for a critical XSS, and the absorptions planned since 2026-08-16:
+code each consumer had hand-rolled, now built once against the dashboard's
+proven versions. Additive throughout for kit APIs (MINOR). For consumers, the
+MapLibre move changes how map pages load: see MIGRATING § 0.7.x → 0.8.0.
+
+### Security
+- **MapLibre GL 5.18.0 → 6.11.2** (#1). 5.18.0 carries
+  [GHSA-jrc7-96c5-q579](https://github.com/advisories/GHSA-jrc7-96c5-q579)
+  (critical), a `DOM.sanitize` bypass. Its one caller is the
+  **AttributionControl**, so every map loading third-party attribution strings
+  (CARTO's style and TileJSON) was exposed, not only pages calling `setHTML`.
+  It is fixed in 6.4.1, and there is no 5.x backport. MapLibre 6 is
+  ES-modules only:
+  - **`MCO.map.loadMapLibre()`** dynamic-imports the family pin
+    (`MCO.map.MAPLIBRE_VERSION`) from the classic `mco-map.js` and publishes
+    `window.maplibregl`.
+  - Pages carry a **one-line import map** whose `integrity` entries pin the
+    entry and shared chunks (`snippets/head.html`), plus modulepreloads.
+  - CSP gains the import map's hash and **`worker-src blob:
+    https://unpkg.com`**. MapLibre's guide lists only `blob:`, which leaves the
+    worker blocked with no CSP message.
+  - Known gap: the worker's own imports can't be hash-pinned (HOUSE-STYLE §7).
+  - `check-sri` now enforces the import map, version, preloads and CSP hash.
+
+### Added
+- **`MCO.announce(text, {politeness})`** (#15), the page's one announcer.
+  Its regions exist from load, it clears then sets so a repeat is re-read, and
+  it drops duplicates within 500 ms. `showToast(msg, ms, {announce: false})`.
+- **`MCO.notice()` / `.mco-notice[data-tone]` / `.mco-empty`** (#16, pulled
+  forward from 0.9.0). A persistent banner with an action, a visible tone word,
+  and `data-place="over"` on the `--z-map-notice` tier.
+- **Status tokens** `--danger` / `--warning` / `--success`, each with
+  `-fill` and `--text-on-*` (#2). Measured to ≥ 4.5:1 on every surface and
+  their fills, and CI-enforced.
+- **`.nav-btn.is-primary`** + `--accent-fill-hover` (#24). The spec's
+  `--accent-dk` hover was 3.94:1 in high contrast.
+- **`.mco-scrim[data-scope="container"]`** (#8).
+- **URL state** (#12): `MCO.pushUrlState`, opt-in `{keepHash}`,
+  `MCO.onUrlState`, plus the planned clean-URL pair `MCO.osTheme()` and
+  `MCO.map.cameraParamsIfDefault(map)`. HOUSE-STYLE §4 gains the
+  replace-vs-push rule.
+- **`MCO.map.watchBasemap(map)`** + `MCO.map.blankStyle()` (#30). A dead
+  basemap no longer hangs the app; the map retries, then falls back to a style
+  that still loads, with a Retry notice.
+- **`MCO.map.popupContent()`** + `MCO.map.safeUrl()` and a token-styled
+  popup shell on `--z-detail` (#32). HOUSE-STYLE §7 gains the DOM-content rule.
+- **`MCO.map.initCursorTooltip(map, {layers, render})`** (planned).
+- **`MCO.srTable()`** (#19): caption, row headers, a wrapper `.sr-only`,
+  a 500-row cap, and an optional selectable roving-tabindex mode.
+- **`MCO.initLegendToggles()` + `.mco-legend-row`** (#20). Off dims the
+  swatch, never the row (the 2.7:1 label in status, maint and umrb). Swatches
+  carry an edge and a `data-shape`.
+- **`MCO.initSearchBox()` + `MCO.searchModel` + `.mco-search`** (#21): the
+  APG combobox on the dashboard's model, with a mask icon in `currentColor`.
+  The axe workflow gains keyboard probes for it.
+- **CONFORMANCE.md + `tools/conformance.mjs`** (#35), with per-app scores in
+  CONSUMERS.
+
+### Changed
+- `createLiveRegion().announce` clears before setting (PATCH-level fix).
+- The toast singleton is created at load, not on first use.
+- `replaceUrlState` keeps `history.state` instead of nulling it.
+- `installZoomFloor` (planned): a re-entrancy latch, chrome-only resizes
+  (height < 120 px) no longer move the camera, and `onBeforeSnap` to veto.
+- Long info modals (back-ported from explorer): a sticky header, contained
+  overscroll, and a bottom scroll shade.
+
+### Fixed
+- **Attribution links are underlined** (WCAG 1.4.1; planned).
 
 ## [0.7.1] — 2026-09-30
 

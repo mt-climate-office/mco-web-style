@@ -33,9 +33,17 @@
   <!-- House fonts: kit-hosted, declared in mco-theme.css; a real app preloads the pinned CDN copies (snippets/head.html). -->
   <link rel="preload" href="../fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../fonts/space-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
-        integrity="sha384-q7EDwLXBfakVimqzBJqFCTxpgy7B18buhebV158qkVMCEVAaUnU3fQTEfWgYz+7g"
-        crossorigin="anonymous">
+  <!-- MapLibre 6 (ESM): SRI via the import map; mco-map.js imports it (snippets/head.html). -->
+  <script type="importmap">{"integrity":{"https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs":"sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN","https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs":"sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"}}</script>
+  <link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs"
+          integrity="sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN"
+          crossorigin="anonymous">
+  <link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs"
+          integrity="sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"
+          crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css"
+          integrity="sha384-ntw3zEt6rcVML7jDK0ULmHa5hxLB23afsPqzqfY+gLgMfAkbFCnCgPpkZvV5mmZX"
+          crossorigin="anonymous">
   <link rel="stylesheet" href="../theme/mco-theme.css">
 
   <style>
@@ -55,18 +63,17 @@
     .swatch .meta { padding: 0.4rem 0.55rem; }
     .swatch .name { font-size: 0.7rem; font-weight: 600; color: var(--text-primary); }
     .swatch .val  { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); overflow-wrap: anywhere; }
+    .demo-stack { display: grid; gap: 0.5rem; }
+    .demo-row-after { margin-top: 0.8rem; }
     .demo-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     #map { width: 100%; height: 100%; }
     #legend-panel { right: 0.75rem; bottom: 1.75rem; }
-    .legend-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--text-secondary); padding: 3px 0; }
-    .legend-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+    .demo-show-all { margin-top: 0.4rem; }
     #hover-target {
       border: 1px dashed var(--ctrl-border); border-radius: var(--radius-md);
       padding: 1.2rem; text-align: center; font-size: 0.85rem; color: var(--text-muted);
     }
-    /* Search field styling is APP-owned (the combobox is deliberately not in
-       the kit) — this is the minimum needed to exercise .mco-search-collapse. */
     .control-group { display: flex; align-items: center; gap: 0.3rem; }
     .control-label {
       font-size: 0.7rem; font-weight: 500; letter-spacing: 0.05em;
@@ -77,14 +84,8 @@
       border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
       height: 32px; padding: 0 0.5rem; font: inherit; font-size: 0.78rem;
     }
-    .search-wrap { position: relative; display: inline-flex; align-items: center; }
-    .search-wrap input[type="search"] {
-      background-color: var(--input-bg); color: var(--text-primary);
-      border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
-      height: 32px; width: 200px; max-width: 100%; padding: 0 30px 0 10px;
-      font: inherit; font-size: 0.82rem;
-    }
-    .search-wrap input[type="search"]:hover { border-color: var(--accent-line); }
+    /* The "/" hint is app-owned; field, icon and list are the kit's .mco-search. */
+    .mco-search .mco-search-input { padding-right: 30px; }
     .search-kbd {
       position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
       font: 600 0.62rem var(--font-mono);
@@ -92,7 +93,6 @@
       border-radius: 3px; padding: 1px 5px; color: var(--text-muted);
       pointer-events: none;
     }
-    @media (hover: none) { .search-wrap input[type="search"] { min-height: 40px; } }
     #vp-status, #map-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); }
     footer { margin-top: 3rem; font-size: 0.75rem; color: var(--text-dim); }
     footer a { color: var(--accent-line); }
@@ -114,13 +114,15 @@
   </div>
 
   <div class="controls">
-    <!-- Collapsible search: below 460px this collapses into .mco-search-toggle
-         below and reopens as an overlay bar (MCO.initSearchCollapse). The field
-         itself is app-owned; only the collapse is the kit's. -->
-    <div class="search-wrap mco-search-collapse" id="search-wrap">
-      <label for="demo-search" class="sr-only">Search (demo)</label>
-      <input type="search" id="demo-search" placeholder="Search…" autocomplete="off">
+    <!-- Search combobox (MCO.initSearchBox) over the 56 counties. Below 640px
+         it collapses into .mco-search-toggle and reopens as an overlay bar
+         (MCO.initSearchCollapse). -->
+    <div class="mco-search mco-search-collapse" id="search-wrap">
+      <span class="mco-search-icon" aria-hidden="true"></span>
+      <label for="demo-search" class="sr-only">Search counties</label>
+      <input type="search" id="demo-search" class="mco-search-input" placeholder="Search counties…">
       <kbd class="search-kbd" aria-hidden="true">/</kbd>
+      <div class="mco-search-list" id="demo-search-list" hidden></div>
     </div>
 
     <!-- A .control-label naming a real control: coverage for the ≤1400px label
@@ -184,7 +186,7 @@
 
   <section class="demo-section">
     <h2>Map · controls · overlays · collapsible panel</h2>
-    <p>MapLibre GL 5.x with <code>cartoStyleUrl()</code>, house navigation + fit-to-extent controls,
+    <p>MapLibre GL 6.x (loaded by <code>MCO.map.loadMapLibre()</code>) with <code>cartoStyleUrl()</code>, house navigation + fit-to-extent controls,
        the zoom floor, and the Montana boundary overlays painted by <code>overlayPaints()</code>.
        The legend is an <code>.mco-panel</code> wired with <code>MCO.initCollapsible</code> — on a
        compact viewport it starts collapsed. Camera and theme round-trip through the URL.</p>
@@ -199,13 +201,55 @@
           </button>
         </div>
         <div class="mco-panel-body" id="legend-body">
-          <div class="legend-row"><span class="legend-swatch" id="sw-state" aria-hidden="true"></span>State boundary</div>
-          <div class="legend-row"><span class="legend-swatch" id="sw-county" aria-hidden="true"></span>County lines</div>
-          <div class="legend-row"><span class="legend-swatch" id="sw-tribal" aria-hidden="true"></span>Tribal nations</div>
+          <!-- MCO.initLegendToggles: click shows/hides, double-click or
+               Shift+Enter isolates; aria-pressed drives the styling. -->
+          <button type="button" class="mco-legend-row" data-key="state" aria-pressed="true">
+            <span class="mco-legend-swatch" data-shape="line" id="sw-state" aria-hidden="true"></span>
+            <span class="mco-legend-label">State boundary</span>
+          </button>
+          <button type="button" class="mco-legend-row" data-key="counties" aria-pressed="true">
+            <span class="mco-legend-swatch" data-shape="line" id="sw-county" aria-hidden="true"></span>
+            <span class="mco-legend-label">County lines</span>
+          </button>
+          <button type="button" class="mco-legend-row" data-key="tribal" aria-pressed="true">
+            <span class="mco-legend-swatch" id="sw-tribal" aria-hidden="true"></span>
+            <span class="mco-legend-label">Tribal nations</span><span class="mco-legend-count">7</span>
+          </button>
+          <button type="button" class="nav-btn demo-show-all" id="legend-show-all" hidden>Show all</button>
         </div>
       </div>
     </div>
     <p id="map-note" role="status"></p>
+  </section>
+
+  <section class="demo-section">
+    <h2>Notices</h2>
+    <p><code>.mco-notice</code> in its four tones, on the status tokens. The tone word is always
+       visible text, so color is never the only channel. <code>MCO.notice()</code> builds one with an
+       action and a dismiss button, and announces it through <code>MCO.announce</code>.</p>
+    <div id="notice-demo" class="demo-stack">
+      <div class="mco-notice">
+        <svg class="mco-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.01"/></svg>
+        <p class="mco-notice-text"><strong class="mco-notice-tone">Note</strong> Data after 10:00 MT are provisional. <a href="#main">Learn more</a></p>
+      </div>
+      <div class="mco-notice" data-tone="warning">
+        <svg class="mco-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17v.01"/></svg>
+        <p class="mco-notice-text"><strong class="mco-notice-tone">Warning</strong> 3 stations have not reported in 6 hours.</p>
+      </div>
+      <div class="mco-notice" data-tone="danger">
+        <svg class="mco-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/></svg>
+        <p class="mco-notice-text"><strong class="mco-notice-tone">Error</strong> The station list failed to load.</p>
+        <div class="mco-notice-actions"><button type="button" class="nav-btn">Retry</button></div>
+      </div>
+      <div class="mco-notice" data-tone="success">
+        <svg class="mco-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></svg>
+        <p class="mco-notice-text"><strong class="mco-notice-tone">Done</strong> Export saved.</p>
+      </div>
+      <div class="mco-empty">No stations match these filters.</div>
+    </div>
+    <div class="demo-row demo-row-after">
+      <button type="button" class="nav-btn" id="btn-notice">Show a dismissible notice</button>
+    </div>
   </section>
 
   <section class="demo-section">
@@ -220,7 +264,8 @@
     <p>Native <code>&lt;dialog class="mco-modal"&gt;</code> wired by <code>MCO.initInfoModal</code>:
        backdrop click closes, focus returns to the opener. The ? button in the navbar opens it too.</p>
     <div class="demo-row">
-      <button type="button" class="nav-btn" id="btn-modal"><span class="btn-label">Open modal</span></button>
+      <button type="button" class="nav-btn is-primary" id="btn-modal">Open modal</button>
+      <button type="button" class="nav-btn is-primary" disabled>Primary, disabled</button>
     </div>
   </section>
 
@@ -265,18 +310,25 @@
      MIT · Montana Climate Office · <a href="https://climate.umt.edu">climate.umt.edu</a></p>
 </footer>
 
-<script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"
-        integrity="sha384-MYTfGytf3SxNyO7ZAu/U0wHCcs3NpqE92Q3wBz5PQhat8kEA/wbwb9qY6H/JLyuR"
-        crossorigin="anonymous"></script>
 <script src="../core/mco-core.js"></script>
 <script src="../map/mco-map.js"></script>
 <script>
   'use strict';
 
-  /* ── Live region + toast ─────────────────────────────────────────────── */
-  const live = MCO.createLiveRegion();
+  /* ── Announcer + toast ───────────────────────────────────────────────── */
+  const live = { announce: (t) => MCO.announce(t) };   // the page's one announcer
   document.getElementById('btn-toast').addEventListener('click', () => {
     MCO.showToast('Toast: styled by .mco-toast, announced politely.');
+  });
+
+  /* ── Notice ──────────────────────────────────────────────────────────── */
+  document.getElementById('btn-notice').addEventListener('click', () => {
+    const n = MCO.notice({
+      tone: 'warning',
+      text: 'This notice was built by MCO.notice(); its action closes it.',
+      action: { label: 'Got it', onClick: () => n.close() },
+      container: document.getElementById('notice-demo'),
+    });
   });
 
   /* ── aria-pressed demo button ────────────────────────────────────────── */
@@ -292,6 +344,8 @@
     '--text-primary', '--text-secondary', '--text-muted', '--text-dim',
     '--accent', '--accent-line', '--accent-dk', '--selection-ring',
     '--glass', '--input-bg', '--brand-gradient',
+    '--danger', '--warning', '--success',
+    '--danger-fill', '--warning-fill', '--success-fill',
   ];
   function renderSwatches() {
     const style = getComputedStyle(document.documentElement);
@@ -359,9 +413,9 @@
   /* ── Legend swatches track the overlay paints ────────────────────────── */
   function paintLegendSwatches() {
     const p = MCO.map.overlayPaints();
-    document.getElementById('sw-state').style.background = p.stateLine['line-color'];
-    document.getElementById('sw-county').style.background = p.countiesLine['line-color'];
-    document.getElementById('sw-tribal').style.background = p.tribalLine['line-color'];
+    document.getElementById('sw-state').style.setProperty('--swatch', p.stateLine['line-color']);
+    document.getElementById('sw-county').style.setProperty('--swatch', p.countiesLine['line-color']);
+    document.getElementById('sw-tribal').style.setProperty('--swatch', p.tribalLine['line-color']);
   }
   paintLegendSwatches();
 
@@ -399,6 +453,27 @@
     if (map.getSource('state') && !map.getLayer('state-line')) {
       map.addLayer({ id: 'state-line', type: 'line', source: 'state', paint: paints.stateLine });
     }
+    applyOverlayVisibility();
+  }
+
+  const OVERLAY_LAYERS = {
+    state: ['state-line'], counties: ['counties-line'],
+    tribal: ['tribal-fill', 'tribal-line', 'tribal-label'],
+  };
+  const legend = MCO.initLegendToggles({
+    rows: document.querySelectorAll('#legend-body .mco-legend-row'),
+    noun: 'overlays',
+    showAll: document.getElementById('legend-show-all'),
+    onChange: () => applyOverlayVisibility(),
+  });
+  function applyOverlayVisibility() {
+    if (!map) return;
+    const shown = legend.visible();
+    for (const [key, ids] of Object.entries(OVERLAY_LAYERS)) {
+      for (const id of ids) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', shown.has(key) ? 'visible' : 'none');
+      }
+    }
   }
 
   function pushState() {
@@ -409,18 +484,45 @@
     MCO.replaceUrlState(params);
   }
 
-  try {
+  // MapLibre 6 is ESM-only: the map waits for MCO.map.loadMapLibre(), while
+  // everything else on the page is already wired above and below.
+  // ?basemap=fail points the style at a 404, to exercise MCO.map.watchBasemap.
+  const styleUrl = () => MCO.urlParams().get('basemap') === 'fail'
+    ? 'https://basemaps.cartocdn.com/gl/mco-demo-missing/style.json'
+    : MCO.map.cartoStyleUrl();
+  MCO.map.loadMapLibre().then((maplibregl) => {
     map = new maplibregl.Map({
       container: 'map',
-      style: MCO.map.cartoStyleUrl(),
+      style: styleUrl(),
       ...MCO.map.initialCamera(MCO.urlParams()),
     });
     MCO.map.addNavigation(map);
     MCO.map.addFitControl(map);
     zoomFloor = MCO.map.installZoomFloor(map);
+    MCO.map.watchBasemap(map, {
+      styleUrl,
+      retryDelayMs: MCO.urlParams().get('basemap') === 'fail' ? 500 : 5000,
+      onFail: () => { mapNote.textContent = 'Basemap failed; showing overlays on the blank fallback.'; },
+    });
+    // Hover: the kit's cursor tooltip. Click: a DOM-built popup (§7).
+    MCO.map.initCursorTooltip(map, {
+      layers: ['tribal-fill'],
+      render: (f) => ({ name: f.properties.NAME, sub: 'Tribal nation · click for details' }),
+    });
+    const popup = new maplibregl.Popup({ maxWidth: '280px' });
+    map.on('click', 'tribal-fill', (e) => {
+      const f = e.features[0];
+      popup.setLngLat(e.lngLat).setDOMContent(MCO.map.popupContent({
+        title: f.properties.NAME,
+        subtitle: 'MCO.map.popupContent()',
+        facts: [['Layer', 'tribal-fill'], ['Source', 'map/data/'], ['Clicked at', `${e.lngLat.lat.toFixed(2)}, ${e.lngLat.lng.toFixed(2)}`]],
+        actions: [{ label: 'climate.umt.edu', href: 'https://climate.umt.edu' }],
+      })).addTo(map);
+    });
 
     map.on('load', () => {
       zoomFloor.refresh();
+      if (!overlayData.state) mapNote.textContent = 'Loading overlays…';
       Promise.all([
         MCO.fetchJSON('../map/data/mt_state_simple.geojson'),
         MCO.fetchJSON('../map/data/mt_counties_simple.geojson'),
@@ -436,10 +538,13 @@
         mapNote.textContent = 'Overlay GeoJSON failed to load (serve the repo root, not demo/).';
       });
     });
+    // Every style load (theme switch, basemap retry, blank fallback) starts
+    // from a bare style: re-add the overlays each time, not once.
+    map.on('style.load', addOverlays);
     map.on('moveend', pushState);
-  } catch (err) {
+  }).catch((err) => {
     mapNote.textContent = 'Map unavailable: ' + err.message;
-  }
+  });
 
   /* ── Theme switching ─────────────────────────────────────────────────── */
   const segButtons = Array.from(document.querySelectorAll('[data-set-theme]'));
@@ -453,8 +558,7 @@
     syncSegs();
     themeToggle.sync();
     if (map) {
-      map.setStyle(MCO.map.cartoStyleUrl());
-      map.once('style.load', addOverlays);   // setStyle wipes our sources/layers
+      map.setStyle(styleUrl());              // style.load re-adds the overlays
     }
     live.announce('Theme: ' + MCO.getTheme());
     pushState();
@@ -471,17 +575,48 @@
   });
   syncSegs();
 
-  // Collapsible search (MCO.initSearchCollapse) — narrow the window below
-  // 460px and the field becomes the magnifier button in .nav-meta.
+  // Search combobox (MCO.initSearchBox) over the counties, grouped A–M / N–Z
+  // to exercise role=group. Selecting one fits the map to it.
   const demoSearchInput = document.getElementById('demo-search');
+  let currentCounty = null;
+  const searchBox = MCO.initSearchBox({
+    input: demoSearchInput,
+    listbox: document.getElementById('demo-search-list'),
+    label: 'Counties',
+    items: () => (overlayData.counties ? overlayData.counties.features : []).map((f) => ({
+      id: f.properties.GEOID,
+      label: f.properties.NAME.replace(/ County$/, ''),
+      meta: f.properties.GEOID,
+      group: f.properties.NAME < 'N' ? 'A–M' : 'N–Z',
+      keywords: [f.properties.NAME],
+    })),
+    value: () => currentCounty,
+    onSelect: (id) => {
+      const f = overlayData.counties.features.find((x) => x.properties.GEOID === id);
+      if (!f) return;
+      currentCounty = id;
+      MCO.announce(`${f.properties.NAME} selected.`);
+      if (map) {
+        const pts = f.geometry.coordinates.flat(f.geometry.type === 'MultiPolygon' ? 2 : 1);
+        const lngs = pts.map((p) => p[0]), lats = pts.map((p) => p[1]);
+        map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+          { padding: 40, animate: !MCO.reducedMotion() });
+      }
+    },
+  });
+  // Collapsible search (MCO.initSearchCollapse) — narrow the window below
+  // 640px and the field becomes the magnifier button in .nav-meta.
   const searchCtl = MCO.initSearchCollapse({
     wrap: document.getElementById('search-wrap'),
     toggle: document.getElementById('btn-search-toggle'),
     input: demoSearchInput,
+    onClose: searchBox.close,
   });
-  // Esc unwinds the overlay; '/' opens it when collapsed, focuses it otherwise.
+  // Esc unwinds one layer at a time: the combobox consumes the first presses
+  // (preventDefault), then this closes the overlay. '/' opens it when
+  // collapsed, focuses it otherwise.
   demoSearchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && searchCtl.isOpen()) searchCtl.close();
+    if (e.key === 'Escape' && !e.defaultPrevented && searchCtl.isOpen()) searchCtl.close();
   });
   window.addEventListener('keydown', (e) => {
     if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;

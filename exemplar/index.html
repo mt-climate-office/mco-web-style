@@ -19,13 +19,18 @@
        hash — recompute your own (MIGRATING.md § Gotchas).
        ══════════════════════════════════════════════════════════════════════ -->
 
-  <!-- CSP (meta form — GitHub Pages can't set headers). The sha256 pins the
-       inline anti-flash script below; recompute it if that script changes
-       (README § CSP). Demonstrates: HOUSE-STYLE §8 / README CSP notes. -->
+  <!-- CSP (meta form — GitHub Pages can't set headers). The first sha256 pins
+       the inline anti-flash script below; recompute it if that script changes
+       (README § CSP). The second pins the one-line MapLibre import map — the
+       same on every page that copies it verbatim. worker-src needs BOTH
+       blob: and https://unpkg.com: MapLibre 6 starts its worker from a blob:
+       URL whose module import of the worker chunk is checked against
+       worker-src, not script-src (MapLibre's own guide lists only blob:).
+       Demonstrates: HOUSE-STYLE §8 / README CSP notes. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'none';
-    script-src 'self' 'sha256-o+rXj9Jy2CUuPoewBVeBz2GYT71qiUGzjc3SklYSaSw=' https://unpkg.com;
-    worker-src blob:;
+    script-src 'self' 'sha256-o+rXj9Jy2CUuPoewBVeBz2GYT71qiUGzjc3SklYSaSw=' 'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI=' https://unpkg.com;
+    worker-src blob: https://unpkg.com;
     style-src 'self' 'unsafe-inline' https://unpkg.com;
     font-src 'self';
     img-src 'self' data: blob:;
@@ -67,9 +72,17 @@
        (snippets/head.html) and sets font-src https://cdn.jsdelivr.net. §1 -->
   <link rel="preload" href="../fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../fonts/space-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css"
-        integrity="sha384-q7EDwLXBfakVimqzBJqFCTxpgy7B18buhebV158qkVMCEVAaUnU3fQTEfWgYz+7g"
-        crossorigin="anonymous">
+  <!-- MapLibre 6 (ESM): SRI via the import map; mco-map.js imports it (snippets/head.html). -->
+  <script type="importmap">{"integrity":{"https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs":"sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN","https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs":"sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"}}</script>
+  <link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs"
+          integrity="sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN"
+          crossorigin="anonymous">
+  <link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs"
+          integrity="sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"
+          crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css"
+          integrity="sha384-ntw3zEt6rcVML7jDK0ULmHa5hxLB23afsPqzqfY+gLgMfAkbFCnCgPpkZvV5mmZX"
+          crossorigin="anonymous">
   <link rel="stylesheet" href="../theme/mco-theme.css">
 
   <style>
@@ -186,7 +199,7 @@
 
 <main id="main" tabindex="-1">
   <!-- role=application + label on the map container — §7 -->
-  <div id="map" role="application" aria-label="Map of Montana Mesonet stations"></div>
+  <div id="map" role="application" aria-label="Map of Montana Mesonet stations. The data is in the table that follows."></div>
 
   <p id="app-note" role="status" hidden></p>
 
@@ -227,10 +240,9 @@
   </div>
 </main>
 
-<!-- Screen-reader table twin of the WebGL layer, rebuilt per render — §5.2 -->
-<section class="sr-only" aria-label="Station data">
-  <table id="sr-station-table"></table>
-</section>
+<!-- Screen-reader table twin of the WebGL layer: MCO.srTable builds it in
+     here (its own .sr-only wrapper), rebuilt per render — §5.2 -->
+<section id="sr-twin" aria-label="Station data"></section>
 
 <!-- Pointer tooltip is decorative (aria-hidden); the live region + table twin
      carry the same information for AT — §5.8 -->
@@ -271,9 +283,6 @@
   </div>
 </dialog>
 
-<script src="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.js"
-        integrity="sha384-MYTfGytf3SxNyO7ZAu/U0wHCcs3NpqE92Q3wBz5PQhat8kEA/wbwb9qY6H/JLyuR"
-        crossorigin="anonymous"></script>
 <script src="../core/mco-core.js"></script>
 <script src="../map/mco-map.js"></script>
 <!-- App logic is an external file so CSP can pin script-src 'self' (the

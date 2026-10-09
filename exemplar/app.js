@@ -3,8 +3,12 @@
    Reference implementation of an MCO map app on the house kit. Section
    references (§) are to HOUSE-STYLE.md. Classic script, external file so the
    page's CSP can pin script-src 'self'.
+
+   MapLibre 6 is ES-modules only, so the app runs once MCO.map.loadMapLibre()
+   resolves (§7). A larger app wires its non-map UI before that; this one is
+   all map, so it simply waits.
    ========================================================================== */
-(function () {
+MCO.map.loadMapLibre().then(function (maplibregl) {
   'use strict';
 
   /* ── Constants ─────────────────────────────────────────────────────────── */
@@ -54,11 +58,27 @@
   const selectEl = document.getElementById('station-select');
   const tooltip = document.getElementById('tooltip');
   const card = document.getElementById('station-card');
-  const srTable = document.getElementById('sr-station-table');
+  // Selectable twin: one Tab stop, arrows move, Enter opens the station —
+  // a keyboard route to every dot on the map (§5.2, §5.8).
+  const srTable = MCO.srTable({
+    container: document.getElementById('sr-twin'),
+    caption: 'Montana Mesonet stations currently shown on the map',
+    rowKey: (s) => s.station,
+    columns: [
+      { label: 'Station', rowHeader: true, value: (s) => `${s.name} (${s.station})` },
+      { label: 'Network', key: 'sub_network' },
+      { label: 'County', key: 'county' },
+      { label: 'Elevation', value: (s) => `${Math.round(s.elevation)} m` },
+      { label: 'Installed', value: (s) => (s.date_installed ? MCO.formatDateMT(s.date_installed) : '') },
+    ],
+    selectable: true,
+    onSelect: (s) => openStation(s.station, { fly: true }),
+  });
   let _cardOpener = null;
 
-  // Live region for everything a sighted user learns from the canvas — §5.1
-  const live = MCO.createLiveRegion();
+  // The page's one announcer, for everything a sighted user learns from the
+  // canvas — §5.1
+  const live = { announce: (t) => MCO.announce(t) };
 
   /* ── Map init (§7) ─────────────────────────────────────────────────────── */
 
@@ -68,6 +88,9 @@
     ...MCO.map.initialCamera(params),
   });
   MCO.map.addNavigation(map);                    // house default: no compass
+  // A dead basemap retries once, then falls back to a blank style that still
+  // fires 'load', so the stations draw anyway — §7
+  MCO.map.watchBasemap(map);
   MCO.map.addFitControl(map, { onBeforeFit: closeCard });
   const zoomFloor = MCO.map.installZoomFloor(map);
 
@@ -172,30 +195,18 @@
     }
     countStamp.textContent = `${visible.length} stations`;
 
-    renderSRTable(visible);
+    srTable.render(visible, { selected: selectedId });
     // Announce what the canvas now shows — §5.1
     live.announce(`${visible.length} stations shown: ${[...activeNets].join(' and ') || 'none'}.`);
   }
 
-  // Hidden-table twin of the WebGL layer, rebuilt each render — §5.2
-  function renderSRTable(visible) {
-    const rows = visible.map((s) =>
-      `<tr><th scope="row">${MCO.escapeHTML(s.name)} (${MCO.escapeHTML(s.station)})</th>` +
-      `<td>${MCO.escapeHTML(s.sub_network)}</td>` +
-      `<td>${MCO.escapeHTML(s.county || '—')}</td>` +
-      `<td>${Math.round(s.elevation)} m</td>` +
-      `<td>${s.date_installed ? MCO.formatDateMT(s.date_installed) : '—'}</td></tr>`).join('');
-    srTable.innerHTML =
-      '<caption>Montana Mesonet stations currently shown on the map</caption>' +
-      '<thead><tr><th scope="col">Station</th><th scope="col">Network</th>' +
-      '<th scope="col">County</th><th scope="col">Elevation</th>' +
-      '<th scope="col">Installed</th></tr></thead>' +
-      `<tbody>${rows}</tbody>`;
-  }
-
   /* ── Station detail card (docked panel, not <dialog> — see index.html) ─── */
 
-  function openStation(id, { fly = false } = {}) {
+  // url: 'auto' pushes the first open from "no detail" and replaces after
+  // that; 'replace' for a deep link at boot (its entry is the page's own, so
+  // closing must never history.back() off the site); 'none' when Back/Forward
+  // already moved the URL.
+  function openStation(id, { fly = false, url = 'auto' } = {}) {
     const s = stationById.get(id);
     if (!s) return;
     selectedId = id;
@@ -215,15 +226,20 @@
 
     map.getLayer('stations-selected') &&
       map.setFilter('stations-selected', ['==', ['get', 'id'], id]);
+    srTable.render(visibleStations(), { selected: id });
+    // Drill-down: the first open from "no detail" gets its own history entry,
+    // so Back closes it; switching stations while one is open replaces — §4.
+    if (url === 'auto' && !(history.state && history.state.mcoDetail)) writeUrl({ push: true });
+    else if (url !== 'none') writeUrl();
     if (fly) {
       // Camera animation gated on the LIVE reduced-motion flag — §5.3
       map.flyTo({ center: [s.longitude, s.latitude], zoom: Math.max(map.getZoom(), 8),
                   animate: !MCO.reducedMotion() });
     }
-    pushState();
   }
 
-  function closeCard() {
+  // fromHistory: Back/Forward already moved the URL; just reflect it.
+  function closeCard({ fromHistory = false } = {}) {
     if (card.hidden) return;
     card.hidden = true;
     selectedId = null;
@@ -231,9 +247,14 @@
       map.setFilter('stations-selected', ['==', ['get', 'id'], '']);
     if (_cardOpener && _cardOpener.focus) _cardOpener.focus();  // restore — §5.12
     _cardOpener = null;
-    pushState();
+    live.announce('Station closed.');
+    if (fromHistory) return;
+    // Our own pushed entry: step back off it rather than leave a dead entry
+    // that would re-open the card on Back — §4.
+    if (history.state && history.state.mcoDetail) history.back();
+    else writeUrl();
   }
-  document.getElementById('card-close').addEventListener('click', closeCard);
+  document.getElementById('card-close').addEventListener('click', () => closeCard());
   document.addEventListener('keydown', (e) => {
     // Esc is always live (no opt-out needed: it's not a printable-key
     // shortcut, so WCAG 2.1.4 / §5.9 doesn't apply).
@@ -242,18 +263,32 @@
 
   /* ── URL state (§4): mirror every mutation; clean URL at defaults ──────── */
 
-  function pushState() {
+  // replaceUrlState for view adjustments; {push: true} for the drill-down
+  // that opens the station card. Defaults are elided so the default view has
+  // no query string at all.
+  function writeUrl({ push = false } = {}) {
     const p = {};
     if (activeNets.size !== NETS.length) {
       p.net = [...activeNets].map((n) => n.toLowerCase()).join(' ');
     }
     if (selectedId) p.station = selectedId;
     const theme = MCO.getTheme();
-    if (theme) p.theme = theme;
-    Object.assign(p, MCO.map.cameraParams(map));
-    MCO.replaceUrlState(p);
+    if (theme !== MCO.osTheme()) p.theme = theme;
+    Object.assign(p, MCO.map.cameraParamsIfDefault(map));
+    if (push) MCO.pushUrlState(p, { state: { mcoDetail: selectedId } });
+    else MCO.replaceUrlState(p);
   }
-  map.on('moveend', pushState);
+  map.on('moveend', () => writeUrl());
+
+  // Back/Forward: the station param is the only drill-down state — §4.
+  MCO.onUrlState((p) => {
+    const id = p.get('station');
+    if (id && stationById.has(id)) {
+      if (id !== selectedId) openStation(id, { url: 'none' });
+    } else {
+      closeCard({ fromHistory: true });
+    }
+  });
 
   /* ── Network filter chips (§5.7: aria-pressed drives the styling) ──────── */
 
@@ -274,7 +309,7 @@
       MCO.lsSet(LS_NETS, JSON.stringify([...activeNets]));
       if (selectedId && !activeNets.has(stationById.get(selectedId)?.sub_network)) closeCard();
       render();
-      pushState();
+      writeUrl();
     });
   });
 
@@ -286,21 +321,11 @@
 
   /* ── Map pointer interactions ──────────────────────────────────────────── */
 
-  map.on('mousemove', 'stations-dots', (e) => {
-    map.getCanvas().style.cursor = 'pointer';
-    const f = e.features && e.features[0];
-    if (!f) return;
-    tooltip.innerHTML =
-      `<span class="tooltip-name">${MCO.escapeHTML(f.properties.name)}</span>` +
-      `<span class="tooltip-sub">${MCO.escapeHTML(f.properties.id)} · ${MCO.escapeHTML(f.properties.net)}</span>`;
-    // .mco-tooltip is position:fixed — use viewport coordinates.
-    tooltip.style.left = (e.originalEvent.clientX + 14) + 'px';
-    tooltip.style.top = (e.originalEvent.clientY + 14) + 'px';
-    tooltip.classList.add('visible');
-  });
-  map.on('mouseleave', 'stations-dots', () => {
-    map.getCanvas().style.cursor = '';
-    tooltip.classList.remove('visible');
+  // Hover decoration; the same facts reach AT through the sr-table — §5.8
+  MCO.map.initCursorTooltip(map, {
+    element: tooltip,
+    layers: ['stations-dots'],
+    render: (f) => ({ name: f.properties.name, sub: `${f.properties.id} · ${f.properties.net}` }),
   });
   map.on('click', 'stations-dots', (e) => {
     const f = e.features && e.features[0];
@@ -319,9 +344,8 @@
     iconSun: document.getElementById('icon-sun'),
     iconMoon: document.getElementById('icon-moon'),
     onChange: () => {
-      map.setStyle(MCO.map.cartoStyleUrl());
-      map.once('style.load', () => { addCustomLayers(); render(); });
-      pushState();
+      map.setStyle(MCO.map.cartoStyleUrl());   // style.load re-adds the layers
+      writeUrl();
     },
   });
 
@@ -398,7 +422,7 @@
 
       // Deep-linked station — validated against real data before use (§4).
       if (selectedId && stationById.has(selectedId)) {
-        openStation(selectedId, { fly: !params.has('lng') });
+        openStation(selectedId, { fly: !params.has('lng'), url: 'replace' });
       } else {
         selectedId = null;
       }
@@ -409,8 +433,17 @@
     });
   }
 
+  // Every style load (theme switch, basemap retry, blank fallback) starts
+  // from a bare style, so the custom layers go back on each time — §4, §7.
+  map.on('style.load', () => {
+    if (stations.length) { addCustomLayers(); render(); }
+  });
   map.on('load', () => {
     zoomFloor.refresh();
     loadAll();
   });
-})();
+}, function () {
+  const noteEl = document.getElementById('app-note');
+  noteEl.hidden = false;
+  noteEl.textContent = 'The map library failed to load. Check your connection and reload.';
+});
