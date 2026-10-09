@@ -78,6 +78,10 @@
     .demo-ramp { display: flex; height: 14px; border-radius: var(--radius-sm); overflow: hidden; }
     .demo-ramp span { flex: 1; }
     .demo-drawer-text { font-size: var(--fs-base); color: var(--text-secondary); margin-bottom: var(--space-4); }
+    .demo-hero { display: flex; align-items: baseline; gap: var(--space-3); }
+    .demo-hero-val { font-size: var(--fs-2xl); color: var(--text-primary); }
+    .demo-hero-unit { font-size: var(--fs-sm); color: var(--text-muted); }
+    .demo-hero-mono { font-family: var(--font-mono); }
     .demo-peek { font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
     .demo-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
@@ -326,6 +330,11 @@
             <a class="nav-btn" href="#card-views" data-view="ag">Ag</a>
             <a class="nav-btn" href="#card-views" data-view="data">Data</a>
           </nav>
+          <!-- Display-size readings (0.10.0): Outfit with tabular figures. -->
+          <div class="demo-hero">
+            <span class="mco-num-display demo-hero-val">847.0</span>
+            <span class="demo-hero-unit">W/m² · <span class="demo-hero-mono">acebozem</span></span>
+          </div>
         </div>
       </section>
       <section class="mco-card" aria-labelledby="card-palette-title">

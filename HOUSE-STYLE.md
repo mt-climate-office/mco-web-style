@@ -81,7 +81,12 @@ sweep — see its CONSUMERS.md row.
 
 **Typography.** `--font-ui` — **Outfit** (400/500/600/700) for UI text.
 `--font-mono` — **Space Mono** for numerals, station IDs, timestamps, scale
-labels, `<kbd>`. Kit-hosted in `fonts/` and declared by `mco-theme.css` with
+labels, `<kbd>`. **One exception (0.10.0): display-size readings**, the hero
+and tile values at ≥ 1.75 rem, use `.mco-num-display` (`--font-display-num`:
+Outfit with tabular figures and slightly tightened tracking). Space Mono's
+monospaced advance spreads big digits ("8 4 7 . 0") and reads as a terminal.
+Tabular figures keep the digits from jittering as a value ticks. Below the
+threshold every numeral stays mono. Kit-hosted in `fonts/` and declared by `mco-theme.css` with
 `font-display: block`; pages preload the two latin files (`snippets/head.html`)
 so the first frame is already in Outfit — no system-font flash, no swap. The tokens
 carry system fallbacks. Don't add other families — the drought dashboard's Inter

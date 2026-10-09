@@ -132,6 +132,10 @@
 :root {
   --font-ui:        'Outfit', 'Outfit Fallback', system-ui, -apple-system, sans-serif;
   --font-mono:      'Space Mono', 'Space Mono Fallback', ui-monospace, monospace;
+  /* Display-size readings (≥ 1.75rem hero and tile values, 0.10.0): Outfit,
+     with tabular figures from .mco-num-display. Space Mono stays for every
+     other numeral (tables, IDs, timestamps, axes, scale labels, <kbd>). */
+  --font-display-num: 'Outfit', 'Outfit Fallback', system-ui, -apple-system, sans-serif;
 
   --bg-deep:        #161b22;
   --bg-surface:     #1e2530;
@@ -358,6 +362,18 @@ body {
   font-weight: 600; font-size: 0.85rem; text-decoration: none;
 }
 .mco-skip-link:focus { top: 0.5rem; }
+
+/* Display numerals (0.10.0, #36): a hero reading in Outfit with tabular
+   figures, so digits keep their column as values tick (the hosted subset
+   carries tnum) without Space Mono's terminal spacing at 2–4rem. Size is
+   the app's (≥ 1.75rem; --fs-2xl is 2rem). Below that, numerals stay mono. */
+.mco-num-display {
+  font-family: var(--font-display-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--lh-tight);
+}
 
 /* ── 4. MapLibre control polish ───────────────────────────────────────────
    Glass treatment for the vendor controls so they read as part of the app
