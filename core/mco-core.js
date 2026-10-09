@@ -1009,8 +1009,11 @@
       roots = [];
       if (blocks) { _blocking--; blocks = false; }
       if (!o || o.restoreFocus !== false) {
-        var back = opener && opener.isConnected && !opener.inert ? opener
-          : (opts.fallbackFocus || document.getElementById('main'));
+        // <body> (a deep-link or programmatic open) and a now-hidden opener
+        // (the sheet grip) can't take focus usefully: use the fallback (0.11.3).
+        var usable = opener && opener !== document.body && opener.isConnected && !opener.inert &&
+          opener.getClientRects().length > 0;
+        var back = usable ? opener : (opts.fallbackFocus || document.getElementById('main'));
         if (back && back.focus) back.focus({ preventScroll: true });
       }
       opener = null;
@@ -1061,7 +1064,8 @@
          drawer: el, toggle: btn, scrim: scrimEl,   // scrim optional
          modal: 'compact',     // 'always' | 'compact' (off-canvas on compact, a docked
                                // column otherwise) | 'never' (off-canvas, non-modal)
-         inertRoots: null,     // default: everything beside the drawer's ancestor chain
+         inertRoots: null,     // default: everything beside the drawer's ancestor chain;
+                               // an array, or a function called each time (0.11.3)
          initialFocus: null,   // default: first focusable inside
          onChange: function (open, docked) { map.resize(); },
        });
@@ -1087,6 +1091,7 @@
     function modalNow() { return mode === 'always' || (mode === 'compact' && MCO.viewport.isCompact()); }
     function inertRoots() {
       if (!modalNow()) return [];
+      if (typeof opts.inertRoots === 'function') return opts.inertRoots();
       return opts.inertRoots || MCO.overlay.siblingsOf(drawer, [scrim, toggle && mode === 'never' ? toggle : null]);
     }
     var ov = MCO.overlay({
@@ -1158,6 +1163,12 @@
     if (scrim) scrim.addEventListener('click', onScrim);
     var unsub = MCO.viewport.onChange(applyMode);
     applyMode();
+    // A page that loads already off-canvas never flips docked state, so the
+    // markup's drawer stayed visible to Tab until first opened (0.11.3).
+    if (!docked && !openState) {
+      drawer.hidden = true;
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    }
 
     return {
       open: open, close: close, toggle: toggleIt,
@@ -1269,7 +1280,10 @@
          dismissible: true,    // drag below peek / Esc closes
          publishMetric: true,  // --sheet-h on <html> (MCO.metrics) while bottom-docked
          inertRoots: null,     // made inert in the FULL detent on compact (modal there);
-                               // default: everything beside the sheet's ancestor chain
+                               // default: everything beside the sheet's ancestor chain.
+                               // An array, or (0.11.3) a function called each time. To
+                               // keep a <dialog> the sheet opens usable (a lightbox):
+                               //   () => MCO.overlay.siblingsOf(el, [lightboxDialog])
          onState: function (state) {},   // 'closed' | 'peek' | 'full'
        });
        sheet.open('peek', { opener: dotButton });   // → {open, close, setState, state, destroy}
@@ -1298,6 +1312,7 @@
     function bottomDocked() { return MCO.viewport.isCompact(); }
     function inertRoots() {
       if (!(bottomDocked() && state === 'full')) return [];
+      if (typeof opts.inertRoots === 'function') return opts.inertRoots();
       return opts.inertRoots || MCO.overlay.siblingsOf(sheet);
     }
     var ov = MCO.overlay({
@@ -1543,7 +1558,12 @@
         var tick = function () { if (btn.disabled) { stop(); return; } step(d); holdTimer = setTimeout(tick, 80); };
         holdTimer = setTimeout(tick, 400);
       });
-      ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { btn.addEventListener(ev, stop); });
+      btn.addEventListener('pointerup', stop);
+      // A press dragged off the button never clicks: clear the hold flag, or
+      // the next keyboard activation is swallowed as its click (0.11.3).
+      ['pointerleave', 'pointercancel'].forEach(function (ev) {
+        btn.addEventListener(ev, function () { stop(); held = false; });
+      });
     }
     wire(opts.prev, -1);
     wire(opts.next, 1);

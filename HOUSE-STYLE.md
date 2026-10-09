@@ -98,7 +98,11 @@ writes `og:site_name` as the long family alone.
 
 **Head assets** (decided 2026-10-08): favicons and the social card's
 `og-card.png` are **hot-linked from the pinned kit tag**, so they version with
-the kit and can't drift. The navbar logo stays vendored. The canonical URL is
+the kit and can't drift. **One exception (2026-10-09):** an app with its own
+live preview bot (`preview.yml`, a nightly screenshot of the live map:
+status, maintenance, umrb, photos) keeps that image as `og:image`. A real
+map beats the generic card. The kit card is the default for every app
+without one. The navbar logo stays vendored. The canonical URL is
 the production host, never github.io.
 
 Target titles per app live in CONSUMERS.md; apply on migration.
@@ -309,8 +313,17 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   fallback via `MCO.initSegmentedFallback` (0.9.0; the photo explorer
   pattern). Single-choice groups are `.seg-btns.is-radio` radio fieldsets,
   which give arrow keys and one Tab stop for free. **Breakpoints come from the
-  ladder only.** A bar that needs 1200 or 1280 sheds at 1060 and uses the
-  fallback. **Short labels must be contained in the accessible name** (WCAG
+  ladder only.** A bar that needs 1200 or 1280 sheds at a ladder rung, never
+  at its own number.
+  - **When one row can't fit at 1060, shed at 1400** (decided 2026-10-09):
+    segmented → select, search narrowed, `.refresh-status` to its dot. The
+    bar must be one row from 1061 to 1440. status (~1185 px), umrb (~1200)
+    and maintenance (~1290) all shed there.
+  - **Focus across the fallback** works only if the kit's `[hidden]` is what
+    hides the losing side. An app rule that also hides the wrapper at that
+    breakpoint makes Chromium drop focus before the kit can move it.
+
+  **Short labels must be contained in the accessible name** (WCAG
   2.5.3): "Now" can't be the visible label of a button named "Latest", and
   "NS" can't stand for "North Sky" unless the name starts with it.
   **No ARIA tablists:** every in-family "tab" so far is either navigation
