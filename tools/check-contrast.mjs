@@ -14,6 +14,7 @@
    Only hex tokens participate; rgba()/gradients are out of scope here.
    Zero dependencies. */
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -65,8 +66,60 @@ for (const [themeName, tokens] of Object.entries(json.themes)) {
   }
 }
 
+/* Data palettes (0.9.0): palette/mco-palette.js, loaded as the classic script
+   it is (a vm context with a bare `window`). Gates:
+     - every sequential ramp's span(name, theme): 9 samples ≥ 3:1 on that
+       theme's --bg-surface (marks, WCAG 1.4.11)
+     - diverging/cyclic ramps have no mark span (fills only) and diverging
+       ones carry a midpoint the legend must label (§6)
+     - NETWORK colors ≥ 3:1 on --bg-deep AND --bg-surface per theme
+     - categorical() sets ≥ 3:1 on --bg-surface per theme
+     - batlow is OKLab-lightness-monotonic; Spectral is absent
+     - the palette's SURFACE copies match tokens.json */
+const ctx = { window: {} };
+vm.createContext(ctx);
+vm.runInContext(readFileSync(join(root, 'palette/mco-palette.js'), 'utf8'), ctx, { filename: 'mco-palette.js' });
+const P = ctx.window.MCO.palette;
+const THEME_KEY = { dark: 'dark', light: 'light', 'high-contrast': 'highContrast' };
+let rampChecks = 0;
+for (const theme of P.THEMES) {
+  const tokens = json.themes[THEME_KEY[theme]];
+  const surface = tokens['--bg-surface'], deep = tokens['--bg-deep'];
+  if (P.SURFACE[theme] !== surface) errors.push(`palette: SURFACE.${theme} ${P.SURFACE[theme]} ≠ tokens.json --bg-surface ${surface}`);
+  for (const [name, ramp] of Object.entries(P.RAMPS)) {
+    if (ramp.kind === 'sequential') {
+      const span = P.span(name, theme);
+      if (!span) { errors.push(`palette: ${name} has no ${theme} span`); continue; }
+      for (const c of P.sample(name, 9, span)) {
+        rampChecks++;
+        const r = P.contrast(c, surface);
+        if (r < 3) errors.push(`palette: ${name} span [${span}] in ${theme}: ${c} = ${r.toFixed(2)}:1 on ${surface}, needs ≥ 3:1`);
+      }
+    } else if (ramp.kind === 'diverging' || ramp.kind === 'cyclic') {
+      rampChecks++;
+      if (P.span(name, theme) !== null) errors.push(`palette: ${ramp.kind} ${name} must not offer a mark span`);
+      if (ramp.kind === 'diverging' && typeof ramp.midpoint !== 'number') errors.push(`palette: diverging ${name} lacks a midpoint`);
+    }
+  }
+  for (const [k, n] of Object.entries(P.NETWORK[theme])) {
+    for (const [label, bg] of [['--bg-deep', deep], ['--bg-surface', surface]]) {
+      rampChecks++;
+      const r = P.contrast(n.color, bg);
+      if (r < 3) errors.push(`palette: NETWORK ${k} ${n.color} in ${theme} = ${r.toFixed(2)}:1 on ${label}, needs ≥ 3:1`);
+    }
+  }
+  for (const c of new Set(P.categorical(20, theme))) {
+    rampChecks++;
+    const r = P.contrast(c, surface);
+    if (r < 3) errors.push(`palette: categorical ${c} in ${theme} = ${r.toFixed(2)}:1, needs ≥ 3:1`);
+  }
+}
+const L = P.sample('batlow', 32).map((c) => P.toOklab(c)[0]);
+if (L.some((v, i) => i > 0 && v <= L[i - 1])) errors.push('palette: batlow is not lightness-monotonic');
+if (Object.keys(P.RAMPS).some((k) => /spectral/i.test(k)) || !P.isBanned('Spectral')) errors.push('palette: Spectral must be absent and banned');
+
 if (errors.length) {
   console.error(`check-contrast: ${errors.length} failure(s)\n  - ` + errors.join('\n  - '));
   process.exit(1);
 }
-console.log(`check-contrast: OK (${checked} pairs across ${Object.keys(json.themes).length} themes)`);
+console.log(`check-contrast: OK (${checked} token pairs across ${Object.keys(json.themes).length} themes; ${rampChecks} palette checks)`);
