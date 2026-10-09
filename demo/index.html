@@ -65,6 +65,8 @@
     .swatch .val  { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); overflow-wrap: anywhere; }
     .demo-stack { display: grid; gap: 0.5rem; }
     .demo-row-after { margin-top: 0.8rem; }
+    .demo-drawer-text { font-size: var(--fs-base); color: var(--text-secondary); margin-bottom: var(--space-4); }
+    .demo-peek { font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
     .demo-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     #map { width: 100%; height: 100%; }
@@ -253,6 +255,18 @@
   </section>
 
   <section class="demo-section">
+    <h2>Drawer &amp; sheet</h2>
+    <p><code>MCO.initDrawer</code>: a labelled <code>&lt;aside&gt;</code> that makes the rest of the page
+       inert while open (Tab can only cycle inside), closes on Esc / × / scrim, and returns focus.
+       <code>MCO.initSheet</code>: docks at the end edge here, at the bottom with peek/full detents on a
+       phone. The grip is the keyboard twin of the drag. Both sit on <code>MCO.overlay</code>.</p>
+    <div class="demo-row">
+      <button type="button" class="nav-btn" id="btn-drawer" aria-expanded="false" aria-controls="demo-drawer">Open drawer</button>
+      <button type="button" class="nav-btn" id="btn-sheet">Open sheet</button>
+    </div>
+  </section>
+
+  <section class="demo-section">
     <h2>Tooltip</h2>
     <p>The pointer-following <code>.mco-tooltip</code>. It is <code>aria-hidden</code> — hover-only
        content must also reach assistive tech another way (live region, popup, or table twin).</p>
@@ -272,6 +286,34 @@
 </main>
 
 <div class="mco-tooltip" id="tooltip" aria-hidden="true"></div>
+
+<aside class="mco-drawer" id="demo-drawer" aria-labelledby="demo-drawer-title" hidden>
+  <div class="mco-drawer-head">
+    <h2 class="mco-panel-title" id="demo-drawer-title">Filters (demo)</h2>
+    <button type="button" class="modal-close" data-close-drawer aria-label="Close filters">×</button>
+  </div>
+  <div class="mco-drawer-body">
+    <p class="demo-drawer-text">Everything behind this drawer is <code>inert</code>. Press Esc, the ×, or the scrim.</p>
+    <button type="button" class="nav-btn" id="drawer-action">A control inside</button>
+  </div>
+</aside>
+<div class="mco-scrim" id="demo-scrim" aria-hidden="true" hidden></div>
+
+<section class="mco-sheet" id="demo-sheet" aria-labelledby="demo-sheet-title" data-state="closed" hidden>
+  <div class="mco-sheet-head">
+    <button type="button" class="mco-sheet-grip" aria-label="Expand details" aria-expanded="false"></button>
+    <h2 class="mco-sheet-title" id="demo-sheet-title" tabindex="-1">Bozeman (demo)</h2>
+    <button type="button" class="modal-close" data-close-sheet aria-label="Close details">×</button>
+  </div>
+  <div class="mco-sheet-body">
+    <p class="demo-peek" data-peek>42.0 °F · updated 10:15 MT</p>
+    <dl class="mco-facts">
+      <div><dt>Network</dt><dd>HydroMet</dd></div>
+      <div><dt>Elevation</dt><dd>1,495 m</dd></div>
+      <div><dt>County</dt><dd>Gallatin</dd></div>
+    </dl>
+  </div>
+</section>
 
 <dialog class="mco-modal" id="info-modal" aria-labelledby="info-modal-title">
   <div class="info-modal-box">
@@ -319,6 +361,20 @@
   const live = { announce: (t) => MCO.announce(t) };   // the page's one announcer
   document.getElementById('btn-toast').addEventListener('click', () => {
     MCO.showToast('Toast: styled by .mco-toast, announced politely.');
+  });
+
+  /* ── Drawer + sheet ──────────────────────────────────────────────────── */
+  document.documentElement.classList.add('mco-autolift');   // toast clears the sheet
+  MCO.initDrawer({
+    drawer: document.getElementById('demo-drawer'),
+    toggle: document.getElementById('btn-drawer'),
+    scrim: document.getElementById('demo-scrim'),
+    modal: 'always',
+  });
+  const sheet = MCO.initSheet({ sheet: document.getElementById('demo-sheet') });
+  document.getElementById('btn-sheet').addEventListener('click', (e) => {
+    sheet.open('peek', { opener: e.currentTarget });
+    MCO.announce('Bozeman opened.');
   });
 
   /* ── Notice ──────────────────────────────────────────────────────────── */

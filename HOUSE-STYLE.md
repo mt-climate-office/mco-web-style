@@ -201,10 +201,33 @@ two places (CSS §6 comment and `MCO.viewport.COMPACT_MQ`) and they must stay in
 sync. Compact drives JS decisions: bottom sheet instead of anchored popup,
 panel auto-collapse, control relocation into a drawer.
 
-**Mobile patterns** (reference implementations in mesonet-explorer):
-- Off-canvas drawer + `.mco-scrim`, panel at `--z-drawer`.
-- Bottom sheet for detail panels on compact — peek state, drag-up, and it must
-  lift bottom-corner map controls and the toast (`--sheet-h` custom property).
+**Which overlay is which** (0.9.0). Every non-dialog overlay is built on
+`MCO.overlay`, so the family shares one focus rule and one Esc order:
+
+| Surface | Kit | Modal? | Esc order |
+|---|---|---|---|
+| Info, gallery, lightbox | native `<dialog>` + `MCO.initInfoModal` | yes (top layer) | always first |
+| Flyout: search list, menu | `MCO.initSearchBox` | no | 2 |
+| Bottom sheet, full detent (compact) | `MCO.initSheet` | yes: rest of page inert | 3 |
+| Off-canvas drawer | `MCO.initDrawer` (`.mco-drawer`) | yes on compact: rest inert | 4 |
+| Sheet at peek / end-docked | `MCO.initSheet` | no; the map stays usable | 5 |
+| Map popup | `MCO.map.popupContent` | no | 6 |
+| Cursor tooltip | `MCO.map.initCursorTooltip` | decoration (`aria-hidden`) | n/a |
+
+Open moves focus in, and close returns it to the opener (or `#main` if the
+opener is gone). A drawer is a labelled `<aside>`, not `role=dialog`: while
+modal-open it makes everything else `inert`, so no focus trap is needed. Inert
+roots are reference-counted, and live regions and the toast are never inerted.
+Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
+
+**Mobile patterns** (kit components since 0.9.0, after mesonet-explorer):
+- Off-canvas drawer: `.mco-drawer` + `MCO.initDrawer({modal: 'compact'})`,
+  off-canvas with `.mco-scrim` on compact and a docked column above it.
+- Bottom sheet for detail panels: `.mco-sheet` + `MCO.initSheet`, with peek
+  and full detents, drag on the head, and the grip button as the keyboard
+  twin. It publishes `--sheet-h`. With `html.mco-autolift` the toast and
+  MapLibre's bottom corners clear it (opt-in until 1.0.0). On compact,
+  status, maint and umrb open this instead of the anchored popup.
 - Full-viewport apps use `100dvh` (never `100vh`) and `overflow: hidden` on body.
 - **`viewport-fit=cover` is required** for the safe-area insets in the kit CSS
   to be live — without the meta, `env()` silently resolves to 0 (two apps

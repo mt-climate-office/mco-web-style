@@ -933,6 +933,108 @@ body {
 }
 .mco-scrim[data-scope="container"] { position: absolute; }
 
+/* Off-canvas drawer (0.9.0) — MCO.initDrawer. A labelled <aside> on the
+   --z-drawer tier, sliding in from data-side (start | end). [hidden] after the
+   slide-out, so nothing off-screen stays tabbable. data-scope="container"
+   keeps it inside a positioned frame (with a scoped scrim) so the navbar
+   stays live; data-docked (set by modal: 'compact' above compact) turns it
+   into a plain column in flow. */
+.mco-drawer {
+  position: fixed; top: 0; bottom: 0; left: 0;
+  width: min(var(--drawer-w, 320px), 88vw);
+  display: flex; flex-direction: column;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  z-index: var(--z-drawer);
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+  transform: translateX(-100%);
+  transition: transform var(--transition);
+}
+.mco-drawer[data-side="end"] { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--border); transform: translateX(100%); }
+.mco-drawer[data-scope="container"] { position: absolute; }
+.mco-drawer.is-open { transform: none; }
+.mco-drawer[data-docked] {
+  position: static; transform: none; box-shadow: none;
+  width: var(--drawer-w, 320px); flex-shrink: 0; z-index: auto;
+  padding-top: 0; transition: none;
+}
+.mco-drawer[data-docked] [data-close-drawer] { display: none; }
+.mco-drawer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) max(var(--space-4), env(safe-area-inset-left));
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.mco-drawer-body {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-4) var(--space-4) max(var(--space-4), env(safe-area-inset-left));
+}
+.mco-drawer[data-side="end"] .mco-drawer-head,
+.mco-drawer[data-side="end"] .mco-drawer-body { padding-right: max(var(--space-4), env(safe-area-inset-right)); }
+
+/* Bottom sheet (0.9.0) — MCO.initSheet, after mesonet-explorer's panel. Docks
+   at the end edge (full height under the chrome) above compact, and at the
+   bottom with peek/full detents on compact. --z-detail: under the drawer and
+   the chrome, over the map controls. Heights are 100dvh math. */
+.mco-sheet {
+  position: fixed; z-index: var(--z-detail);
+  top: var(--chrome-h, 0px); bottom: 0; right: 0;
+  width: min(var(--sheet-w, 360px), 40vw);
+  display: flex; flex-direction: column;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: none;
+  transition: transform 0.22s cubic-bezier(0.4,0,0.2,1), max-height 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+.mco-sheet.is-entering, .mco-sheet.is-leaving { transform: translateX(100%); }
+.mco-sheet-head {
+  position: relative; flex-shrink: 0;
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 48px; padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.mco-sheet-title { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); color: var(--text-primary); }
+.mco-sheet-title:focus { outline: none; }          /* programmatic focus target; never reached by Tab */
+.mco-sheet-grip { display: none; }
+.mco-sheet-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right)) var(--space-4) var(--space-4);
+}
+.is-compact .mco-sheet {
+  top: auto; left: 0; right: 0; bottom: 0; width: auto;
+  max-height: calc((100dvh - var(--chrome-h, 0px)) * 0.85);
+  border-left: 0; border-top: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.is-compact .mco-sheet.is-entering, .is-compact .mco-sheet.is-leaving { transform: translateY(100%); }
+.is-compact .mco-sheet[data-state="peek"] { max-height: var(--sheet-peek-h, 180px); }
+.is-compact .mco-sheet[data-state="peek"] .mco-sheet-body { overflow: hidden; }
+.is-compact .mco-sheet-head { touch-action: none; cursor: grab; padding-top: 18px; }
+/* The grip: a visible 40×4 bar inside a 44×24+ button — the keyboard and
+   tap twin of the drag. */
+.is-compact .mco-sheet-grip {
+  display: block; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 64px; height: 24px; min-height: 0; padding: 0;
+  background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+}
+.is-compact .mco-sheet-grip::before {
+  content: ''; position: absolute; left: 12px; right: 12px; top: 10px; height: 4px;
+  border-radius: 999px; background: var(--ctrl-border);
+}
+@media (hover: none) { .is-compact .mco-sheet-grip { width: 88px; height: 44px; top: -10px; } .is-compact .mco-sheet-grip::before { top: 20px; left: 24px; right: 24px; } }
+
+/* Overlay metrics + auto-lift (0.9.0). --chrome-h / --sheet-h / --tabbar-h
+   are written on <html> by MCO.metrics (the sheet publishes its own). Lifting
+   the toast and MapLibre's bottom corners is opt-in via html.mco-autolift
+   until 1.0.0 — the toast's position is an observable default. */
+:root { --chrome-h: 0px; --sheet-h: 0px; --tabbar-h: 0px; --overlay-bottom: calc(var(--sheet-h) + var(--tabbar-h)); }
+html { scroll-padding-top: var(--chrome-h); }
+html.mco-autolift .mco-toast { bottom: calc(1.5rem + var(--overlay-bottom) + env(safe-area-inset-bottom)); }
+html.mco-autolift .maplibregl-ctrl-bottom-left,
+html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 * var(--overlay-bottom))); transition: transform var(--transition); }
+
 /* ── 6. Responsive & touch ────────────────────────────────────────────────
    Breakpoint ladder (HOUSE-STYLE.md §3): 1400 shed button labels · 1060
    tighten chrome · 750 collapse the brand to the badge · 640 compact. "Compact" also has
