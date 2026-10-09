@@ -120,6 +120,14 @@ Hard-won rules encoded here:
   takes a data palette under §6, never a status token. Tone never stands
   alone. Always pair it with a word ("Error", "Warning") or an icon.
 
+**Type & spacing scale** (0.9.0). Font sizes come from `--fs-2xs` … `--fs-2xl`
+(0.55 → 2rem: subtitle, meta, captions, buttons, prose, titles, stat readouts,
+hero numbers), line heights from `--lh-tight` / `--lh-body`, weights from
+`--fw-regular` … `--fw-bold`, and padding and gaps from `--space-1` …
+`--space-7` (0.25 → 2rem, with `--space-2` = 0.4rem, the house rhythm). New app
+CSS uses them instead of literal rems. They are theme-invariant, so they live
+in `:root` only. The kit's own rules adopt them in 1.0.0.
+
 **Theming.** Three themes: `dark` (default), `light`, `high-contrast`, switched
 by `data-theme` on `<html>`. The high-contrast theme is a first-class citizen
 (promoted from the drought dashboard): pure-black surfaces, brightened accent,

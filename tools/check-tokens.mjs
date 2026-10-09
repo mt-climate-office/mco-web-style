@@ -43,8 +43,9 @@ const hc = blocks('[data-theme="high-contrast"]');
 
 const dark = {};
 const zIndex = {};
+const scale = {};   // theme-invariant type/spacing scale (0.9.0)
 for (const [k, v] of Object.entries(rootProps)) {
-  (k.startsWith('--z-') ? zIndex : dark)[k] = v;
+  (k.startsWith('--z-') ? zIndex : /^--(fs|lh|fw|space)-/.test(k) ? scale : dark)[k] = v;
 }
 
 const REQUIRED = [
@@ -85,6 +86,11 @@ compare('dark', dark, json.themes?.dark);
 compare('light', light, json.themes?.light);
 compare('highContrast', hc, json.themes?.highContrast);
 compare('zIndex', zIndex, json.zIndex);
+compare('scale', scale, json.scale);
+// Scale tokens are theme-invariant: a theme block that redefines one is a bug.
+for (const [label, map] of [['light', light], ['high-contrast', hc]]) {
+  for (const k of Object.keys(map)) if (/^--(fs|lh|fw|space)-/.test(k)) errors.push(`${k} is theme-invariant but redefined in ${label}`);
+}
 
 // 4: required tokens everywhere.
 for (const k of REQUIRED) {
@@ -98,4 +104,4 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(`check-tokens: OK (${Object.keys(dark).length} dark tokens, ` +
-  `${lightKeys.length} themed, ${Object.keys(zIndex).length} z-index tiers)`);
+  `${lightKeys.length} themed, ${Object.keys(zIndex).length} z-index tiers, ${Object.keys(scale).length} scale steps)`);
