@@ -1260,6 +1260,167 @@
     };
   };
 
+  /* ── Loading (0.9.0) ───────────────────────────────────────────────────────
+     var load = MCO.loading(mapWrap, { label: 'Loading stations', place: 'over' });
+     load.start();  … load.done();  or  load.fail('Station data failed to load.', { retry: boot });
+     - aria-busy on the container while loading.
+     - The .mco-progress bar appears only after 300 ms, so a fast load never
+       flashes it. The container must be positioned (the bar pins to its top).
+     - Starting is never announced (noise). A load past 8 s announces "Still
+       loading…" once; fail() announces through its danger notice, with a
+       Retry button when you pass retry. */
+  MCO.loading = function (container, opts) {
+    opts = opts || {};
+    var label = opts.label || 'Loading';
+    var bar = document.createElement('div');
+    bar.className = 'mco-progress';
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-label', label);
+    bar.hidden = true;
+    container.appendChild(bar);
+    var showTimer = null, slowTimer = null, notice = null;
+    function clear() { clearTimeout(showTimer); clearTimeout(slowTimer); bar.hidden = true; container.removeAttribute('aria-busy'); }
+    return {
+      element: bar,
+      start: function () {
+        clear();
+        if (notice) { notice.close(); notice = null; }
+        container.setAttribute('aria-busy', 'true');
+        showTimer = setTimeout(function () { bar.hidden = false; }, opts.delayMs != null ? opts.delayMs : 300);
+        slowTimer = setTimeout(function () { MCO.announce('Still loading. ' + label + '…'); }, opts.slowMs || 8000);
+      },
+      progress: function (pct) {
+        bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+        bar.style.setProperty('--progress', String(Math.max(0, Math.min(100, pct))));
+      },
+      done: function () { clear(); if (notice) { notice.close(); notice = null; } },
+      fail: function (msg, o) {
+        clear();
+        var retry = o && o.retry;
+        notice = MCO.notice({
+          tone: 'danger', text: msg, container: container, place: opts.place,
+          action: retry ? { label: 'Retry', onClick: function () { notice.close(); notice = null; retry(); } } : null,
+        });
+        return notice;
+      },
+    };
+  };
+
+  /* ── Stepper (0.9.0) ───────────────────────────────────────────────────────
+     Prev/next buttons for a date or hour:
+       var step = MCO.initStepper({ prev, next,
+         onStep: function (d) { date = MCO.shiftDate(date, d); render(); },
+         canStep: function (d) { return d < 0 ? date > MIN : date < MAX; } });
+     Click and Enter/Space step once; a held pointer repeats (400 ms, then
+     every 80 ms — a steady rate, no acceleration). Buttons are disabled at
+     the bounds (refresh() after outside changes). Pair with a role=status
+     readout of the new value. Buttons: .nav-btn.mco-step. */
+  MCO.initStepper = function (opts) {
+    var canStep = opts.canStep || function () { return true; };
+    var repeat = opts.repeat !== false;
+    var holdTimer = null, held = false;
+    function refresh() {
+      if (opts.prev) opts.prev.disabled = !canStep(-1);
+      if (opts.next) opts.next.disabled = !canStep(1);
+    }
+    function step(d) {
+      if (!canStep(d)) { stop(); return; }
+      opts.onStep(d);
+      refresh();
+    }
+    function stop() { clearTimeout(holdTimer); holdTimer = null; }
+    function wire(btn, d) {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        if (held) { held = false; return; }   // the pointer hold already stepped
+        step(d);
+      });
+      if (!repeat) return;
+      btn.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0 || btn.disabled) return;
+        held = true;
+        step(d);
+        var tick = function () { if (btn.disabled) { stop(); return; } step(d); holdTimer = setTimeout(tick, 80); };
+        holdTimer = setTimeout(tick, 400);
+      });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { btn.addEventListener(ev, stop); });
+    }
+    wire(opts.prev, -1);
+    wire(opts.next, 1);
+    refresh();
+    return { refresh: refresh };
+  };
+
+  // Chips and other multi-selects: a copy of arr with v added or removed.
+  MCO.toggleIn = function (arr, v) {
+    var i = arr.indexOf(v);
+    return i === -1 ? arr.concat([v]) : arr.slice(0, i).concat(arr.slice(i + 1));
+  };
+
+  /* ── Segmented fallback (0.9.0) ────────────────────────────────────────────
+     A segmented group that doesn't fit below 1060px becomes a <select>
+     (photo explorer's pattern), with one source of truth:
+       MCO.initSegmentedFallback({ group, select, onChange: function (v) {} });
+     group: a .seg-btns.is-radio fieldset (radios) or .seg-btns of
+     [data-value][aria-pressed] buttons. Each mirrors the other, [hidden] goes
+     on whichever isn't in use, and focus moves across when a breakpoint flip
+     hides the focused one. Breakpoints come from the ladder only (§3).
+     Returns {value, set, destroy}. */
+  MCO.initSegmentedFallback = function (opts) {
+    var group = opts.group, select = opts.select;
+    var mq = window.matchMedia(opts.mq || '(max-width: 1060px)');
+    function radios() { return Array.prototype.slice.call(group.querySelectorAll('input[type="radio"]')); }
+    function buttons() { return Array.prototype.slice.call(group.querySelectorAll('[data-value]')); }
+    function value() {
+      var r = radios().filter(function (x) { return x.checked; })[0];
+      if (r) return r.value;
+      var b = buttons().filter(function (x) { return x.getAttribute('aria-pressed') === 'true'; })[0];
+      return b ? b.dataset.value : select.value;
+    }
+    function set(v, notify) {
+      radios().forEach(function (x) { x.checked = x.value === v; });
+      buttons().forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.value === v)); });
+      select.value = v;
+      if (notify && opts.onChange) opts.onChange(v);
+    }
+    function onGroup(e) {
+      var t = e.target.closest('input[type="radio"], [data-value]');
+      if (!t) return;
+      set(t.value || t.dataset.value, true);
+    }
+    function onSelect() { set(select.value, true); }
+    function layout() {
+      var narrow = mq.matches;
+      var hadFocus = (narrow ? group : select).contains(document.activeElement);
+      group.hidden = narrow;
+      select.hidden = !narrow;
+      if (hadFocus) {
+        if (narrow) select.focus();
+        else {
+          var v = value();
+          var to = radios().filter(function (x) { return x.value === v; })[0] ||
+                   buttons().filter(function (x) { return x.dataset.value === v; })[0];
+          if (to) to.focus();
+        }
+      }
+    }
+    group.addEventListener(radios().length ? 'change' : 'click', onGroup);
+    select.addEventListener('change', onSelect);
+    mq.addEventListener('change', layout);
+    set(value(), false);
+    layout();
+    return {
+      value: value,
+      set: function (v) { set(v, false); },
+      destroy: function () {
+        group.removeEventListener('change', onGroup);
+        group.removeEventListener('click', onGroup);
+        select.removeEventListener('change', onSelect);
+        mq.removeEventListener('change', layout);
+      },
+    };
+  };
+
   /* ── Info modal (native <dialog>) ──────────────────────────────────────────
      Opener-captured focus restore (works with multiple openers), backdrop
      click to close, [data-close-modal] delegation for close buttons. */

@@ -540,6 +540,48 @@ body {
 .seg-btn:last-child  { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-right-width: 1px; }
 .seg-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
 
+/* Radio segmented (0.9.0): a single-choice group as a native radio fieldset —
+   free arrow keys, one Tab stop. Styled exactly like the aria-pressed
+   segmented group:
+     <fieldset class="seg-btns is-radio"><legend class="sr-only">Units</legend>
+       <label class="nav-btn seg-btn"><input type="radio" name="u" value="us" checked>US</label> …
+   The input is unstyled but covers its label, so the universal focus ring
+   lands on it and a click anywhere on the label selects. Corners use
+   :first-of-type / :last-of-type, so the <legend> doesn't throw them off. */
+.seg-btns.is-radio { border: 0; padding: 0; margin: 0; min-width: 0; }
+.seg-btns.is-radio > label.seg-btn { position: relative; display: flex; align-items: center; cursor: pointer; }
+.seg-btns.is-radio > label.seg-btn > input {
+  position: absolute; inset: 0; margin: 0;
+  appearance: none; -webkit-appearance: none;
+  background: none; border: 0; border-radius: inherit; cursor: pointer;
+}
+.seg-btns.is-radio > .seg-btn:first-of-type { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.seg-btns.is-radio > .seg-btn:last-of-type { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-right-width: 1px; }
+.seg-btns.is-radio > label.seg-btn:has(> input:checked) { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
+
+/* Stepper buttons (0.9.0) — MCO.initStepper. Square .nav-btn, 34px (40 on touch). */
+.nav-btn.mco-step { padding: 0.4rem; min-width: 34px; justify-content: center; }
+
+/* Chips (0.9.0): pill toggles in a labelled group; apps own the selection.
+     <div class="mco-chips" role="group" aria-labelledby="net-label">
+       <button class="mco-chip" aria-pressed="true">HydroMet <span class="mco-chip-count">142</span></button>
+   Pressed adds a ✓ (alt text empty), so the state isn't color alone.
+   aria-busy="true" while its count loads. 28px, 40px on touch. */
+.mco-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.mco-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  min-height: 28px; padding: 2px 10px;
+  background: none; border: 1px solid var(--ctrl-border); border-radius: 999px;
+  color: var(--text-secondary); font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium);
+  white-space: nowrap; cursor: pointer; transition: var(--transition);
+}
+.mco-chip:hover { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+.mco-chip[aria-pressed="true"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+.mco-chip[aria-pressed="true"]::before { content: "\2713"; content: "\2713" / ""; font-size: 0.9em; }
+.mco-chip-count { font-family: var(--font-mono); font-size: 0.9em; font-variant-numeric: tabular-nums; }
+.mco-chip[aria-busy="true"] { cursor: progress; }
+.mco-chip[aria-busy="true"] .mco-chip-count { visibility: hidden; }
+
 /* Refresh/liveness status: read-only, deliberately subordinated. Add .static
    when the view isn't live (historical modes) to stop the pulse. */
 .refresh-status {
@@ -577,6 +619,58 @@ body {
   box-shadow: var(--shadow);
 }
 .mco-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Card (0.9.0): the IN-FLOW section shell — chart and table cards, sidebar
+   blocks, sheet sections. .mco-panel is the over-map glass; this sits in the
+   page. Surface background, so the text contract holds (muted/dim are
+   allowed on surface, never raised). Collapsible with MCO.initCollapsible.
+     .mco-card > .mco-card-head (.mco-card-title + .mco-card-actions) + .mco-card-body
+   .is-flush: a body that runs to the edge (tables, charts). .is-glass: panel
+   visuals without the absolute positioning. */
+.mco-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); min-width: 0; }
+.mco-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border);
+}
+.mco-card-title {
+  margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary);
+}
+.mco-card-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.mco-card-body { padding: var(--space-4); }
+.mco-card.is-flush > .mco-card-body { padding: 0; }
+.mco-card.is-glass { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: var(--shadow); }
+/* On glass the surface guarantee is gone: facts labels step up to secondary. */
+.mco-card.is-glass .mco-facts dt, .mco-panel .mco-facts dt { color: var(--text-secondary); }
+
+/* Loading (0.9.0) — MCO.loading. A 3px bar pinned to the top of its
+   (positioned) container on the --z-map-progress tier: an indeterminate
+   sweep, or determinate with aria-valuenow + --progress (0–100). Static
+   under reduced motion. .mco-skeleton blocks are aria-hidden placeholders
+   (.is-block, .is-chart, or --skeleton-h); flat under reduced motion. */
+.mco-progress {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  overflow: hidden; z-index: var(--z-map-progress); pointer-events: none;
+}
+.mco-progress::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 35%;
+  background: var(--accent-line);
+  animation: mco-progress-sweep 1.2s ease-in-out infinite;
+}
+.mco-progress[aria-valuenow]::before { animation: none; width: calc(var(--progress, 0) * 1%); transition: width var(--transition); }
+@keyframes mco-progress-sweep { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+.mco-skeleton {
+  display: block; height: var(--skeleton-h, 0.9em); border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--bg-raised) 0%, var(--border) 50%, var(--bg-raised) 100%) 0 0 / 200% 100%;
+  animation: mco-skeleton-shimmer 1.4s linear infinite;
+}
+.mco-skeleton.is-block { --skeleton-h: 4rem; }
+.mco-skeleton.is-chart { --skeleton-h: 12rem; border-radius: var(--radius-md); }
+@keyframes mco-skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .mco-progress::before { animation: none; width: 100%; opacity: 0.6; }
+  .mco-skeleton { animation: none; background: var(--bg-raised); }
+}
 
 /* Notice (0.8.0): the persistent, actionable twin of the toast — a load
    failure with Retry, a data caveat, an outage. The toast is text-only and
@@ -1112,6 +1206,8 @@ html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 
 /* WCAG 2.5.5 — comfortable touch targets on touch-only devices. */
 @media (hover: none) {
   .nav-btn, .seg-btn { min-height: 40px; }
+  .nav-btn.mco-step { min-width: 40px; }
+  .mco-chip { min-height: 40px; padding: 4px 14px; }
   /* The :has() arm covers label-shed buttons squared by §6; above 1400px the
      label makes them wider than 40px anyway, so it's a no-op there. */
   .nav-btn.icon-only, .mco-navbar .nav-btn:has(> .btn-label) { min-width: 40px; }
@@ -1119,5 +1215,11 @@ html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 
   .modal-close { min-width: 44px; min-height: 44px; }
   .maplibregl-popup-close-button { width: 44px; height: 44px; top: 0; right: 0; }
   .maplibregl-popup-content:has(.maplibregl-popup-close-button) .mco-popup { padding-right: 2.4rem; }
-  .mco-panel-toggle { width: 36px; height: 36px; }
+  /* 40px, not 36 (0.9.0): the verify harness's touch-target audit caught it. */
+  .mco-panel-toggle { width: 40px; height: 40px; }
+  /* MapLibre's own controls are 29px (zoom/fit) and 24px (the compact
+     attribution ⓘ) — under the 40px floor on touch (0.9.0). */
+  .maplibregl-ctrl-group button { width: 40px; height: 40px; }
+  .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 40px; padding-right: 40px; }
+  .maplibregl-ctrl-attrib-button { width: 40px; height: 40px; border-radius: 20px; background-position: center; }
 }
