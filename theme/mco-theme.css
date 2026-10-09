@@ -1286,7 +1286,7 @@ html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 
                  aria-controls="nav-drawer">☰</button>   <!-- + 1–3 hot controls -->
        </div>
        <div class="nav-divider" aria-hidden="true"></div>
-       <div class="mco-nav-drawer" id="nav-drawer" aria-label="Menu">
+       <div class="mco-nav-drawer" id="nav-drawer">
          <!-- display:contents outside rail mode: the bar lays out as before -->
          <div class="brand">…</div> <div class="controls">…</div> <div class="nav-meta">…</div>
        </div>
