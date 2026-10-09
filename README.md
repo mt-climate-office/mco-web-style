@@ -25,10 +25,10 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.1/theme/mco-theme.css"
-      integrity="sha384-dktZyfU+lLz1JEFe+npkBVrH8FsSdtYYOPC7bJQtZwEJnvD3IiENV+UUgyXeFpnl" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.7.1/core/mco-core.js"
-        integrity="sha384-ZOGCREEJsO8sY1wJ7eS/Q7K7NdZAHF+LxSMoO3ZGqBtEVISX3616cGomCW418hXH" crossorigin="anonymous"></script>
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/theme/mco-theme.css"
+      integrity="sha384-x9dp9SwDeJ4J69qkuo74FgLlhHT/0n6ObXSYq2iLxfLGPTD/GhPqCF2Vc7M66qP8" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/core/mco-core.js"
+        integrity="sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -60,12 +60,12 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.7.1
+## SRI hashes — v0.8.0
 
 ```
-theme/mco-theme.css      sha384-dktZyfU+lLz1JEFe+npkBVrH8FsSdtYYOPC7bJQtZwEJnvD3IiENV+UUgyXeFpnl
-core/mco-core.js         sha384-ZOGCREEJsO8sY1wJ7eS/Q7K7NdZAHF+LxSMoO3ZGqBtEVISX3616cGomCW418hXH
-map/mco-map.js           sha384-0aF67+MSXmcocGs8r3qiehgDNzgXo9F48olS5OX575wO2llw2cuGcqLpd6+L7D76
+theme/mco-theme.css      sha384-x9dp9SwDeJ4J69qkuo74FgLlhHT/0n6ObXSYq2iLxfLGPTD/GhPqCF2Vc7M66qP8
+core/mco-core.js         sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb
+map/mco-map.js           sha384-pmyiDS5SNzBxK1AyD/ONb7mFLrfklj+Pvyd6KCxYKzLOQnqiK+07+3liQR5Zr16x
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm
 ```
 
