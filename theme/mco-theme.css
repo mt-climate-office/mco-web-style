@@ -665,6 +665,16 @@ a.nav-btn { text-decoration: none; }
 }
 .mco-footer p + p { margin-top: var(--space-1); }
 .mco-footer a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+/* Wordmark (0.11.0, #27): the pair of fixed-color images, one per surface,
+   so the theme picks. Both carry alt; the hidden one is display:none, out of
+   the accessibility tree. Inline assets/mco-wordmark.svg instead to inherit
+   currentColor. Keep it ≥ 40px tall.
+     <img class="mco-wordmark is-on-dark"  src="…/assets/mco-wordmark-on-dark.svg"  alt="Montana Climate Office" height="48">
+     <img class="mco-wordmark is-on-light" src="…/assets/mco-wordmark-on-light.svg" alt="Montana Climate Office" height="48"> */
+.mco-wordmark { display: block; width: auto; }
+.mco-footer .mco-wordmark { margin: 0 auto var(--space-3); }
+:root:not([data-theme="light"]) .mco-wordmark.is-on-light,
+[data-theme="light"] .mco-wordmark.is-on-dark { display: none; }
 .mco-footer-meta { font-family: var(--font-mono); font-size: var(--fs-xs); }
 
 /* Card (0.9.0): the IN-FLOW section shell — chart and table cards, sidebar

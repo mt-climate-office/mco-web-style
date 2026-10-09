@@ -66,6 +66,7 @@
     <li id="r-cog"><span>map/cog-protocol.js</span><span class="status">…</span></li>
     <li id="r-palette"><span>palette/mco-palette.js</span><span class="status">…</span></li>
     <li id="r-fonts"><span>fonts/ (Outfit + Space Mono)</span><span class="status">…</span></li>
+    <li id="r-brand"><span>assets/ brand SVGs (CORS, for exports)</span><span class="status">…</span></li>
   </ul>
 </main>
 
@@ -111,6 +112,13 @@
   var pinned = (document.querySelector('script[src*="mco-web-style@"]') || {}).src || '';
   var m = pinned.match(/mco-web-style@([\d.]+)/);
   document.getElementById('pinned-version').textContent = m ? 'v' + m[1] : 'unpinned';
+  // Brand SVGs on the same tag, fetched with CORS the way an export draws
+  // them onto a canvas: decode() fails on a 404, a CSP block or no CORS.
+  var base = pinned.replace(/core\/mco-core\.js$/, '');
+  Promise.all(['mco-logo.svg', 'mco-wordmark.svg', 'mco-wordmark-on-dark.svg', 'mco-wordmark-on-light.svg'].map(function (f) {
+    var img = new Image(); img.crossOrigin = 'anonymous'; img.src = base + 'assets/' + f;
+    return img.decode();
+  })).then(function () { mark('r-brand', true); }, function () { mark('r-brand', false); });
 </script>
 </body>
 </html>

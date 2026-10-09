@@ -56,7 +56,7 @@ CSS custom properties, kept in lockstep by CI.
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
 | `fonts/` | Outfit + Space Mono woff2 (latin + latin-ext; SIL OFL, license texts alongside), declared by `mco-theme.css` | every page (preload the two latin files — `snippets/head.html`) |
-| `assets/` | MCO logo (vendored), favicon set, OG card | every page |
+| `assets/` | The brand: badge (PNG, vendored in navbars; SVG), wordmark (`currentColor` + on-dark / on-light), favicon set, OG card. Source of truth (HOUSE-STYLE §1) | every page |
 | `snippets/` | Copy-paste blocks: anti-flash boot, `<head>`, skip link | every page |
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
