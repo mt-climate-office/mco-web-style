@@ -217,20 +217,26 @@ tooling ephemerally and keep it out of git (most MCO app repos do NOT ignore
 `.gitignore` if absent.
 
 - `node --check app.js` · `npx --yes html-validate@9 index.html`.
-- **Copy `tools/consumer-verify.mjs` from the kit into the app repo**
-  (untracked), fill in its CONFIG block (page path — note some apps serve
-  from `/docs/`, so every URL gets that prefix — render-evidence check,
-  app-specific URL-matrix assertions), and run it. It covers the baseline:
-  - **Console clean in all three themes** — with the CSP live, any missed
-    endpoint or blocked resource shows up here.
-  - **axe: 0 serious/critical** in dark, light, high-contrast.
-  - A render-evidence wait (e.g. sr-table row count) instead of `networkidle`.
-  - URL param matrix: every param honored on load and re-emitted; defaults
-    elided; deep links suppress the intro modal; `?kbd=off` gates and sticks.
+- **Run `tools/verify/` from a kit checkout against the app** (0.9.0, see
+  [tools/verify/README.md](tools/verify/README.md)). Nothing is copied into the
+  app; a small `verify.config.mjs` (page path, since some apps serve from
+  `/docs/`, plus scenarios with render evidence and storage seeds) is all it
+  needs. It covers the baseline:
+  - `head.mjs`: pin + SRI, CSP hashes (import map included), anti-flash order,
+    skip link, `<main>`, focus kills, storage keys. Static, no browser.
+  - `axe-matrix.mjs`: **axe 0 serious/critical** and **console + CSP clean**
+    in all three themes at **1440 and 390 touch**, plus touch targets at 390.
+    A render-evidence wait (e.g. sr-table row count), never `networkidle`.
+  - `keyboard.mjs`: the skip link, a ring on every Tab stop, dialog Esc and
+    focus return, `?kbd=off` for each shortcut, plus app probes.
+  - `lint-css.mjs`: drift counts, including untagged kit-overrides.
+
+  What stays app-specific, as `probes` in the config or by hand:
+  - The URL param matrix: every param honored on load and re-emitted,
+    defaults elided, deep links suppress the intro modal, `?kbd=off` sticks.
   - Legacy localStorage shims honored at boot.
-  - Compact viewport (390px) and any app-specific overrides.
-  - Side-by-side screenshots vs the live production page — enumerate expected
-    deltas; anything else is a regression.
+  - Side-by-side screenshots vs the live production page. Enumerate the
+    expected deltas; anything else is a regression.
 - **Run the app's own automation against the migrated page.** If the repo has
   jobs that drive the page headlessly (photo-explorer's preview generator
   clicks `#btn-export` via `?export=`; others may screenshot or scrape),

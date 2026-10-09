@@ -25,6 +25,7 @@ jobs:
           node --check map/cog-protocol.js
           node --check palette/mco-palette.js
           node --check exemplar/app.js
+          for f in tools/*.mjs tools/verify/*.mjs; do node --check "$f"; done
 
       - name: Token parity (CSS themes ↔ tokens.json)
         run: node tools/check-tokens.mjs
