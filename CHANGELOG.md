@@ -8,6 +8,30 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.11.2] — 2026-10-09
+
+Fixes found by the mesonet-photo-explorer re-point. PATCH: theme and core
+changed; map, cog and palette are the same as 0.11.0.
+
+### Fixed
+- **Focus ring on date/time inputs in WebKit.** Safari focuses the
+  sub-fields, so the input never matched `:focus-visible` and showed no ring.
+  Native date, time, datetime-local, month and week inputs now ring on
+  `:focus`.
+- **`MCO.initStepper` keeps keyboard focus at a bound.** Disabling the
+  focused button dropped focus to `<body>`; it now moves to the other
+  button.
+- **`MCO.setSocialMeta({url})` no longer rewrites the canonical link.**
+  Passing the live URL pulled canonical off the production host. `url` sets
+  `og:url` only; pass `canonical` to set the link deliberately.
+- **The attribution ⓘ icon tiled** in its 40px touch button (no
+  `background-repeat: no-repeat`).
+- `tools/verify/head.mjs` strips comments, scripts and styles before looking
+  for `<body>`. A "<body" in a head comment failed the skip-link check.
+- `tools/verify/keyboard.mjs` keeps walking past a native date input. Its
+  sub-fields are several Tabs on one element, which read as a wrap-around
+  and ended the focus-ring audit after four stops.
+
 ## [0.11.1] — 2026-10-09
 
 Fixes found by the first consumer re-point (mesonet-status). PATCH: the

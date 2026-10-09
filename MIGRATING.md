@@ -455,6 +455,16 @@ changed). No snippet or CSP hash change. Then, where they apply:
 - A vendored `assets/mco-logo.png` stays, but it is a copy: compare it with
   the kit's (`shasum`) and replace it if it drifted.
 
+## Re-pointing an existing consumer: 0.11.x → 0.11.2
+
+Tag bump plus the README hashes (theme and core). One contract fix to check:
+**`MCO.setSocialMeta({url})` now sets `og:url` only.** If an app relied on
+it to write `<link rel="canonical">`, put the production canonical in the
+HTML (HOUSE-STYLE §1) or pass `{canonical}`. Delete app workarounds for:
+- the stepper's focus loss at a bound;
+- the WebKit date-input focus ring;
+- the tiled attribution icon.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export is known duplication that the kit has **deliberately not

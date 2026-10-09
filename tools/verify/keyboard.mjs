@@ -63,6 +63,9 @@ for (const engine of browsers(a)) {
     return {
       desc: `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${[...el.classList].slice(0, 2).map((c) => '.' + c).join('')} "${name}"`,
       ring: outline || shadow, skip: el.matches('.mco-skip-link'), id: el.id,
+      // A native date/time input takes several Tabs (one per sub-field) on
+      // the same element: that is staying put, not wrapping around (0.11.2).
+      same: window.__verifyLast === el ? true : (window.__verifyLast = el, false),
       // Identity, not description: two controls may share a label.
       revisit: el.dataset.verifyStop === '1' ? true : (el.dataset.verifyStop = '1', false),
     };
@@ -108,6 +111,7 @@ for (const engine of browsers(a)) {
     for (let i = 0; i < max; i++) {
       const f = await focused(p);
       if (!f) break;
+      if (f.same) { await p.keyboard.press(TAB); continue; }   // still inside one control
       if (f.revisit) break;                  // wrapped around
       seen.add(f.desc + ' @' + i);
       if (!f.ring) missing.push(f.desc);

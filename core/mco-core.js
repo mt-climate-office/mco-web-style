@@ -315,7 +315,10 @@
      HOUSE-STYLE §1. Tab: "<Detail> · <Short> · <Family>" with the short
      family (MT Mesonet | MCO). Card: "<Detail> · <Short> · <Long family>"
      (Montana Mesonet | Montana Climate Office); og:site_name the long family
-     alone. Detail is optional plain text — one station or one date. */
+     alone. Detail is optional plain text — one station or one date.
+     setSocialMeta({short, detail, family, description, image, url,
+     canonical}): url → og:url only; canonical (rarely needed: it belongs in
+     the HTML, on the production host) → <link rel=canonical>. */
   var LONG_FAMILY = { 'MT Mesonet': 'Montana Mesonet', 'MCO': 'Montana Climate Office' };
   function titleParts(o, family) {
     return [o.detail, o.short, family].filter(function (x) { return x != null && String(x).trim() !== ''; }).join(' · ');
@@ -339,11 +342,14 @@
     upsertMeta('name', 'twitter:title', title);
     upsertMeta('property', 'og:site_name', long);
     if (o.description) { upsertMeta('property', 'og:description', o.description); upsertMeta('name', 'twitter:description', o.description); }
-    if (o.url) {
-      upsertMeta('property', 'og:url', o.url);
+    // og:url follows the shared state; the canonical link is the page's
+    // stable production address and moves only when asked (0.11.2: url used
+    // to rewrite it too, pulling canonical off the production host).
+    if (o.url) upsertMeta('property', 'og:url', o.url);
+    if (o.canonical) {
       var c = document.head.querySelector('link[rel="canonical"]');
       if (!c) { c = document.createElement('link'); c.rel = 'canonical'; document.head.appendChild(c); }
-      c.href = o.url;
+      c.href = o.canonical;
     }
     if (o.image) {
       upsertMeta('property', 'og:image', o.image);
@@ -1507,8 +1513,15 @@
     var repeat = opts.repeat !== false;
     var holdTimer = null, held = false;
     function refresh() {
+      var had = document.activeElement;
       if (opts.prev) opts.prev.disabled = !canStep(-1);
       if (opts.next) opts.next.disabled = !canStep(1);
+      // Disabling the focused button would drop keyboard focus to <body>
+      // (0.11.2): hand it to the other button, the way back from the bound.
+      if (had && had.disabled && (had === opts.prev || had === opts.next)) {
+        var other = had === opts.prev ? opts.next : opts.prev;
+        if (other && !other.disabled) other.focus();
+      }
     }
     function step(d) {
       if (!canStep(d)) { stop(); return; }

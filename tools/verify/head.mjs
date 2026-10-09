@@ -91,7 +91,11 @@ check('viewport meta has viewport-fit=cover', /<meta name="viewport" content="[^
 check('<html lang> and a non-empty <title>', /<html[^>]*\slang="[a-z-]+"/i.test(html) && /<title>[^<]+<\/title>/.test(head));
 
 /* ── Skip link, main ────────────────────────────────────────────────────── */
-const body = html.slice(html.search(/<body[^>]*>/)).replace(/^<body[^>]*>/, '').replace(/<!--[\s\S]*?-->/g, '');
+// Comments, scripts and styles go first (0.11.2): a "<body" in a head
+// comment ("the scripts at the end of <body>") was taken for the tag, and
+// markup inside a script string would read as the first focusable.
+const markup = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+const body = markup.slice(markup.search(/<body(\s[^>]*)?>/i)).replace(/^<body[^>]*>/i, '');
 const firstFocusable = body.match(/<(a\s[^>]*href|button|input|select|textarea)[^>]*>/)?.[0] || '';
 check('skip link is the first focusable element and targets #main',
   /class="[^"]*mco-skip-link/.test(firstFocusable) && /href="#main"/.test(firstFocusable), firstFocusable.slice(0, 80));
