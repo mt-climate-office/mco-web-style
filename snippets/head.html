@@ -10,7 +10,7 @@
      before your app script (tags at the bottom of this file). MapLibre is
      not among them: mco-map.js imports it on demand (MCO.map.loadMapLibre).
 
-     SRI hashes below are for v0.11.1 exactly. Bumping the @version without
+     SRI hashes below are for v0.11.2 exactly. Bumping the @version without
      recomputing hashes (tools/sri.sh) will hard-fail in the browser — that is
      the point. CI keeps this file honest via tools/check-sri.mjs.
      ========================================================================== -->
@@ -54,14 +54,14 @@
 <meta property="og:title" content="Explorer · Montana Mesonet">
 <meta property="og:description" content="…">
 <meta property="og:url" content="https://…/">
-<meta property="og:image" content="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/assets/og-card.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/assets/og-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Montana Climate Office">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Explorer · Montana Mesonet">
 <meta name="twitter:description" content="…">
-<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/assets/og-card.png">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/assets/og-card.png">
 <meta name="twitter:image:alt" content="Montana Climate Office">
 -->
 
@@ -70,9 +70,9 @@
      2026-10-08): they version with the kit and can't drift, and the CSP
      already allows cdn.jsdelivr.net for the CSS (add it to img-src). The
      navbar logo stays vendored, so the brand mark paints with no CDN hop. -->
-<link rel="icon" type="image/png" sizes="32x32" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/assets/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/assets/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/assets/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/assets/apple-touch-icon.png">
 
 <!-- House fonts — kit-hosted since 0.7.0; the @font-face rules live in
      mco-theme.css. These preloads start both latin files in parallel with the
@@ -86,9 +86,9 @@
        would never match and would double-download. Fonts are inert data, and
        the tag is immutable on jsDelivr.
      CSP: font-src https://cdn.jsdelivr.net (README § CSP notes). -->
-<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/fonts/outfit-latin.woff2"
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/fonts/outfit-latin.woff2"
       as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/fonts/space-mono-latin.woff2"
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/fonts/space-mono-latin.woff2"
       as="font" type="font/woff2" crossorigin>
 
 <!-- MapLibre GL 6.x — map apps only. The house map library (HOUSE-STYLE.md §7).
@@ -114,23 +114,23 @@
       crossorigin="anonymous">
 
 <!-- mco-web-style theme -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/theme/mco-theme.css"
-      integrity="sha384-fgPQ77WorIiBcl64k4MazvEYd21g0lXRa8pDKCa+oUsOiQXHH8oY9FFuTWH6WyHv"
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/theme/mco-theme.css"
+      integrity="sha384-22H/4uZb4dmkrTZlLp4NJ4J+Wg39RNRIVIKO0x1HPYfyUWj81FA0fyM/uoRqbqme"
       crossorigin="anonymous">
 
 <!-- ==========================================================================
      Script tags — place near the end of <body>, in this order:
 
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/core/mco-core.js"
-        integrity="sha384-F/YeBkOPRU4+DPRf7McL88FjA76l+QnIEhFBUYDSrjBHcr4guZyDQvcG5x1VMjo/"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/core/mco-core.js"
+        integrity="sha384-b4r3+tK/yiZ4TNEllSsbDX3qW0NhcHDsF2iPzUWunUc2vNf1qlq9t9qo2YWgoZiK"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/palette/mco-palette.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/palette/mco-palette.js"
         integrity="sha384-P+8vdCR12oZ388lO/orPRnm6Tcz69x6mhN32l7AWP7j8S7KCNijXDZrmYjWuXm8J"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/map/mco-map.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/map/mco-map.js"
         integrity="sha384-tmDqtqi4yYiDHOxkZikwzXF3Lpkb63b0Tu6K7jeCpU9gJkPB2GbpFHLasGHka6zP"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/map/cog-protocol.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.2/map/cog-protocol.js"
         integrity="sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm"
         crossorigin="anonymous"></script>
 <script src="app.js"></script>   <!-- classic script — the kit globals need no modules -->

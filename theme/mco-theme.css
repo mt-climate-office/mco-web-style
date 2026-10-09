@@ -350,6 +350,12 @@ body {
 /* ONE universal keyboard focus ring. Never enumerate per-selector rules —
    a new control added later would ship without one. */
 :focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+/* WebKit focuses a date/time input's sub-fields, so the input itself never
+   matches :focus-visible and showed no ring (0.11.2). Keyboard and pointer
+   both open the field for typing, so :focus is the right trigger here. */
+input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], [type="week"]):focus {
+  outline: 2px solid var(--accent-line); outline-offset: 2px;
+}
 
 /* Skip link (WCAG 2.4.1): first focusable element on the page, jumps past the
    chrome. Markup in snippets/skip-link.html. */
@@ -1283,7 +1289,7 @@ html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 
      attribution ⓘ) — under the 40px floor on touch (0.9.0). */
   .maplibregl-ctrl-group button { width: 40px; height: 40px; }
   .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 40px; padding-right: 40px; }
-  .maplibregl-ctrl-attrib-button { width: 40px; height: 40px; border-radius: 20px; background-position: center; }
+  .maplibregl-ctrl-attrib-button { width: 40px; height: 40px; border-radius: 20px; background-position: center; background-repeat: no-repeat; }
 }
 
 /* Short-landscape rail (0.10.0, #38) — opt-in: .mco-navbar[data-rail] +
