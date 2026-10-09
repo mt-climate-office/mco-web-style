@@ -356,7 +356,9 @@ three apps had drifted to 2200/2400/2800). Longer explicit per-call durations
 for errors (e.g. 6000 ms) are fine; don't change the default. **Dialogs** are native `<dialog>`
 via `MCO.initInfoModal`: backdrop click closes, focus returns to the opener.
 First-visit info modals auto-open once, gated by an app-prefixed localStorage
-key. **`?export=` convention**: a URL param that forces a theme and triggers
+key, **and never once the visitor has started using the page** (focus has
+moved off `<body>`). An auto-open that lands after the map loads otherwise
+yanks focus from someone already tabbing (WCAG 3.2.1/3.2.2). **`?export=` convention**: a URL param that forces a theme and triggers
 the app's export path — keeps branded-PNG generation headless-scriptable.
 
 ---

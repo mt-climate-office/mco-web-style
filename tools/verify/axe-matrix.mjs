@@ -28,7 +28,7 @@
    'unsafe-eval' rejects Playwright's string predicates) or a CSS selector.
    The theme comes from ?theme=, appended to each scenario's query.
    ========================================================================== */
-import { THEMES, VIEWPORTS, args, check, config, finish, load, open, smallTargets, start } from './lib.mjs';
+import { THEMES, VIEWPORTS, args, browsers, check, config, finish, load, open, smallTargets, start } from './lib.mjs';
 
 const a = args();
 const cfg = await config(a.config);
@@ -40,36 +40,38 @@ const allow = cfg.allowProblems || [];
 const settleMs = cfg.settleMs ?? 2000;
 
 const { AxeBuilder } = await load('@axe-core/playwright');
-const env = await start({ root, page });
-console.log(`axe-matrix: ${env.base}${page.split('/').pop()} — ${scenarios.length} scenario(s) × ${themes.length} theme(s) × ${VIEWPORTS.length} width(s)`);
+for (const engine of browsers(a)) {
+  const env = await start({ root, page, engine });
+  console.log(`axe-matrix (${engine}): ${env.base}${page.split('/').pop()} — ${scenarios.length} scenario(s) × ${themes.length} theme(s) × ${VIEWPORTS.length} width(s)`);
 
-for (const sc of scenarios) {
-  for (const theme of themes) {
-    for (const vp of VIEWPORTS) {
-      const q = (sc.query || '');
-      const query = q + (q.includes('?') ? '&' : '?') + 'theme=' + theme;
-      const label = `[${sc.name} · ${theme} · ${vp.name}]`;
-      let session;
-      try {
-        session = await open(env, query, { viewport: vp, storage: cfg.storage || {}, ready: sc.ready, settleMs });
-      } catch (e) {
-        check(`${label} render evidence`, false, String(e.message || e).split('\n')[0]);
-        continue;
+  for (const sc of scenarios) {
+    for (const theme of themes) {
+      for (const vp of VIEWPORTS) {
+        const q = (sc.query || '');
+        const query = q + (q.includes('?') ? '&' : '?') + 'theme=' + theme;
+        const label = `[${engine} · ${sc.name} · ${theme} · ${vp.name}]`;
+        let session;
+        try {
+          session = await open(env, query, { viewport: vp, storage: cfg.storage || {}, ready: sc.ready, settleMs });
+        } catch (e) {
+          check(`${label} render evidence`, false, String(e.message || e).split('\n')[0]);
+          continue;
+        }
+        const { page: p, problems, close } = session;
+        const results = await new AxeBuilder({ page: p }).analyze();
+        const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+        check(`${label} axe: 0 serious/critical`, bad.length === 0,
+          bad.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0]?.target.join(' ')}`).join(' | '));
+        const probs = (await problems()).filter((x) => !allow.some((s) => x.includes(s)));
+        check(`${label} console, page errors, CSP clean`, probs.length === 0, probs.slice(0, 3).join(' | '));
+        if (vp.touch) {
+          const small = await smallTargets(p, cfg.exemptTargets || '');
+          check(`${label} touch targets ≥ 40px (44px close)`, small.length === 0, `${small.length}: ${small.slice(0, 12).join(' | ')}`);
+        }
+        await close();
       }
-      const { page: p, problems, close } = session;
-      const results = await new AxeBuilder({ page: p }).analyze();
-      const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-      check(`${label} axe: 0 serious/critical`, bad.length === 0,
-        bad.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0]?.target.join(' ')}`).join(' | '));
-      const probs = (await problems()).filter((x) => !allow.some((s) => x.includes(s)));
-      check(`${label} console, page errors, CSP clean`, probs.length === 0, probs.slice(0, 3).join(' | '));
-      if (vp.touch) {
-        const small = await smallTargets(p, cfg.exemptTargets || '');
-        check(`${label} touch targets ≥ 40px (44px close)`, small.length === 0, `${small.length}: ${small.slice(0, 4).join(' | ')}`);
-      }
-      await close();
     }
   }
+  await env.close();
 }
-await env.close();
 finish('axe-matrix');

@@ -1,0 +1,53 @@
+# Downstream canary: load every consumer as it is committed, then again with
+# its kit tags served from THIS checkout, in Chromium and WebKit, and diff
+# (tools/verify/canary.mjs). Answers "what does this kit change do to the
+# apps that pin it?" before a tag exists. Consumers are public repos, checked
+# out read-only. Tooling installs ephemerally (AGENTS rule 1).
+name: canary
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { repo: mesonet-status, page: index.html }
+          - { repo: mesonet-explorer, page: index.html }
+          - { repo: mesonet-maintenance, page: index.html }
+          - { repo: mesonet-umrb-build, page: index.html }
+          - { repo: mco-snowpack-explorer, page: index.html }
+          - { repo: mesonet-photo-explorer, page: docs/index.html }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: mt-climate-office/${{ matrix.repo }}
+          path: consumer/${{ matrix.repo }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install tooling (ephemeral)
+        run: |
+          npm init -y > /dev/null
+          npm install --no-save playwright @axe-core/playwright pngjs pixelmatch
+          npx playwright install --with-deps chromium webkit
+      - name: Canary
+        run: >
+          node tools/verify/canary.mjs
+          --consumer consumer/${{ matrix.repo }}:${{ matrix.page }}
+          --accept tools/verify/canary-accept.json
+          --out canary-out
+      - name: Report
+        if: always()
+        run: cat canary-out/report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: canary-${{ matrix.repo }}
+          path: canary-out/
