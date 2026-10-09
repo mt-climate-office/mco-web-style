@@ -10,7 +10,7 @@
      before your app script (tags at the bottom of this file). MapLibre is
      not among them: mco-map.js imports it on demand (MCO.map.loadMapLibre).
 
-     SRI hashes below are for v0.8.0 exactly. Bumping the @version without
+     SRI hashes below are for v0.9.0 exactly. Bumping the @version without
      recomputing hashes (tools/sri.sh) will hard-fail in the browser — that is
      the point. CI keeps this file honest via tools/check-sri.mjs.
      ========================================================================== -->
@@ -21,6 +21,10 @@
      to 0 (two MCO apps shipped that bug — don't repeat it). -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="author" content="Montana Climate Office">
+<!-- theme-color: the browser chrome around the page. Two media-qualified
+     metas; the dark value is --bg-deep (dark), the light one the brand
+     --accent. A <meta> can't read a custom property, so these two hexes are
+     documented token copies. -->
 <meta name="theme-color" content="#1a6faf" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#161b22" media="(prefers-color-scheme: dark)">
 
@@ -34,31 +38,41 @@
      A tab is read by someone who knows what they opened; a link card is read
      in Slack by someone who may not. The short app name is the same in both.
      og:site_name takes the LONG family alone — not the app name.
+     State in the title (0.9.0): "<Detail> · <Short> · <Family>", detail FIRST
+     (the tab truncates, and the detail is what tells two tabs apart): one
+     station name or one date, never both. Set it from JS with
+     MCO.setPageTitle({short, detail}); the card form with MCO.setSocialMeta.
 <title>Explorer · MT Mesonet</title>
 -->
 
-<!-- Social cards (fill in per app — explorer and status are the reference):
+<!-- Social cards (fill in per app). Canonical on the PRODUCTION host
+     (mesonet.climate.umt.edu/…), never github.io. The card image is the kit's
+     og-card.png from the pinned tag, with its size and alt:
 <link rel="canonical" href="https://…/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Montana Mesonet">
 <meta property="og:title" content="Explorer · Montana Mesonet">
 <meta property="og:description" content="…">
 <meta property="og:url" content="https://…/">
-<meta property="og:image" content="https://…/assets/og-card.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/assets/og-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="…">
+<meta property="og:image:alt" content="Montana Climate Office">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Explorer · Montana Mesonet">
 <meta name="twitter:description" content="…">
-<meta name="twitter:image" content="https://…/assets/og-card.png">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/assets/og-card.png">
+<meta name="twitter:image:alt" content="Montana Climate Office">
 -->
 
 
-<!-- Favicons / app icons (kit-hosted; or vendor them into your repo) -->
-<link rel="icon" type="image/png" sizes="32x32" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/assets/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/assets/apple-touch-icon.png">
+<!-- Favicons / app icons: HOT-LINKED from the pinned kit tag (decided
+     2026-10-08): they version with the kit and can't drift, and the CSP
+     already allows cdn.jsdelivr.net for the CSS (add it to img-src). The
+     navbar logo stays vendored, so the brand mark paints with no CDN hop. -->
+<link rel="icon" type="image/png" sizes="32x32" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/assets/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/assets/apple-touch-icon.png">
 
 <!-- House fonts — kit-hosted since 0.7.0; the @font-face rules live in
      mco-theme.css. These preloads start both latin files in parallel with the
@@ -72,9 +86,9 @@
        would never match and would double-download. Fonts are inert data, and
        the tag is immutable on jsDelivr.
      CSP: font-src https://cdn.jsdelivr.net (README § CSP notes). -->
-<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/fonts/outfit-latin.woff2"
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/fonts/outfit-latin.woff2"
       as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/fonts/space-mono-latin.woff2"
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/fonts/space-mono-latin.woff2"
       as="font" type="font/woff2" crossorigin>
 
 <!-- MapLibre GL 6.x — map apps only. The house map library (HOUSE-STYLE.md §7).
@@ -100,20 +114,23 @@
       crossorigin="anonymous">
 
 <!-- mco-web-style theme -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/theme/mco-theme.css"
-      integrity="sha384-x9dp9SwDeJ4J69qkuo74FgLlhHT/0n6ObXSYq2iLxfLGPTD/GhPqCF2Vc7M66qP8"
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/theme/mco-theme.css"
+      integrity="sha384-qVWCeYiqMV4ZHkUNHf/Aq1VhShNzyLWBcnsYYrmUzbquyQDmm6gIIUoFHYBJG9xo"
       crossorigin="anonymous">
 
 <!-- ==========================================================================
      Script tags — place near the end of <body>, in this order:
 
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/core/mco-core.js"
-        integrity="sha384-vZQwKidKCkrmoW8EGCEHbeQgDTYVQzsDOJ95FRBp3drt+Yfb3B1WS4M/iDE2TbXb"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/core/mco-core.js"
+        integrity="sha384-yknmet0AW3oohpwhoHolSpFs3O+rLzc5OxHp60If3eqmF/ENZRfrILPIsCWm08Hf"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/map/mco-map.js"
-        integrity="sha384-pmyiDS5SNzBxK1AyD/ONb7mFLrfklj+Pvyd6KCxYKzLOQnqiK+07+3liQR5Zr16x"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/palette/mco-palette.js"
+        integrity="sha384-P+8vdCR12oZ388lO/orPRnm6Tcz69x6mhN32l7AWP7j8S7KCNijXDZrmYjWuXm8J"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.8.0/map/cog-protocol.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/map/mco-map.js"
+        integrity="sha384-tmDqtqi4yYiDHOxkZikwzXF3Lpkb63b0Tu6K7jeCpU9gJkPB2GbpFHLasGHka6zP"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.9.0/map/cog-protocol.js"
         integrity="sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm"
         crossorigin="anonymous"></script>
 <script src="app.js"></script>   <!-- classic script — the kit globals need no modules -->
@@ -125,5 +142,7 @@
        });
 
 
-     mco-map.js: map apps only. cog-protocol.js: COG raster apps only.
+     mco-palette.js: apps that color data (ramps, network markers) — load it
+     before mco-map.js, whose markerPaint() reads it. mco-map.js: map apps
+     only. cog-protocol.js: COG raster apps only.
      ========================================================================== -->

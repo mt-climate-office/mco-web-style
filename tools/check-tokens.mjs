@@ -43,8 +43,12 @@ const hc = blocks('[data-theme="high-contrast"]');
 
 const dark = {};
 const zIndex = {};
+const scale = {};   // theme-invariant type/spacing scale (0.9.0)
+const metrics = {}; // layout metrics JS writes at runtime (0.9.0), not theme tokens
+const METRICS = ['--chrome-h', '--sheet-h', '--tabbar-h', '--overlay-bottom'];
 for (const [k, v] of Object.entries(rootProps)) {
-  (k.startsWith('--z-') ? zIndex : dark)[k] = v;
+  (k.startsWith('--z-') ? zIndex : /^--(fs|lh|fw|space)-/.test(k) ? scale
+    : METRICS.includes(k) ? metrics : dark)[k] = v;
 }
 
 const REQUIRED = [
@@ -73,7 +77,7 @@ for (const k of new Set([...lightKeys, ...hcKeys])) {
 
 // 3: JSON sync.
 function compare(label, cssMap, jsonMap) {
-  const keys = new Set([...Object.keys(cssMap), ...Object.keys(jsonMap || {})]);
+  const keys = new Set([...Object.keys(cssMap), ...Object.keys(jsonMap || {}).filter((k) => k !== '$comment')]);
   for (const k of keys) {
     const c = cssMap[k], j = jsonMap?.[k] == null ? undefined : norm(String(jsonMap[k]));
     if (c === undefined) errors.push(`${label}: ${k} in tokens.json but not in CSS`);
@@ -85,6 +89,12 @@ compare('dark', dark, json.themes?.dark);
 compare('light', light, json.themes?.light);
 compare('highContrast', hc, json.themes?.highContrast);
 compare('zIndex', zIndex, json.zIndex);
+compare('scale', scale, json.scale);
+compare('metrics', metrics, json.metrics);
+// Scale tokens are theme-invariant: a theme block that redefines one is a bug.
+for (const [label, map] of [['light', light], ['high-contrast', hc]]) {
+  for (const k of Object.keys(map)) if (/^--(fs|lh|fw|space)-/.test(k)) errors.push(`${k} is theme-invariant but redefined in ${label}`);
+}
 
 // 4: required tokens everywhere.
 for (const k of REQUIRED) {
@@ -98,4 +108,4 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(`check-tokens: OK (${Object.keys(dark).length} dark tokens, ` +
-  `${lightKeys.length} themed, ${Object.keys(zIndex).length} z-index tiers)`);
+  `${lightKeys.length} themed, ${Object.keys(zIndex).length} z-index tiers, ${Object.keys(scale).length} scale steps)`);

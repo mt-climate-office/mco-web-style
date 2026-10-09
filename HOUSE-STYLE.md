@@ -63,6 +63,18 @@ titles collapsed to near-identical prefixes there (“Station Stat…” vs “S
 Main…”). The distinctive word has to come first to survive — and with the tab's
 family half abbreviated too, most titles now fit whole.
 
+**State in the title** (0.9.0): `<Detail> · <Short> · <Family>`, with the
+detail first, because the tab truncates and the detail is what tells two tabs
+apart. Use exactly one middot between parts. The detail is one station name or
+one date, never both. Set it with `MCO.setPageTitle({short, detail})` and the
+card form with `MCO.setSocialMeta({short, detail, image, url})`, which also
+writes `og:site_name` as the long family alone.
+
+**Head assets** (decided 2026-10-08): favicons and the social card's
+`og-card.png` are **hot-linked from the pinned kit tag**, so they version with
+the kit and can't drift. The navbar logo stays vendored. The canonical URL is
+the production host, never github.io.
+
 Target titles per app live in CONSUMERS.md; apply on migration.
 ⛔ `mco-drought-dashboard` is excluded from this and every other family-wide
 sweep — see its CONSUMERS.md row.
@@ -76,8 +88,11 @@ carry system fallbacks. Don't add other families — the drought dashboard's Int
 is drift, not precedent.
 
 **Voice.** Plain, confident, unhedged. Info modals explain what the colors mean
-and where the data comes from; footers and exports credit
-`Montana Climate Office · climate.umt.edu`.
+and where the data comes from. Footers and exports credit
+`Montana Climate Office · climate.umt.edu`, always through `MCO.credit({source})`
+(0.9.0), so the wording and the `·` separator (never `|`) are identical
+everywhere. Pages with room carry a `.mco-footer`. Full-viewport map apps put
+the credit in the info modal's Data section and their exports instead.
 
 ---
 
@@ -119,6 +134,14 @@ Hard-won rules encoded here:
   `.scale-hint` hexes. A station's "dead" or "stale" **category is data**: it
   takes a data palette under §6, never a status token. Tone never stands
   alone. Always pair it with a word ("Error", "Warning") or an icon.
+
+**Type & spacing scale** (0.9.0). Font sizes come from `--fs-2xs` … `--fs-2xl`
+(0.55 → 2rem: subtitle, meta, captions, buttons, prose, titles, stat readouts,
+hero numbers), line heights from `--lh-tight` / `--lh-body`, weights from
+`--fw-regular` … `--fw-bold`, and padding and gaps from `--space-1` …
+`--space-7` (0.25 → 2rem, with `--space-2` = 0.4rem, the house rhythm). New app
+CSS uses them instead of literal rems. They are theme-invariant, so they live
+in `:root` only. The kit's own rules adopt them in 1.0.0.
 
 **Theming.** Three themes: `dark` (default), `light`, `high-contrast`, switched
 by `data-theme` on `<html>`. The high-contrast theme is a first-class citizen
@@ -193,17 +216,55 @@ two places (CSS §6 comment and `MCO.viewport.COMPACT_MQ`) and they must stay in
 sync. Compact drives JS decisions: bottom sheet instead of anchored popup,
 panel auto-collapse, control relocation into a drawer.
 
-**Mobile patterns** (reference implementations in mesonet-explorer):
-- Off-canvas drawer + `.mco-scrim`, panel at `--z-drawer`.
-- Bottom sheet for detail panels on compact — peek state, drag-up, and it must
-  lift bottom-corner map controls and the toast (`--sheet-h` custom property).
+**First-paint hold** (0.9.0). The anti-flash snippet adds `html.mco-booting`.
+Until the app calls `MCO.ready()`, `[data-hold]` elements keep their layout
+but don't paint, and `[data-skeleton]` placeholders show. The snippet's own
+3 s timeout lifts the hold regardless. Hold the parts that would otherwise
+flash a wrong state (a default view before URL state is applied). Never hold
+`<main>`, the skip link, or a loading message.
+
+**Which overlay is which** (0.9.0). Every non-dialog overlay is built on
+`MCO.overlay`, so the family shares one focus rule and one Esc order:
+
+| Surface | Kit | Modal? | Esc order |
+|---|---|---|---|
+| Info, gallery, lightbox | native `<dialog>` + `MCO.initInfoModal` | yes (top layer) | always first |
+| Flyout: search list, menu | `MCO.initSearchBox` | no | 2 |
+| Bottom sheet, full detent (compact) | `MCO.initSheet` | yes: rest of page inert | 3 |
+| Off-canvas drawer | `MCO.initDrawer` (`.mco-drawer`) | yes on compact: rest inert | 4 |
+| Sheet at peek / end-docked | `MCO.initSheet` | no; the map stays usable | 5 |
+| Map popup | `MCO.map.popupContent` | no | 6 |
+| Cursor tooltip | `MCO.map.initCursorTooltip` | decoration (`aria-hidden`) | n/a |
+
+Open moves focus in, and close returns it to the opener (or `#main` if the
+opener is gone). A drawer is a labelled `<aside>`, not `role=dialog`: while
+modal-open it makes everything else `inert`, so no focus trap is needed. Inert
+roots are reference-counted, and live regions and the toast are never inerted.
+Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
+
+**Mobile patterns** (kit components since 0.9.0, after mesonet-explorer):
+- Off-canvas drawer: `.mco-drawer` + `MCO.initDrawer({modal: 'compact'})`,
+  off-canvas with `.mco-scrim` on compact and a docked column above it.
+- Bottom sheet for detail panels: `.mco-sheet` + `MCO.initSheet`, with peek
+  and full detents, drag on the head, and the grip button as the keyboard
+  twin. It publishes `--sheet-h`. With `html.mco-autolift` the toast and
+  MapLibre's bottom corners clear it (opt-in until 1.0.0). On compact,
+  status, maint and umrb open this instead of the anchored popup.
 - Full-viewport apps use `100dvh` (never `100vh`) and `overflow: hidden` on body.
 - **`viewport-fit=cover` is required** for the safe-area insets in the kit CSS
   to be live — without the meta, `env()` silently resolves to 0 (two apps
   shipped exactly this bug). Use `max(1rem, env(safe-area-inset-*))` padding on
   edge-hugging chrome.
 - Segmented button groups that don't fit under 1060 px get a `<select>`
-  fallback (photo explorer pattern).
+  fallback via `MCO.initSegmentedFallback` (0.9.0; the photo explorer
+  pattern). Single-choice groups are `.seg-btns.is-radio` radio fieldsets,
+  which give arrow keys and one Tab stop for free. **Breakpoints come from the
+  ladder only.** A bar that needs 1200 or 1280 sheds at 1060 and uses the
+  fallback. **Short labels must be contained in the accessible name** (WCAG
+  2.5.3): "Now" can't be the visible label of a button named "Latest", and
+  "NS" can't stand for "North Sky" unless the name starts with it.
+  **No ARIA tablists:** every in-family "tab" so far is either navigation
+  (links + `aria-current`) or a single choice (radio segmented).
 - **Search is `MCO.initSearchBox`** (0.8.0) on `.mco-search`: the APG
   combobox with `aria-activedescendant`, a disabled `role=option` for “No
   matches”, polite result counts, and Esc that closes, then clears, then passes
@@ -388,6 +449,26 @@ these rules:
 - **Prefer lightness-monotonic sequential ramps** — they survive grayscale and
   every CVD type.
 
+**`MCO.palette`** (`palette/mco-palette.js`, 0.9.0) holds the approved ramps,
+ported from the dashboard's tested module (so its samples match the
+dashboard's exactly):
+- the ramps: batlow, romaO, RdBu, BrBG, YlGnBu, YlOrRd, Blues, PuRd, and Tol
+  bright/muted/high-contrast
+- `sample()` / `colorAt()`, interpolated in OKLab
+- `span(name, theme)`: the part of a sequential ramp whose every color
+  clears 3:1 on that theme's `--bg-surface`, so it can draw lines, markers and
+  bars. Diverging and cyclic ramps have no span. They are for fills, with the
+  `midpoint` labelled.
+- `categorical(n, theme)`, `contrast()`, and `isBanned('Spectral')`
+
+CI gates every span. **Roles stay app-local**: "air temperature is rose" is
+domain knowledge. Each app keeps **one role registry**, with per-theme values
+and a contrast test, as the dashboard's `roles.ts` does. The one cross-app role
+set is the station networks, `MCO.palette.NETWORK` / `network(name, theme)`:
+**network = shape + color, data value = fill.** HydroMet is a filled circle,
+AgriMet a hollow circle, and Cooperator a ring, so the network survives
+grayscale. The legend swatch uses the same `data-shape`.
+
 Known issues in fielded palettes (fix on migration, tracked in CONSUMERS.md):
 the status map's roma-sampled bins put its two semantic extremes at nearly the
 same lightness (fresh teal L≈0.20 vs dead red L≈0.14 — indistinguishable in
@@ -460,6 +541,24 @@ boundary needs an outline on light basemaps.
   (dashed, appears at z9 — pale orange on Positron) in `addCustomLayers()`:
   `map.setLayoutProperty('boundary_county', 'visibility', 'none')` — otherwise
   the map shows two county treatments above zoom 9.
+- **Station markers** (0.9.0): **network = shape + color, data value =
+  fill**. `MCO.map.markerPaint(network)` draws HydroMet as a filled circle,
+  AgriMet as a hollow one and Cooperator as a ring, in
+  `MCO.palette.NETWORK` colors. The legend swatch uses the same `data-shape`.
+  The selected station ring is `MCO.map.selectionPaint()` (`--selection-ring`
+  read at paint time, never a literal). Keyboard focus is
+  `MCO.map.focusPaint()` (`--accent-line`, distinct from selection). Add an
+  invisible `MCO.map.hitPaint()` layer (≥ 22 px across) as the click/tap
+  target.
+- **Co-located stations**: up to 3 merge into one feature with an outer ring
+  in the second network's color (`MCO.map.colocatedHaloPaint`). A click
+  cycles through them and announces “1 of 2: Bozeman AgriMet”; the keyboard
+  path is the selectable sr-table twin. Dense clusters keep the app's badge +
+  spider. The badge is `--text-on-accent` on `--accent`, and the spider closes
+  on Esc.
+- **Charts** read chrome from `MCO.chartTokens()` and data colors from
+  `MCO.palette`. They listen for `mco:themechange` (fired by `MCO.setTheme`)
+  and dispose and re-init on it rather than `setOption`.
 - The map container gets `role="application"` and an `aria-label`.
 - Vendoring exception: `data.climate.umt.edu` resolves to a private IP on
   campus (Chrome LNA blocks public→private fetches) — vendor data files into

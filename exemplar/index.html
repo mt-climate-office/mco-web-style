@@ -29,7 +29,7 @@
        Demonstrates: HOUSE-STYLE §8 / README CSP notes. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'none';
-    script-src 'self' 'sha256-o+rXj9Jy2CUuPoewBVeBz2GYT71qiUGzjc3SklYSaSw=' 'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI=' https://unpkg.com;
+    script-src 'self' 'sha256-v3il6Uh82ESNrvf3ERc536SXE1pi2Le5vlV0TpFWJyU=' 'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI=' https://unpkg.com;
     worker-src blob: https://unpkg.com;
     style-src 'self' 'unsafe-inline' https://unpkg.com;
     font-src 'self';
@@ -65,6 +65,10 @@
       root.setAttribute('data-theme', t);
       root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
       root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
+      // First-paint hold (0.9.0): [data-hold] stays invisible until MCO.ready();
+      // this timeout releases it anyway, so a failed script never strands a page.
+      root.classList.add('mco-booting');
+      setTimeout(function () { root.classList.remove('mco-booting'); }, 3000);
     })();
   </script>
 
@@ -104,6 +108,7 @@
       border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
       font-family: inherit; font-size: 0.78rem;
     }
+    @media (hover: none) { .station-select { min-height: 40px; } }   /* §5.5 */
 
     /* Legend — an .mco-panel docked bottom-right over the map */
     #legend-panel { right: 0.75rem; bottom: 1.75rem; }
@@ -213,8 +218,8 @@
     </div>
     <div class="mco-panel-body" id="legend-body">
       <!-- Swatches are decorative; the text carries the meaning — §5.11 -->
-      <div class="legend-row"><span class="legend-swatch" data-swatch="HydroMet" aria-hidden="true"></span>HydroMet<span class="legend-count" data-count-for="HydroMet"></span></div>
-      <div class="legend-row"><span class="legend-swatch" data-swatch="AgriMet" aria-hidden="true"></span>AgriMet<span class="legend-count" data-count-for="AgriMet"></span></div>
+      <div class="legend-row"><span class="mco-legend-swatch" data-swatch="HydroMet" aria-hidden="true"></span>HydroMet<span class="legend-count" data-count-for="HydroMet"></span></div>
+      <div class="legend-row"><span class="mco-legend-swatch" data-swatch="AgriMet" aria-hidden="true"></span>AgriMet<span class="legend-count" data-count-for="AgriMet"></span></div>
     </div>
   </div>
 
@@ -284,6 +289,7 @@
 </dialog>
 
 <script src="../core/mco-core.js"></script>
+<script src="../palette/mco-palette.js"></script>
 <script src="../map/mco-map.js"></script>
 <!-- App logic is an external file so CSP can pin script-src 'self' (the
      explorer pattern) — no inline app code beyond the anti-flash boot. -->

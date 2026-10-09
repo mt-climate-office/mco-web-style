@@ -41,6 +41,16 @@ Fonts stylesheet) is gone with the stylesheet.
   snowpack's title is a `<span>`, so nothing is lost today). Reconcile on its
   next pass.
 
+### 0. 0.9.0 shipped the same day (2026-10-08)
+
+The 0.9.0 set (#5–#7, #9–#11, #13, #14, #17, #18, #22, #23, #25, #26, #28,
+#29, #31, #33, #34) is in: drawer, sheet, overlay focus/Esc, loading, cards,
+chips, stepper, palette module, chart tokens, title/social helpers, footer,
+marker paints, and `tools/verify/`. Consumers can go **straight from 0.7.1 to
+0.9.0** by doing both MIGRATING re-point sections' pass 1 together: MapLibre 6
+plus a re-copied anti-flash snippet, so one CSP hash change instead of two.
+MapLibre 6 stays the urgent part.
+
 ### 1. Re-point the six consumers to 0.8.0 (cut 2026-10-08)
 
 0.8.0 shipped everything that was planned for it, plus the dashboard

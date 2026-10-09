@@ -217,20 +217,26 @@ tooling ephemerally and keep it out of git (most MCO app repos do NOT ignore
 `.gitignore` if absent.
 
 - `node --check app.js` · `npx --yes html-validate@9 index.html`.
-- **Copy `tools/consumer-verify.mjs` from the kit into the app repo**
-  (untracked), fill in its CONFIG block (page path — note some apps serve
-  from `/docs/`, so every URL gets that prefix — render-evidence check,
-  app-specific URL-matrix assertions), and run it. It covers the baseline:
-  - **Console clean in all three themes** — with the CSP live, any missed
-    endpoint or blocked resource shows up here.
-  - **axe: 0 serious/critical** in dark, light, high-contrast.
-  - A render-evidence wait (e.g. sr-table row count) instead of `networkidle`.
-  - URL param matrix: every param honored on load and re-emitted; defaults
-    elided; deep links suppress the intro modal; `?kbd=off` gates and sticks.
+- **Run `tools/verify/` from a kit checkout against the app** (0.9.0, see
+  [tools/verify/README.md](tools/verify/README.md)). Nothing is copied into the
+  app; a small `verify.config.mjs` (page path, since some apps serve from
+  `/docs/`, plus scenarios with render evidence and storage seeds) is all it
+  needs. It covers the baseline:
+  - `head.mjs`: pin + SRI, CSP hashes (import map included), anti-flash order,
+    skip link, `<main>`, focus kills, storage keys. Static, no browser.
+  - `axe-matrix.mjs`: **axe 0 serious/critical** and **console + CSP clean**
+    in all three themes at **1440 and 390 touch**, plus touch targets at 390.
+    A render-evidence wait (e.g. sr-table row count), never `networkidle`.
+  - `keyboard.mjs`: the skip link, a ring on every Tab stop, dialog Esc and
+    focus return, `?kbd=off` for each shortcut, plus app probes.
+  - `lint-css.mjs`: drift counts, including untagged kit-overrides.
+
+  What stays app-specific, as `probes` in the config or by hand:
+  - The URL param matrix: every param honored on load and re-emitted,
+    defaults elided, deep links suppress the intro modal, `?kbd=off` sticks.
   - Legacy localStorage shims honored at boot.
-  - Compact viewport (390px) and any app-specific overrides.
-  - Side-by-side screenshots vs the live production page — enumerate expected
-    deltas; anything else is a regression.
+  - Side-by-side screenshots vs the live production page. Enumerate the
+    expected deltas; anything else is a regression.
 - **Run the app's own automation against the migrated page.** If the repo has
   jobs that drive the page headlessly (photo-explorer's preview generator
   clicks `#btn-export` via `?export=`; others may screenshot or scrape),
@@ -345,11 +351,64 @@ CONSUMERS.md.
 - A local copy of `installZoomFloor`'s guards (explorer) → the kit's; app
   policy moves into `onBeforeSnap`.
 
+## Re-pointing an existing consumer: 0.8.x → 0.9.0
+
+0.9.0 is additive apart from one snippet change. Score with
+`node tools/conformance.mjs` and verify with `tools/verify/` (`head.mjs`,
+`axe-matrix.mjs` at 1440 + 390-touch, `keyboard.mjs`, `lint-css.mjs`) before
+and after.
+
+**Pass 1, required for everyone**
+1. Tags `@0.8.0` → `@0.9.0` with the README hashes. Apps that color data
+   or draw station markers add the new `palette/mco-palette.js` tag
+   **before** `mco-map.js`.
+2. **Re-copy `snippets/anti-flash.html`.** It gains the `mco-booting`
+   first-paint hold, so **recompute this page's CSP sha256**. Then call
+   `MCO.ready()` once the first meaningful state is applied. The snippet
+   releases the hold after 3 s regardless.
+3. Favicons and `og-card.png` move to the pinned kit tag (decided
+   2026-10-08): swap the vendored `assets/` links for the
+   `snippets/head.html` ones, and make sure `img-src` allows
+   `https://cdn.jsdelivr.net`. Delete the vendored favicons; keep the navbar
+   logo vendored. status: canonical → the production host.
+4. Run `tools/verify/axe-matrix.mjs`. The 390px pass now audits touch
+   targets, and the kit's own MapLibre controls are fixed in 0.9.0.
+
+**Pass 2, delete what the kit now owns** (one per commit)
+- explorer: drawer logic + CSS → `MCO.initDrawer` (`.mco-drawer`, scoped
+  scrim). The sheet → `MCO.initSheet` (drop its `role=dialog`). The manual
+  toast and corner lifts → `html.mco-autolift`. Its first-paint hold →
+  `[data-hold]` + `MCO.ready()`. The loading bar and error cards →
+  `MCO.loading`. `makeStepper` → `MCO.initStepper`. The selection ring
+  `'#5aaee8'` → `MCO.map.selectionPaint()` (the light-theme bug). Fix
+  "Now" vs "Latest" (2.5.3).
+- status, maint, umrb: on compact, open `MCO.initSheet` with
+  `popupContent` instead of the anchored popup. `.chip` → `.mco-chip`.
+  Off-ladder 1200/1280 wraps → shed at 1060 with
+  `MCO.initSegmentedFallback`. Popup facts → `.mco-facts` (umrb's
+  muted-on-raised `.pop-facts dt` is fixed by it). Add marker shapes with
+  `MCO.map.markerPaint` (status), and read the token rather than hard-coded
+  dots (umrb, which should also fix its "Orange dots" modal text).
+- photos: its segmented fallback → `MCO.initSegmentedFallback` (fix the
+  NS/SS names). Its date stepper → `MCO.initStepper`, and delete its local
+  `shiftDate`. `updateSocialMeta` → `MCO.setSocialMeta`. Its selection
+  fallback hex → `selectionPaint`.
+- snow: stepper → `MCO.initStepper` (**its Enter/Space do nothing today, a
+  2.1.1 failure**). Title → `MCO.setPageTitle` (currently the wrong short
+  name, the long family and two middots). Export credit → `MCO.credit()`
+  (`·`, not `|`). Exports read `MCO.chartTokens()`, not hard-coded copies.
+  Its brand `display: none` at 1060 → the kit collapse.
+- Ramps → `MCO.palette` (explorer: drop Spectral and map `?ramp=spectral`
+  → RdBu with a toast. status, maint and umrb: replace their
+  non-monotonic bins).
+- Any app listening for theme flips → `document.addEventListener('mco:themechange', …)`.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
-Branded PNG export and a `charts/` palettes module are known duplication that
-the kit has **deliberately not absorbed yet** (each needs a design pass across
-its divergent app implementations first). Leave the app's versions in place,
+Branded PNG export is known duplication that the kit has **deliberately not
+absorbed yet** (it needs a design pass across its divergent app
+implementations first). The palettes module left this list in 0.9.0
+(`palette/mco-palette.js`, HOUSE-STYLE §6). Leave the app's versions in place,
 swapping only their internals onto kit helpers where trivial (e.g. the logo
 asset, MT time). If a migration makes one of these converge naturally, propose
 it as a kit MINOR — that's the intended path to absorption.

@@ -27,6 +27,10 @@
       root.setAttribute('data-theme', t);
       root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
       root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
+      // First-paint hold (0.9.0): [data-hold] stays invisible until MCO.ready();
+      // this timeout releases it anyway, so a failed script never strands a page.
+      root.classList.add('mco-booting');
+      setTimeout(function () { root.classList.remove('mco-booting'); }, 3000);
     })();
   </script>
 
@@ -65,6 +69,16 @@
     .swatch .val  { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); overflow-wrap: anywhere; }
     .demo-stack { display: grid; gap: 0.5rem; }
     .demo-row-after { margin-top: 0.8rem; }
+    .demo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); }
+    .demo-label { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+    .demo-readout { font-family: var(--font-mono); font-size: var(--fs-md); min-width: 9rem; text-align: center; }
+    .demo-load-box { position: relative; display: grid; gap: var(--space-3); min-height: 9rem; }
+    .demo-skel-short { width: 60%; }
+    .demo-ramps { display: grid; gap: 4px; margin-bottom: var(--space-3); }
+    .demo-ramp { display: flex; height: 14px; border-radius: var(--radius-sm); overflow: hidden; }
+    .demo-ramp span { flex: 1; }
+    .demo-drawer-text { font-size: var(--fs-base); color: var(--text-secondary); margin-bottom: var(--space-4); }
+    .demo-peek { font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
     .demo-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     #map { width: 100%; height: 100%; }
@@ -84,6 +98,7 @@
       border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
       height: 32px; padding: 0 0.5rem; font: inherit; font-size: 0.78rem;
     }
+    @media (hover: none) { .demo-select { height: 40px; } }
     /* The "/" hint is app-owned; field, icon and list are the kit's .mco-search. */
     .mco-search .mco-search-input { padding-right: 30px; }
     .search-kbd {
@@ -253,6 +268,75 @@
   </section>
 
   <section class="demo-section">
+    <h2>Controls &amp; cards</h2>
+    <p>An in-flow <code>.mco-card</code> holding the 0.9.0 controls: <code>.mco-chips</code> (pressed ✓),
+       <code>MCO.initStepper</code> with a live readout, and a radio <code>.seg-btns.is-radio</code> that
+       becomes a <code>&lt;select&gt;</code> below 1060px (<code>MCO.initSegmentedFallback</code>).</p>
+    <div class="demo-cards">
+      <section class="mco-card" aria-labelledby="card-controls-title">
+        <div class="mco-card-head"><h3 class="mco-card-title" id="card-controls-title">Filters</h3></div>
+        <div class="mco-card-body demo-stack">
+          <span class="demo-label" id="chip-label">Networks</span>
+          <div class="mco-chips" role="group" aria-labelledby="chip-label">
+            <button type="button" class="mco-chip" data-chip="hydromet" aria-pressed="true">HydroMet <span class="mco-chip-count">157</span></button>
+            <button type="button" class="mco-chip" data-chip="agrimet" aria-pressed="true">AgriMet <span class="mco-chip-count">88</span></button>
+            <button type="button" class="mco-chip" data-chip="coop" aria-pressed="false" aria-busy="true">Cooperator <span class="mco-chip-count">0</span></button>
+          </div>
+          <span class="demo-label" id="date-label">Date</span>
+          <div class="demo-row" role="group" aria-labelledby="date-label">
+            <button type="button" class="nav-btn mco-step" id="step-prev" aria-label="Previous day">‹</button>
+            <span class="demo-readout" id="date-readout" role="status"></span>
+            <button type="button" class="nav-btn mco-step" id="step-next" aria-label="Next day">›</button>
+          </div>
+          <fieldset class="seg-btns is-radio" id="units-seg">
+            <legend class="sr-only">Units</legend>
+            <label class="nav-btn seg-btn"><input type="radio" name="demo-units-r" value="us" checked>US</label>
+            <label class="nav-btn seg-btn"><input type="radio" name="demo-units-r" value="metric">Metric</label>
+            <label class="nav-btn seg-btn"><input type="radio" name="demo-units-r" value="both">Both</label>
+          </fieldset>
+          <label class="sr-only" for="units-select">Units</label>
+          <select id="units-select" class="demo-select" hidden>
+            <option value="us">US</option><option value="metric">Metric</option><option value="both">Both</option>
+          </select>
+        </div>
+      </section>
+      <section class="mco-card" aria-labelledby="card-load-title">
+        <div class="mco-card-head">
+          <h3 class="mco-card-title" id="card-load-title">Loading</h3>
+          <div class="mco-card-actions">
+            <button type="button" class="nav-btn" id="btn-load">Load</button>
+            <button type="button" class="nav-btn" id="btn-load-fail">Fail</button>
+          </div>
+        </div>
+        <div class="mco-card-body demo-load-box" id="load-box">
+          <span class="mco-skeleton" aria-hidden="true"></span>
+          <span class="mco-skeleton demo-skel-short" aria-hidden="true"></span>
+          <span class="mco-skeleton is-block" aria-hidden="true"></span>
+        </div>
+      </section>
+      <section class="mco-card" aria-labelledby="card-palette-title">
+        <div class="mco-card-head"><h3 class="mco-card-title" id="card-palette-title">Palette</h3></div>
+        <div class="mco-card-body">
+          <div class="demo-ramps" id="demo-ramps"></div>
+          <dl class="mco-facts" id="demo-networks"></dl>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>Drawer &amp; sheet</h2>
+    <p><code>MCO.initDrawer</code>: a labelled <code>&lt;aside&gt;</code> that makes the rest of the page
+       inert while open (Tab can only cycle inside), closes on Esc / × / scrim, and returns focus.
+       <code>MCO.initSheet</code>: docks at the end edge here, at the bottom with peek/full detents on a
+       phone. The grip is the keyboard twin of the drag. Both sit on <code>MCO.overlay</code>.</p>
+    <div class="demo-row">
+      <button type="button" class="nav-btn" id="btn-drawer" aria-expanded="false" aria-controls="demo-drawer">Open drawer</button>
+      <button type="button" class="nav-btn" id="btn-sheet">Open sheet</button>
+    </div>
+  </section>
+
+  <section class="demo-section">
     <h2>Tooltip</h2>
     <p>The pointer-following <code>.mco-tooltip</code>. It is <code>aria-hidden</code> — hover-only
        content must also reach assistive tech another way (live region, popup, or table twin).</p>
@@ -272,6 +356,34 @@
 </main>
 
 <div class="mco-tooltip" id="tooltip" aria-hidden="true"></div>
+
+<aside class="mco-drawer" id="demo-drawer" aria-labelledby="demo-drawer-title" hidden>
+  <div class="mco-drawer-head">
+    <h2 class="mco-panel-title" id="demo-drawer-title">Filters (demo)</h2>
+    <button type="button" class="modal-close" data-close-drawer aria-label="Close filters">×</button>
+  </div>
+  <div class="mco-drawer-body">
+    <p class="demo-drawer-text">Everything behind this drawer is <code>inert</code>. Press Esc, the ×, or the scrim.</p>
+    <button type="button" class="nav-btn" id="drawer-action">A control inside</button>
+  </div>
+</aside>
+<div class="mco-scrim" id="demo-scrim" aria-hidden="true" hidden></div>
+
+<section class="mco-sheet" id="demo-sheet" aria-labelledby="demo-sheet-title" data-state="closed" hidden>
+  <div class="mco-sheet-head">
+    <button type="button" class="mco-sheet-grip" aria-label="Expand details" aria-expanded="false"></button>
+    <h2 class="mco-sheet-title" id="demo-sheet-title" tabindex="-1">Bozeman (demo)</h2>
+    <button type="button" class="modal-close" data-close-sheet aria-label="Close details">×</button>
+  </div>
+  <div class="mco-sheet-body">
+    <p class="demo-peek" data-peek>42.0 °F · updated 10:15 MT</p>
+    <dl class="mco-facts">
+      <div><dt>Network</dt><dd>HydroMet</dd></div>
+      <div><dt>Elevation</dt><dd>1,495 m</dd></div>
+      <div><dt>County</dt><dd>Gallatin</dd></div>
+    </dl>
+  </div>
+</section>
 
 <dialog class="mco-modal" id="info-modal" aria-labelledby="info-modal-title">
   <div class="info-modal-box">
@@ -305,12 +417,13 @@
   </div>
 </dialog>
 
-<footer>
-  <p><a href="https://github.com/mt-climate-office/mco-web-style">mco-web-style</a> ·
-     MIT · Montana Climate Office · <a href="https://climate.umt.edu">climate.umt.edu</a></p>
+<footer class="mco-footer">
+  <p>Kit demo · <a href="https://github.com/mt-climate-office/mco-web-style">mco-web-style</a> (MIT)</p>
+  <p id="demo-credit">Montana Climate Office · climate.umt.edu</p>
 </footer>
 
 <script src="../core/mco-core.js"></script>
+<script src="../palette/mco-palette.js"></script>
 <script src="../map/mco-map.js"></script>
 <script>
   'use strict';
@@ -319,6 +432,74 @@
   const live = { announce: (t) => MCO.announce(t) };   // the page's one announcer
   document.getElementById('btn-toast').addEventListener('click', () => {
     MCO.showToast('Toast: styled by .mco-toast, announced politely.');
+  });
+
+  /* ── 0.9.0 controls ──────────────────────────────────────────────────── */
+  let chips = ['hydromet', 'agrimet'];
+  document.querySelectorAll('[data-chip]').forEach((b) => b.addEventListener('click', () => {
+    chips = MCO.toggleIn(chips, b.dataset.chip);
+    b.setAttribute('aria-pressed', String(chips.includes(b.dataset.chip)));
+  }));
+  let demoDate = MCO.todayMT();
+  const minDate = MCO.shiftDate(demoDate, -14);
+  const readout = document.getElementById('date-readout');
+  const showDate = () => { readout.textContent = MCO.formatDateStr(demoDate); };
+  MCO.initStepper({
+    prev: document.getElementById('step-prev'), next: document.getElementById('step-next'),
+    onStep: (d) => { demoDate = MCO.shiftDate(demoDate, d); showDate(); },
+    canStep: (d) => (d < 0 ? demoDate > minDate : demoDate < MCO.todayMT()),
+  });
+  showDate();
+  MCO.initSegmentedFallback({
+    group: document.getElementById('units-seg'),
+    select: document.getElementById('units-select'),
+    onChange: (v) => MCO.announce(`Units: ${v}.`),
+  });
+  const load = MCO.loading(document.getElementById('load-box'), { label: 'Loading demo data' });
+  document.getElementById('btn-load').addEventListener('click', () => { load.start(); setTimeout(load.done, 1500); });
+  document.getElementById('btn-load-fail').addEventListener('click', () => {
+    load.start();
+    setTimeout(() => load.fail('Demo data failed to load.', { retry: () => { load.start(); setTimeout(load.done, 800); } }), 900);
+  });
+  function renderPalette() {
+    const theme = MCO.getTheme();
+    const host = document.getElementById('demo-ramps');
+    host.textContent = '';
+    for (const name of ['batlow', 'YlGnBu', 'RdBu']) {
+      const row = document.createElement('div');
+      row.className = 'demo-ramp';
+      row.setAttribute('aria-hidden', 'true');
+      for (const c of MCO.palette.sample(name, 9, MCO.palette.span(name, theme) || undefined)) {
+        const s = document.createElement('span'); s.style.background = c; row.appendChild(s);
+      }
+      host.appendChild(row);
+    }
+    const dl = document.getElementById('demo-networks');
+    dl.textContent = '';
+    for (const key of ['hydromet', 'agrimet', 'cooperator']) {
+      const n = MCO.palette.network(key, theme);
+      const row = document.createElement('div');
+      const dt = document.createElement('dt'); dt.textContent = n.label;
+      const dd = document.createElement('dd'); dd.textContent = `${n.shape} · ${n.color}`;
+      row.append(dt, dd); dl.appendChild(row);
+    }
+  }
+  renderPalette();
+  document.addEventListener('mco:themechange', renderPalette);
+  document.getElementById('demo-credit').textContent = MCO.credit({ source: 'Boundaries: US Census TIGER' });
+
+  /* ── Drawer + sheet ──────────────────────────────────────────────────── */
+  document.documentElement.classList.add('mco-autolift');   // toast clears the sheet
+  MCO.initDrawer({
+    drawer: document.getElementById('demo-drawer'),
+    toggle: document.getElementById('btn-drawer'),
+    scrim: document.getElementById('demo-scrim'),
+    modal: 'always',
+  });
+  const sheet = MCO.initSheet({ sheet: document.getElementById('demo-sheet') });
+  document.getElementById('btn-sheet').addEventListener('click', (e) => {
+    sheet.open('peek', { opener: e.currentTarget });
+    MCO.announce('Bozeman opened.');
   });
 
   /* ── Notice ──────────────────────────────────────────────────────────── */
@@ -626,6 +807,9 @@
     if (searchCtl.isCollapsed()) searchCtl.open();
     else { demoSearchInput.focus(); demoSearchInput.select(); }
   });
+
+  // Everything above is wired: lift the first-paint hold (MCO.ready).
+  MCO.ready();
 </script>
 </body>
 </html>

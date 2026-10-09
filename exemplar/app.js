@@ -16,11 +16,11 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
   const STATIONS_URL = 'https://mesonet.climate.umt.edu/api/stations/?type=json';
   const DASH_URL = (s) => `https://mesonet.climate.umt.edu/dash/${encodeURIComponent(s)}/`;
 
-  // Categorical palette: Paul Tol "bright" blue/orange — a CVD-safe hue pair
-  // (§6). Color is never the sole channel: the legend text, tooltip, detail
-  // card, and sr-table all carry the network name.
-  const NET_COLORS = { HydroMet: '#4477aa', AgriMet: '#ee7733' };
-  const NETS = Object.keys(NET_COLORS);
+  // Networks: color AND shape from the kit's registry (MCO.palette.NETWORK,
+  // §6/§7) — HydroMet a filled circle, AgriMet a hollow one, so the map
+  // survives grayscale. Color is never the sole channel: the legend text,
+  // tooltip, detail card, and sr-table all carry the network name.
+  const NETS = ['HydroMet', 'AgriMet'];
   const netByLower = new Map(NETS.map((n) => [n.toLowerCase(), n]));
 
   const LS_NETS = 'mco-exemplar-networks';   // app-prefixed key — §4
@@ -96,12 +96,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
 
   const overlayData = {};
 
-  function dotStroke() {
-    return getComputedStyle(document.documentElement).getPropertyValue('--dot-stroke').trim();
-  }
-  function selectionRing() {
-    return getComputedStyle(document.documentElement).getPropertyValue('--selection-ring').trim();
-  }
+  const STATION_LAYERS = NETS.map((n) => `stations-${n.toLowerCase()}`);
 
   // Everything map.setStyle() wipes gets re-added here (theme switch — §4).
   function addCustomLayers() {
@@ -135,30 +130,19 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     }
     if (!map.getSource('stations')) {
       map.addSource('stations', { type: 'geojson', data: stationsFC() });
-      map.addLayer({
-        id: 'stations-dots', type: 'circle', source: 'stations',
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3.5, 10, 7],
-          'circle-color': ['match', ['get', 'net'],
-            'HydroMet', NET_COLORS.HydroMet,
-            'AgriMet', NET_COLORS.AgriMet,
-            NET_COLORS.HydroMet],
-          'circle-opacity': 0.95,
-          'circle-stroke-width': 1.2,
-          'circle-stroke-color': dotStroke(),
-        },
-      });
-      // Selection halo: a separate layer keyed by feature filter, colored by
-      // the --selection-ring token (§2).
+      // One layer per network: shape + color from the kit (§7).
+      NETS.forEach((net, i) => map.addLayer({
+        id: STATION_LAYERS[i], type: 'circle', source: 'stations',
+        filter: ['==', ['get', 'net'], net],
+        paint: MCO.map.markerPaint(net.toLowerCase()),
+      }));
+      // An invisible ≥22px target over every dot, so a fingertip can hit one.
+      map.addLayer({ id: 'stations-hit', type: 'circle', source: 'stations', paint: MCO.map.hitPaint() });
+      // Selection ring from --selection-ring, read now (§2) — never a literal.
       map.addLayer({
         id: 'stations-selected', type: 'circle', source: 'stations',
         filter: ['==', ['get', 'id'], selectedId || ''],
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 6.5, 10, 11],
-          'circle-color': 'rgba(0,0,0,0)',
-          'circle-stroke-width': 2.5,
-          'circle-stroke-color': selectionRing(),
-        },
+        paint: MCO.map.selectionPaint(),
       });
     }
   }
@@ -324,10 +308,10 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
   // Hover decoration; the same facts reach AT through the sr-table — §5.8
   MCO.map.initCursorTooltip(map, {
     element: tooltip,
-    layers: ['stations-dots'],
+    layers: STATION_LAYERS,
     render: (f) => ({ name: f.properties.name, sub: `${f.properties.id} · ${f.properties.net}` }),
   });
-  map.on('click', 'stations-dots', (e) => {
+  map.on('click', 'stations-hit', (e) => {
     const f = e.features && e.features[0];
     if (f) openStation(f.properties.id);
   });
@@ -335,8 +319,11 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
   /* ── Theme (§4): swap style, then re-add everything setStyle wiped ─────── */
 
   function paintLegendSwatches() {
+    // The legend swatch carries the same shape as the map mark (§7).
     document.querySelectorAll('[data-swatch]').forEach((el) => {
-      el.style.background = NET_COLORS[el.dataset.swatch];
+      const n = MCO.palette.network(el.dataset.swatch, MCO.getTheme());
+      el.style.setProperty('--swatch', n.color);
+      el.dataset.shape = n.shape;
     });
   }
   MCO.initThemeToggle({
@@ -369,6 +356,8 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     autoCollapseOnCompact: true,                 // §3 compact behavior
   });
   paintLegendSwatches();
+  // One listener for every theme change, wherever it came from — §4
+  document.addEventListener('mco:themechange', paintLegendSwatches);
 
   MCO.initInfoModal({
     dialog: document.getElementById('info-modal'),
@@ -419,6 +408,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
       addCustomLayers();
       note('');
       render();
+      MCO.ready();          // first meaningful state: lift the first-paint hold — §3
 
       // Deep-linked station — validated against real data before use (§4).
       if (selectedId && stationById.has(selectedId)) {

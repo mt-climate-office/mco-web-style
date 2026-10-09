@@ -270,9 +270,93 @@
   MCO.osTheme = function () {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
+  // Fires `mco:themechange` on document (0.9.0) with detail {theme,
+  // previous}, so a chart, a canvas export or a map re-style listens once
+  // instead of every toggle call site remembering it.
   MCO.setTheme = function (theme, opts) {
+    var previous = MCO.getTheme();
     document.documentElement.dataset.theme = theme;
     if (!opts || opts.persist !== false) MCO.lsSet(MCO.THEME_KEY, theme);
+    if (theme !== previous) {
+      document.dispatchEvent(new CustomEvent('mco:themechange', { detail: { theme: theme, previous: previous } }));
+    }
+  };
+
+  /* ── Tokens from JS (0.9.0) ────────────────────────────────────────────────
+     MCO.cssVar('--text-primary') — the trimmed computed value (three apps
+     each wrapped this). MCO.chartTokens() — the chrome a chart or a canvas
+     export needs, read live from the current theme. CHROME only: data
+     colors come from MCO.palette. On a theme change, re-read them; for
+     ECharts, dispose and re-init the chart (carrying zoom and legend state)
+     rather than setTheme/setOption, which lost state and mis-drew dual-axis
+     charts on the dashboard. ECharts' default legend dim (--border, ≈1.6:1)
+     fails: use textMuted as inactiveColor. */
+  MCO.cssVar = function (name, el) {
+    return getComputedStyle(el || document.documentElement).getPropertyValue(name).trim();
+  };
+  MCO.chartTokens = function () {
+    var v = MCO.cssVar;
+    return {
+      text: v('--text-primary'), textSecondary: v('--text-secondary'), textMuted: v('--text-muted'),
+      grid: v('--border'), surface: v('--bg-surface'), background: v('--bg-deep'),
+      tooltipBg: v('--glass'), tooltipBorder: v('--border'),
+      accentLine: v('--accent-line'), selection: v('--selection-ring'),
+      fontUi: v('--font-ui'), fontMono: v('--font-mono'),
+    };
+  };
+
+  /* ── Page title, social meta, credit (0.9.0) ───────────────────────────────
+     HOUSE-STYLE §1. Tab: "<Detail> · <Short> · <Family>" with the short
+     family (MT Mesonet | MCO). Card: "<Detail> · <Short> · <Long family>"
+     (Montana Mesonet | Montana Climate Office); og:site_name the long family
+     alone. Detail is optional plain text — one station or one date. */
+  var LONG_FAMILY = { 'MT Mesonet': 'Montana Mesonet', 'MCO': 'Montana Climate Office' };
+  function titleParts(o, family) {
+    return [o.detail, o.short, family].filter(function (x) { return x != null && String(x).trim() !== ''; }).join(' · ');
+  }
+  MCO.setPageTitle = function (o) {
+    if (!o || !o.short) throw new Error('MCO.setPageTitle: short is required');
+    document.title = titleParts(o, o.family || 'MT Mesonet');
+    return document.title;
+  };
+  function upsertMeta(attr, key, content) {
+    var el = document.head.querySelector('meta[' + attr + '="' + key + '"]');
+    if (!el) { el = document.createElement('meta'); el.setAttribute(attr, key); document.head.appendChild(el); }
+    el.setAttribute('content', content);
+  }
+  MCO.setSocialMeta = function (o) {
+    if (!o || !o.short) throw new Error('MCO.setSocialMeta: short is required');
+    var fam = o.family || 'MT Mesonet';
+    var long = LONG_FAMILY[fam] || fam;
+    var title = titleParts(o, long);
+    upsertMeta('property', 'og:title', title);
+    upsertMeta('name', 'twitter:title', title);
+    upsertMeta('property', 'og:site_name', long);
+    if (o.description) { upsertMeta('property', 'og:description', o.description); upsertMeta('name', 'twitter:description', o.description); }
+    if (o.url) {
+      upsertMeta('property', 'og:url', o.url);
+      var c = document.head.querySelector('link[rel="canonical"]');
+      if (!c) { c = document.createElement('link'); c.rel = 'canonical'; document.head.appendChild(c); }
+      c.href = o.url;
+    }
+    if (o.image) {
+      upsertMeta('property', 'og:image', o.image);
+      upsertMeta('name', 'twitter:image', o.image);
+      upsertMeta('name', 'twitter:card', 'summary_large_image');
+      if (o.imageWidth) upsertMeta('property', 'og:image:width', String(o.imageWidth));
+      if (o.imageHeight) upsertMeta('property', 'og:image:height', String(o.imageHeight));
+      var alt = o.imageAlt || 'Montana Climate Office';
+      upsertMeta('property', 'og:image:alt', alt);
+      upsertMeta('name', 'twitter:image:alt', alt);
+    }
+    return title;
+  };
+  // The one credit string — info modal Data sections, footers and every
+  // export draw from it, so the wording is identical everywhere. Separator
+  // is the middot, never a pipe.
+  MCO.credit = function (o) {
+    var source = o && o.source;
+    return (source ? source + ' · ' : '') + 'Montana Climate Office · climate.umt.edu';
   };
   MCO.toggleTheme = function () {
     var next = MCO.getTheme() === 'dark' ? 'light' : 'dark';
@@ -737,6 +821,686 @@
           r.removeEventListener('keydown', onKey);
         });
         if (showAllBtn) showAllBtn.removeEventListener('click', showAll);
+      },
+    };
+  };
+
+  /* ── First-paint hold (0.9.0) ──────────────────────────────────────────────
+     The anti-flash snippet adds html.mco-booting before first paint; while it
+     is on, [data-hold] elements keep their layout but don't paint
+     (visibility, so nothing shifts), and [data-skeleton] placeholders show.
+     Call MCO.ready() once the app's first meaningful state is applied — data
+     drawn, URL state restored. The snippet's own 3 s timeout releases the
+     hold regardless, so a failed script never strands a page. Returns a
+     promise (also MCO.whenReady()) that later code can wait on. Never put
+     data-hold on <main> or the skip link. */
+  var _readyResolve;
+  var _readyP = new Promise(function (r) { _readyResolve = r; });
+  MCO.ready = function () {
+    document.documentElement.classList.remove('mco-booting');
+    _readyResolve();
+    return _readyP;
+  };
+  MCO.whenReady = function () { return _readyP; };
+
+  /* ── Overlay metrics (0.9.0) ───────────────────────────────────────────────
+     Layout measurements published as custom properties on <html>, so CSS can
+     keep floating things clear of each other: --chrome-h (sticky navbar →
+     scroll-padding-top), --sheet-h (the open bottom sheet), --tabbar-h. They
+     are layout metrics, not theme tokens (tokens.json lists them under
+     `metrics`). html.mco-autolift opts into lifting the toast and MapLibre's
+     bottom corners above --sheet-h + --tabbar-h (the default in 1.0.0).
+       MCO.metrics.observe('--chrome-h', navbarEl)   // ResizeObserver; returns stop()
+       MCO.metrics.set('--sheet-h', 212)             // px
+       MCO.metrics.get('--sheet-h')                  // → 212 */
+  MCO.metrics = {
+    set: function (name, px) {
+      document.documentElement.style.setProperty(name, Math.max(0, Math.round(px || 0)) + 'px');
+    },
+    get: function (name) {
+      return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
+    },
+    observe: function (name, el) {
+      var set = function () { MCO.metrics.set(name, el.getBoundingClientRect().height); };
+      set();
+      if (typeof ResizeObserver === 'undefined') return function () {};
+      var ro = new ResizeObserver(set);
+      ro.observe(el);
+      return function () { ro.disconnect(); };
+    },
+  };
+
+  /* ── Overlays: focus, inert, Esc (0.9.0) ───────────────────────────────────
+     Native <dialog> (MCO.initInfoModal) handles focus itself. Everything else
+     that floats — drawers, sheets, popups, flyouts — gets it from here:
+
+       var ov = MCO.overlay({
+         el: panel,
+         opener: function () { return btn; },  // default: whatever had focus at open()
+         initialFocus: '#panel-title',         // element/selector; default: el's
+                                               // [tabindex="-1"] heading, else its first
+                                               // focusable, else el itself
+         inert: [mapEl],                       // made inert while open ([] = non-modal);
+                                               // a function is called at open()
+         escape: true,                         // joins the shared Esc stack
+         onClose: function () {},              // after Esc / close()
+       });
+       ov.open(); ov.close({ restoreFocus: true });
+
+     ONE Esc order for the family: the topmost registered overlay handles Esc.
+     A native <dialog> always wins — an overlay under an open dialog ignores
+     Esc unless it lives inside the dialog. A handler that already consumed
+     Esc (preventDefault — the search combobox does) stops it here too. So:
+     dialog > flyout > sheet full > drawer > sheet peek > popup, by opening
+     order. Inert roots are reference-counted, so two overlays sharing a root
+     release it symmetrically. Focus returns to the opener, or to
+     opts.fallbackFocus / #main when the opener has left the DOM.
+     MCO.overlay.isBlocking() is true while an inert-making overlay or a modal
+     dialog is open: single-key shortcuts check it and stand down. */
+  var _escStack = [];
+  MCO.escStack = {
+    push: function (fn, el) { MCO.escStack.pop(fn); _escStack.push({ fn: fn, el: el || null }); },
+    pop: function (fn) { _escStack = _escStack.filter(function (e) { return e.fn !== fn; }); },
+    size: function () { return _escStack.length; },
+  };
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || e.defaultPrevented || !_escStack.length) return;
+    var top = _escStack[_escStack.length - 1];
+    var dlg = document.querySelector('dialog[open]');
+    if (dlg && !(top.el && dlg.contains(top.el))) return;   // the dialog owns this Esc
+    e.preventDefault();
+    top.fn(e);
+  });
+
+  var _inertCount = new Map();
+  var _blocking = 0;
+  function inertOn(el) {
+    var n = _inertCount.get(el) || 0;
+    if (n === 0) el.dataset.mcoWasInert = el.inert ? '1' : '0';
+    _inertCount.set(el, n + 1);
+    el.inert = true;
+  }
+  function inertOff(el) {
+    var n = (_inertCount.get(el) || 0) - 1;
+    if (n > 0) { _inertCount.set(el, n); return; }
+    _inertCount.delete(el);
+    el.inert = el.dataset.mcoWasInert === '1';
+    delete el.dataset.mcoWasInert;
+  }
+  // Everything beside el's ancestor chain, up to <body> — the inert scope a
+  // modal surface needs without inerting itself (inerting <main> when the
+  // drawer lives in <main> would inert the drawer too). Live regions, the
+  // toast and anything in `keep` stay live: an inert announcer can't speak.
+  MCO.overlay = function (opts) {
+    var el = opts.el;
+    var isOpen = false;
+    var opener = null;
+    var roots = [];
+    var blocks = false;
+
+    function focusables(root) {
+      return Array.prototype.filter.call(root.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+        'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'), function (n) {
+        return !n.hidden && n.getClientRects().length > 0;
+      });
+    }
+    function target() {
+      var f = opts.initialFocus;
+      if (typeof f === 'string') f = el.querySelector(f);
+      if (f) return f;
+      return el.querySelector('[tabindex="-1"]') || focusables(el)[0] || el;
+    }
+    function onEsc() { close({ restoreFocus: true, viaEsc: true }); }
+    function open(o) {
+      if (isOpen) return;
+      isOpen = true;
+      opener = (o && o.opener) || (opts.opener ? opts.opener() : document.activeElement);
+      var r = typeof opts.inert === 'function' ? opts.inert() : (opts.inert || []);
+      roots = Array.prototype.slice.call(r).filter(function (n) { return n && !n.contains(el); });
+      roots.forEach(inertOn);
+      blocks = roots.length > 0;
+      if (blocks) _blocking++;
+      if (opts.escape !== false) MCO.escStack.push(onEsc, el);
+      if (!(o && o.focus === false)) {
+        var t = target();
+        if (t === el && !el.hasAttribute('tabindex')) el.tabIndex = -1;
+        t.focus({ preventScroll: true });
+      }
+    }
+    function close(o) {
+      if (!isOpen) return;
+      isOpen = false;
+      MCO.escStack.pop(onEsc);
+      roots.forEach(inertOff);
+      roots = [];
+      if (blocks) { _blocking--; blocks = false; }
+      if (!o || o.restoreFocus !== false) {
+        var back = opener && opener.isConnected && !opener.inert ? opener
+          : (opts.fallbackFocus || document.getElementById('main'));
+        if (back && back.focus) back.focus({ preventScroll: true });
+      }
+      opener = null;
+      if (opts.onClose) opts.onClose(o || {});
+    }
+    // Retarget inertness when the scope changes (a breakpoint flip).
+    function setInert(next) {
+      if (!isOpen) return;
+      roots.forEach(inertOff);
+      if (blocks) { _blocking--; blocks = false; }
+      roots = Array.prototype.slice.call(next || []).filter(function (n) { return n && !n.contains(el); });
+      roots.forEach(inertOn);
+      blocks = roots.length > 0;
+      if (blocks) _blocking++;
+    }
+    return { open: open, close: close, isOpen: function () { return isOpen; }, setInert: setInert };
+  };
+  MCO.overlay.siblingsOf = function (el, keep) {
+    keep = keep || [];
+    var out = [];
+    for (var node = el; node && node !== document.body && node.parentElement; node = node.parentElement) {
+      Array.prototype.forEach.call(node.parentElement.children, function (sib) {
+        if (sib === node || /^(SCRIPT|STYLE|TEMPLATE|LINK)$/.test(sib.tagName)) return;
+        if (sib.hasAttribute('aria-live') || sib.classList.contains('mco-toast')) return;
+        if (keep.some(function (k) { return k && (k === sib || sib.contains(k)); })) return;
+        out.push(sib);
+      });
+    }
+    return out;
+  };
+  MCO.overlay.isBlocking = function () {
+    return _blocking > 0 || !!document.querySelector('dialog[open]');
+  };
+
+  /* ── Off-canvas drawer (0.9.0) ─────────────────────────────────────────────
+     The sanctioned home for a control-dense bar on a phone (HOUSE-STYLE §3).
+
+       <button class="nav-btn icon-only" id="btn-drawer" aria-label="Filters"
+               aria-expanded="false" aria-controls="drawer">…</button>
+       <aside class="mco-drawer" id="drawer" data-side="start" aria-labelledby="drawer-title" hidden>
+         <div class="mco-drawer-head"><h2 id="drawer-title" class="mco-panel-title">Filters</h2>
+           <button class="modal-close" data-close-drawer aria-label="Close filters">×</button></div>
+         <div class="mco-drawer-body">…</div>
+       </aside>
+       <div class="mco-scrim" data-scope="container" aria-hidden="true" hidden></div>
+
+       var drawer = MCO.initDrawer({
+         drawer: el, toggle: btn, scrim: scrimEl,   // scrim optional
+         modal: 'compact',     // 'always' | 'compact' (off-canvas on compact, a docked
+                               // column otherwise) | 'never' (off-canvas, non-modal)
+         inertRoots: null,     // default: everything beside the drawer's ancestor chain
+         initialFocus: null,   // default: first focusable inside
+         onChange: function (open, docked) { map.resize(); },
+       });
+       → {open, close, toggle, isOpen, isDocked, destroy}
+
+     A labelled <aside>, not role=dialog: a disclosure that, while modal-open,
+     makes the rest of the page inert — so Tab can only cycle inside it and
+     no focus trap is needed. Open moves focus in; close (Esc, ×, scrim, the
+     toggle) returns it to the toggle or the shortcut's opener. Closed, it
+     carries [hidden] after the slide-out, so nothing off-screen stays in the
+     tab order or the accessibility tree. */
+  MCO.initDrawer = function (opts) {
+    var drawer = opts.drawer;
+    var toggle = opts.toggle || null;
+    var scrim = opts.scrim || null;
+    var mode = opts.modal || 'compact';
+    var onChange = opts.onChange || null;
+    var openState = false;
+    var docked = false;
+    var hideTimer = null;
+    var SLIDE_MS = 300;
+
+    function modalNow() { return mode === 'always' || (mode === 'compact' && MCO.viewport.isCompact()); }
+    function inertRoots() {
+      if (!modalNow()) return [];
+      return opts.inertRoots || MCO.overlay.siblingsOf(drawer, [scrim, toggle && mode === 'never' ? toggle : null]);
+    }
+    var ov = MCO.overlay({
+      el: drawer,
+      opener: function () { return document.activeElement && document.activeElement !== document.body ? document.activeElement : toggle; },
+      initialFocus: opts.initialFocus,
+      inert: inertRoots,
+      fallbackFocus: toggle,
+      onClose: function () { hide(); },
+    });
+
+    function show() {
+      clearTimeout(hideTimer);
+      drawer.hidden = false;
+      if (scrim && modalNow()) scrim.hidden = false;
+      void drawer.offsetWidth;            // reflow so the slide starts from closed
+      drawer.classList.add('is-open');
+    }
+    function hide() {
+      if (!openState) return;
+      openState = false;
+      drawer.classList.remove('is-open');
+      if (scrim) scrim.hidden = true;
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(function () { if (!openState && !docked) drawer.hidden = true; },
+        MCO.reducedMotion() ? 0 : SLIDE_MS);
+      if (onChange) onChange(false, docked);
+    }
+    function open() {
+      if (docked || openState) return;
+      openState = true;
+      show();
+      if (toggle) toggle.setAttribute('aria-expanded', 'true');
+      ov.open();
+      if (onChange) onChange(true, docked);
+    }
+    function close(o) {
+      if (!openState) return;
+      ov.close({ restoreFocus: !o || o.restoreFocus !== false });
+    }
+    function toggleIt() { if (openState) close(); else open(); }
+
+    function applyMode() {
+      var shouldDock = mode === 'compact' && !MCO.viewport.isCompact();
+      if (shouldDock === docked) { if (openState) ov.setInert(inertRoots()); return; }
+      if (shouldDock) {
+        if (openState) ov.close({ restoreFocus: false });
+        docked = true;
+        clearTimeout(hideTimer);
+        drawer.dataset.docked = '';
+        drawer.hidden = false;
+        drawer.classList.remove('is-open');
+        if (scrim) scrim.hidden = true;
+        if (toggle) toggle.hidden = true;
+      } else {
+        docked = false;
+        delete drawer.dataset.docked;
+        drawer.hidden = true;
+        if (toggle) { toggle.hidden = false; toggle.setAttribute('aria-expanded', 'false'); }
+      }
+      if (onChange) onChange(openState, docked);
+    }
+
+    function onDrawerClick(e) { if (e.target.closest('[data-close-drawer]')) close(); }
+    function onScrim() { close(); }
+    if (toggle) toggle.addEventListener('click', toggleIt);
+    drawer.addEventListener('click', onDrawerClick);
+    if (scrim) scrim.addEventListener('click', onScrim);
+    var unsub = MCO.viewport.onChange(applyMode);
+    applyMode();
+
+    return {
+      open: open, close: close, toggle: toggleIt,
+      isOpen: function () { return openState; },
+      isDocked: function () { return docked; },
+      destroy: function () {
+        close({ restoreFocus: false });
+        unsub();
+        if (toggle) toggle.removeEventListener('click', toggleIt);
+        drawer.removeEventListener('click', onDrawerClick);
+        if (scrim) scrim.removeEventListener('click', onScrim);
+      },
+    };
+  };
+
+  /* ── Bottom sheet (0.9.0) ──────────────────────────────────────────────────
+     The detail surface on compact viewports, lifted from mesonet-explorer's
+     field-proven panel: below compact it docks at the bottom with peek/full
+     detents; above, it docks at the end edge, full height (dock: 'compact').
+
+       <section class="mco-sheet" id="sheet" aria-labelledby="sheet-title" data-state="closed" hidden>
+         <div class="mco-sheet-head">
+           <button class="mco-sheet-grip" aria-label="Expand details" aria-expanded="false"></button>
+           <h2 class="mco-sheet-title" id="sheet-title" tabindex="-1">…</h2>
+           <button class="modal-close" data-close-sheet aria-label="Close">×</button>
+         </div>
+         <div class="mco-sheet-body">…</div>
+       </section>
+
+       var sheet = MCO.initSheet({
+         sheet: el,
+         peekHeight: 'auto',   // 'auto' = head + the body's [data-peek] block, measured; or px
+         dismissible: true,    // drag below peek / Esc closes
+         publishMetric: true,  // --sheet-h on <html> (MCO.metrics) while bottom-docked
+         inertRoots: null,     // made inert in the FULL detent on compact (modal there);
+                               // default: everything beside the sheet's ancestor chain
+         onState: function (state) {},   // 'closed' | 'peek' | 'full'
+       });
+       sheet.open('peek', { opener: dotButton });   // → {open, close, setState, state, destroy}
+
+     - Drag: Pointer Events on the head only (the body scrolls). Release snaps
+       to the nearest detent; a fling over 0.5 px/ms goes to the next one; a
+       drag below peek dismisses. Instant under reduced motion.
+     - Keyboard twin of the drag (§5.8): the grip is a button — Enter/Space
+       steps peek ↔ full, ArrowUp/ArrowDown move between detents; aria-expanded
+       says which.
+     - Focus: open moves it to the title (tabindex=-1); close returns it to the
+       opener, else the fallback (opts.fallbackFocus, e.g. the map canvas).
+     - Not modal at peek — the map stays usable; modal in full on compact.
+     - Height math uses 100dvh, never 100vh. --z-detail tier. */
+  MCO.initSheet = function (opts) {
+    var sheet = opts.sheet;
+    var head = sheet.querySelector('.mco-sheet-head');
+    var body = sheet.querySelector('.mco-sheet-body');
+    var grip = sheet.querySelector('.mco-sheet-grip');
+    var dismissible = opts.dismissible !== false;
+    var publish = opts.publishMetric !== false;
+    var state = 'closed';
+    var hideTimer = null;
+    var MS = 220;
+
+    function bottomDocked() { return MCO.viewport.isCompact(); }
+    function inertRoots() {
+      if (!(bottomDocked() && state === 'full')) return [];
+      return opts.inertRoots || MCO.overlay.siblingsOf(sheet);
+    }
+    var ov = MCO.overlay({
+      el: sheet,
+      initialFocus: opts.initialFocus || '.mco-sheet-title',
+      inert: [],
+      fallbackFocus: opts.fallbackFocus || null,
+      onClose: function () { finishClose(); },
+    });
+
+    function metric() {
+      if (!publish) return;
+      MCO.metrics.set('--sheet-h', state !== 'closed' && bottomDocked() ? sheet.getBoundingClientRect().height : 0);
+    }
+    function syncPeek() {
+      if (opts.peekHeight != null && opts.peekHeight !== 'auto') {
+        sheet.style.setProperty('--sheet-peek-h', opts.peekHeight + 'px');
+        return;
+      }
+      var mark = body && body.querySelector('[data-peek]');
+      var need = mark ? mark.getBoundingClientRect().bottom - body.getBoundingClientRect().top : 0;
+      sheet.style.setProperty('--sheet-peek-h', Math.round(head.offsetHeight + Math.max(0, need) + 12) + 'px');
+    }
+    function apply(next) {
+      state = next;
+      sheet.dataset.state = next;
+      if (grip) {
+        grip.setAttribute('aria-expanded', String(next === 'full'));
+        grip.setAttribute('aria-label', next === 'full' ? 'Collapse details' : 'Expand details');
+      }
+      if (next === 'peek') syncPeek();
+      if (ov.isOpen()) ov.setInert(inertRoots());
+      metric();
+      setTimeout(metric, MCO.reducedMotion() ? 0 : MS + 20);   // max-height animates
+      if (opts.onState) opts.onState(next);
+    }
+    function open(st, o) {
+      st = st === 'full' || !bottomDocked() ? 'full' : 'peek';
+      clearTimeout(hideTimer);
+      var wasOpen = state !== 'closed';
+      sheet.hidden = false;
+      if (!wasOpen) {
+        sheet.classList.add('is-entering');
+        void sheet.offsetWidth;
+        requestAnimationFrame(function () { sheet.classList.remove('is-entering'); });
+      }
+      apply(st);
+      if (!wasOpen) { ov.open({ opener: o && o.opener }); ov.setInert(inertRoots()); }
+      else if (o && o.focus !== false) {
+        var t = sheet.querySelector('.mco-sheet-title');
+        if (t) t.focus({ preventScroll: true });
+      }
+      if (body) body.scrollTop = 0;
+    }
+    function finishClose() {
+      sheet.classList.add('is-leaving');
+      state = 'closed';
+      sheet.dataset.state = 'closed';
+      if (grip) grip.setAttribute('aria-expanded', 'false');
+      metric();
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(function () {
+        if (state !== 'closed') return;
+        sheet.hidden = true;
+        sheet.classList.remove('is-leaving');
+      }, MCO.reducedMotion() ? 0 : MS);
+      if (opts.onState) opts.onState('closed');
+    }
+    function close(o) {
+      if (state === 'closed') return;
+      ov.close({ restoreFocus: !o || o.restoreFocus !== false });
+    }
+    function setState(s) {
+      if (s === 'closed') { close(); return; }
+      if (state === 'closed') { open(s); return; }
+      apply(s === 'full' || !bottomDocked() ? 'full' : 'peek');
+    }
+
+    // Grip: the keyboard twin of the drag.
+    function onGrip() { setState(state === 'full' ? 'peek' : 'full'); }
+    function onGripKey(e) {
+      if (e.key === 'ArrowUp') { e.preventDefault(); setState('full'); }
+      else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (state === 'full') setState('peek');
+        else if (dismissible) close();
+      }
+    }
+    function onClick(e) { if (e.target.closest('[data-close-sheet]')) close(); }
+
+    // Drag on the head; the body keeps its own scrolling.
+    var drag = null;
+    function onDown(e) {
+      if (!bottomDocked() || e.target.closest('[data-close-sheet]')) return;
+      // No pointer capture yet: capturing on pointerdown retargets a TAP's
+      // click away from the grip button. Capture once it is really a drag.
+      drag = { y0: e.clientY, t0: performance.now(), h: sheet.offsetHeight, moved: false, id: e.pointerId };
+    }
+    function onMove(e) {
+      if (!drag) return;
+      var dy = e.clientY - drag.y0;
+      if (!drag.moved && Math.abs(dy) > 3) {
+        drag.moved = true;
+        try { head.setPointerCapture(drag.id); } catch (err) {}
+        sheet.style.transition = 'none';
+      }
+      if (!drag.moved) return;
+      if (dy < -24 && state === 'peek') { apply('full'); drag.y0 = e.clientY; }
+      sheet.style.transform = 'translateY(' + Math.max(0, dy) + 'px)';
+    }
+    function onUp(e) {
+      if (!drag) return;
+      var d = drag; drag = null;
+      var dy = e.clientY - d.y0;
+      var v = dy / Math.max(1, performance.now() - d.t0);    // px/ms
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+      if (!d.moved) return;                                  // a tap: the grip's click handles it
+      if (dy > Math.min(96, d.h * 0.3) || v > 0.5) {
+        if (state === 'full' && dy < d.h * 0.6 && v <= 1.2) apply('peek');
+        else if (dismissible) close();
+        else apply('peek');
+      } else if (v < -0.5) {
+        apply('full');
+      }
+    }
+
+    if (grip) { grip.addEventListener('click', onGrip); grip.addEventListener('keydown', onGripKey); }
+    sheet.addEventListener('click', onClick);
+    head.addEventListener('pointerdown', onDown);
+    head.addEventListener('pointermove', onMove);
+    head.addEventListener('pointerup', onUp);
+    head.addEventListener('pointercancel', onUp);
+    sheet.addEventListener('transitionend', function (e) { if (e.target === sheet) metric(); });
+    var unsub = MCO.viewport.onChange(function () {
+      if (state === 'closed') { metric(); return; }
+      if (!bottomDocked()) apply('full'); else apply(state);
+    });
+
+    return {
+      open: open, close: close, setState: setState,
+      state: function () { return state; },
+      destroy: function () {
+        close({ restoreFocus: false });
+        unsub();
+        if (grip) { grip.removeEventListener('click', onGrip); grip.removeEventListener('keydown', onGripKey); }
+        sheet.removeEventListener('click', onClick);
+        head.removeEventListener('pointerdown', onDown);
+        head.removeEventListener('pointermove', onMove);
+        head.removeEventListener('pointerup', onUp);
+        head.removeEventListener('pointercancel', onUp);
+      },
+    };
+  };
+
+  /* ── Loading (0.9.0) ───────────────────────────────────────────────────────
+     var load = MCO.loading(mapWrap, { label: 'Loading stations', place: 'over' });
+     load.start();  … load.done();  or  load.fail('Station data failed to load.', { retry: boot });
+     - aria-busy on the container while loading.
+     - The .mco-progress bar appears only after 300 ms, so a fast load never
+       flashes it. The container must be positioned (the bar pins to its top).
+     - Starting is never announced (noise). A load past 8 s announces "Still
+       loading…" once; fail() announces through its danger notice, with a
+       Retry button when you pass retry. */
+  MCO.loading = function (container, opts) {
+    opts = opts || {};
+    var label = opts.label || 'Loading';
+    var bar = document.createElement('div');
+    bar.className = 'mco-progress';
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-label', label);
+    bar.hidden = true;
+    container.appendChild(bar);
+    var showTimer = null, slowTimer = null, notice = null;
+    function clear() { clearTimeout(showTimer); clearTimeout(slowTimer); bar.hidden = true; container.removeAttribute('aria-busy'); }
+    return {
+      element: bar,
+      start: function () {
+        clear();
+        if (notice) { notice.close(); notice = null; }
+        container.setAttribute('aria-busy', 'true');
+        showTimer = setTimeout(function () { bar.hidden = false; }, opts.delayMs != null ? opts.delayMs : 300);
+        slowTimer = setTimeout(function () { MCO.announce('Still loading. ' + label + '…'); }, opts.slowMs || 8000);
+      },
+      progress: function (pct) {
+        bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+        bar.style.setProperty('--progress', String(Math.max(0, Math.min(100, pct))));
+      },
+      done: function () { clear(); if (notice) { notice.close(); notice = null; } },
+      fail: function (msg, o) {
+        clear();
+        var retry = o && o.retry;
+        notice = MCO.notice({
+          tone: 'danger', text: msg, container: container, place: opts.place,
+          action: retry ? { label: 'Retry', onClick: function () { notice.close(); notice = null; retry(); } } : null,
+        });
+        return notice;
+      },
+    };
+  };
+
+  /* ── Stepper (0.9.0) ───────────────────────────────────────────────────────
+     Prev/next buttons for a date or hour:
+       var step = MCO.initStepper({ prev, next,
+         onStep: function (d) { date = MCO.shiftDate(date, d); render(); },
+         canStep: function (d) { return d < 0 ? date > MIN : date < MAX; } });
+     Click and Enter/Space step once; a held pointer repeats (400 ms, then
+     every 80 ms — a steady rate, no acceleration). Buttons are disabled at
+     the bounds (refresh() after outside changes). Pair with a role=status
+     readout of the new value. Buttons: .nav-btn.mco-step. */
+  MCO.initStepper = function (opts) {
+    var canStep = opts.canStep || function () { return true; };
+    var repeat = opts.repeat !== false;
+    var holdTimer = null, held = false;
+    function refresh() {
+      if (opts.prev) opts.prev.disabled = !canStep(-1);
+      if (opts.next) opts.next.disabled = !canStep(1);
+    }
+    function step(d) {
+      if (!canStep(d)) { stop(); return; }
+      opts.onStep(d);
+      refresh();
+    }
+    function stop() { clearTimeout(holdTimer); holdTimer = null; }
+    function wire(btn, d) {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        if (held) { held = false; return; }   // the pointer hold already stepped
+        step(d);
+      });
+      if (!repeat) return;
+      btn.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0 || btn.disabled) return;
+        held = true;
+        step(d);
+        var tick = function () { if (btn.disabled) { stop(); return; } step(d); holdTimer = setTimeout(tick, 80); };
+        holdTimer = setTimeout(tick, 400);
+      });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { btn.addEventListener(ev, stop); });
+    }
+    wire(opts.prev, -1);
+    wire(opts.next, 1);
+    refresh();
+    return { refresh: refresh };
+  };
+
+  // Chips and other multi-selects: a copy of arr with v added or removed.
+  MCO.toggleIn = function (arr, v) {
+    var i = arr.indexOf(v);
+    return i === -1 ? arr.concat([v]) : arr.slice(0, i).concat(arr.slice(i + 1));
+  };
+
+  /* ── Segmented fallback (0.9.0) ────────────────────────────────────────────
+     A segmented group that doesn't fit below 1060px becomes a <select>
+     (photo explorer's pattern), with one source of truth:
+       MCO.initSegmentedFallback({ group, select, onChange: function (v) {} });
+     group: a .seg-btns.is-radio fieldset (radios) or .seg-btns of
+     [data-value][aria-pressed] buttons. Each mirrors the other, [hidden] goes
+     on whichever isn't in use, and focus moves across when a breakpoint flip
+     hides the focused one. Breakpoints come from the ladder only (§3).
+     Returns {value, set, destroy}. */
+  MCO.initSegmentedFallback = function (opts) {
+    var group = opts.group, select = opts.select;
+    var mq = window.matchMedia(opts.mq || '(max-width: 1060px)');
+    function radios() { return Array.prototype.slice.call(group.querySelectorAll('input[type="radio"]')); }
+    function buttons() { return Array.prototype.slice.call(group.querySelectorAll('[data-value]')); }
+    function value() {
+      var r = radios().filter(function (x) { return x.checked; })[0];
+      if (r) return r.value;
+      var b = buttons().filter(function (x) { return x.getAttribute('aria-pressed') === 'true'; })[0];
+      return b ? b.dataset.value : select.value;
+    }
+    function set(v, notify) {
+      radios().forEach(function (x) { x.checked = x.value === v; });
+      buttons().forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.value === v)); });
+      select.value = v;
+      if (notify && opts.onChange) opts.onChange(v);
+    }
+    function onGroup(e) {
+      var t = e.target.closest('input[type="radio"], [data-value]');
+      if (!t) return;
+      set(t.value || t.dataset.value, true);
+    }
+    function onSelect() { set(select.value, true); }
+    function layout() {
+      var narrow = mq.matches;
+      var hadFocus = (narrow ? group : select).contains(document.activeElement);
+      group.hidden = narrow;
+      select.hidden = !narrow;
+      if (hadFocus) {
+        if (narrow) select.focus();
+        else {
+          var v = value();
+          var to = radios().filter(function (x) { return x.value === v; })[0] ||
+                   buttons().filter(function (x) { return x.dataset.value === v; })[0];
+          if (to) to.focus();
+        }
+      }
+    }
+    group.addEventListener(radios().length ? 'change' : 'click', onGroup);
+    select.addEventListener('change', onSelect);
+    mq.addEventListener('change', layout);
+    set(value(), false);
+    layout();
+    return {
+      value: value,
+      set: function (v) { set(v, false); },
+      destroy: function () {
+        group.removeEventListener('change', onGroup);
+        group.removeEventListener('click', onGroup);
+        select.removeEventListener('change', onSelect);
+        mq.removeEventListener('change', layout);
       },
     };
   };

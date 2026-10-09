@@ -278,6 +278,37 @@
   --z-toast:       400;   /* toast — above everything                      */
 }
 
+/* ── 2b. Type & spacing scale (0.9.0) ─────────────────────────────────────
+   Theme-invariant, so :root only (tools/check-tokens.mjs knows them as the
+   `scale` group, like the z-index ladder). Each step names a cluster the kit
+   already uses, so adopting one is near-invisible. 0.9.0 ADDS them for apps;
+   the kit's own rules move onto them in 1.0.0 (0.72→0.75 and 0.78→0.8125 are
+   visible snaps, so that sweep is MAJOR). --nav-gap stays, defaulting to
+   --space-4. */
+:root {
+  --fs-2xs:     0.55rem;   /* lockup subtitle only */
+  --fs-xs:      0.65rem;   /* brand title, mono meta, tooltip sub */
+  --fs-sm:      0.75rem;   /* panel titles, seg/tooltip, captions */
+  --fs-md:      0.8125rem;   /* buttons, toast, eyebrow h3 */
+  --fs-base:    0.875rem;   /* prose, table cells */
+  --fs-lg:      1.0625rem;   /* modal and card titles */
+  --fs-xl:      1.375rem;   /* stat readouts */
+  --fs-2xl:     2rem;   /* hero numbers */
+  --lh-tight:   1.2;
+  --lh-body:    1.6;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+  --fw-bold:    700;
+  --space-1:    0.25rem;
+  --space-2:    0.4rem;   /* the house rhythm (lockup, edge margins) */
+  --space-3:    0.5rem;
+  --space-4:    0.75rem;
+  --space-5:    1rem;
+  --space-6:    1.5rem;
+  --space-7:    2rem;
+}
+
 /* ── 3. Reset & accessibility utilities ──────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -430,7 +461,7 @@ body {
   /* --nav-gap drives BOTH the flex gap and the lockup divider's negative
      margin, so the brand rhythm survives any change to the gap (§6 tightens it
      at ≤1060px). Overriding the gap directly would desynchronise them. */
-  --nav-gap: 0.75rem;
+  --nav-gap: var(--space-4);
   display: flex; align-items: center; gap: var(--nav-gap);
   /* Left padding matches the vertical padding so the 40px logo badge sits
      with square margins in the 52px bar (≈6px on all three sides). */
@@ -509,6 +540,48 @@ body {
 .seg-btn:last-child  { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-right-width: 1px; }
 .seg-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
 
+/* Radio segmented (0.9.0): a single-choice group as a native radio fieldset —
+   free arrow keys, one Tab stop. Styled exactly like the aria-pressed
+   segmented group:
+     <fieldset class="seg-btns is-radio"><legend class="sr-only">Units</legend>
+       <label class="nav-btn seg-btn"><input type="radio" name="u" value="us" checked>US</label> …
+   The input is unstyled but covers its label, so the universal focus ring
+   lands on it and a click anywhere on the label selects. Corners use
+   :first-of-type / :last-of-type, so the <legend> doesn't throw them off. */
+.seg-btns.is-radio { border: 0; padding: 0; margin: 0; min-width: 0; }
+.seg-btns.is-radio > label.seg-btn { position: relative; display: flex; align-items: center; cursor: pointer; }
+.seg-btns.is-radio > label.seg-btn > input {
+  position: absolute; inset: 0; margin: 0;
+  appearance: none; -webkit-appearance: none;
+  background: none; border: 0; border-radius: inherit; cursor: pointer;
+}
+.seg-btns.is-radio > .seg-btn:first-of-type { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.seg-btns.is-radio > .seg-btn:last-of-type { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-right-width: 1px; }
+.seg-btns.is-radio > label.seg-btn:has(> input:checked) { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
+
+/* Stepper buttons (0.9.0) — MCO.initStepper. Square .nav-btn, 34px (40 on touch). */
+.nav-btn.mco-step { padding: 0.4rem; min-width: 34px; justify-content: center; }
+
+/* Chips (0.9.0): pill toggles in a labelled group; apps own the selection.
+     <div class="mco-chips" role="group" aria-labelledby="net-label">
+       <button class="mco-chip" aria-pressed="true">HydroMet <span class="mco-chip-count">142</span></button>
+   Pressed adds a ✓ (alt text empty), so the state isn't color alone.
+   aria-busy="true" while its count loads. 28px, 40px on touch. */
+.mco-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.mco-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  min-height: 28px; padding: 2px 10px;
+  background: none; border: 1px solid var(--ctrl-border); border-radius: 999px;
+  color: var(--text-secondary); font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium);
+  white-space: nowrap; cursor: pointer; transition: var(--transition);
+}
+.mco-chip:hover { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+.mco-chip[aria-pressed="true"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
+.mco-chip[aria-pressed="true"]::before { content: "\2713"; content: "\2713" / ""; font-size: 0.9em; }
+.mco-chip-count { font-family: var(--font-mono); font-size: 0.9em; font-variant-numeric: tabular-nums; }
+.mco-chip[aria-busy="true"] { cursor: progress; }
+.mco-chip[aria-busy="true"] .mco-chip-count { visibility: hidden; }
+
 /* Refresh/liveness status: read-only, deliberately subordinated. Add .static
    when the view isn't live (historical modes) to stop the pulse. */
 .refresh-status {
@@ -546,6 +619,73 @@ body {
   box-shadow: var(--shadow);
 }
 .mco-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Footer (0.9.0): data-source credit, then the MCO credit (MCO.credit()),
+   then an optional mono version / "last updated" line. Full-viewport map
+   apps carry no footer — it costs map height — and put MCO.credit() in the
+   info modal's Data section and their exports instead. --text-muted on
+   --bg-deep; links underlined (1.4.1). */
+.mco-footer {
+  padding: var(--space-4) max(var(--space-5), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left));
+  border-top: 1px solid var(--border);
+  background: var(--bg-deep);
+  font-size: var(--fs-sm); line-height: 1.5; color: var(--text-muted); text-align: center;
+}
+.mco-footer p + p { margin-top: var(--space-1); }
+.mco-footer a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+.mco-footer-meta { font-family: var(--font-mono); font-size: var(--fs-xs); }
+
+/* Card (0.9.0): the IN-FLOW section shell — chart and table cards, sidebar
+   blocks, sheet sections. .mco-panel is the over-map glass; this sits in the
+   page. Surface background, so the text contract holds (muted/dim are
+   allowed on surface, never raised). Collapsible with MCO.initCollapsible.
+     .mco-card > .mco-card-head (.mco-card-title + .mco-card-actions) + .mco-card-body
+   .is-flush: a body that runs to the edge (tables, charts). .is-glass: panel
+   visuals without the absolute positioning. */
+.mco-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); min-width: 0; }
+.mco-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border);
+}
+.mco-card-title {
+  margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary);
+}
+.mco-card-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.mco-card-body { padding: var(--space-4); }
+.mco-card.is-flush > .mco-card-body { padding: 0; }
+.mco-card.is-glass { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: var(--shadow); }
+/* On glass the surface guarantee is gone: facts labels step up to secondary. */
+.mco-card.is-glass .mco-facts dt, .mco-panel .mco-facts dt { color: var(--text-secondary); }
+
+/* Loading (0.9.0) — MCO.loading. A 3px bar pinned to the top of its
+   (positioned) container on the --z-map-progress tier: an indeterminate
+   sweep, or determinate with aria-valuenow + --progress (0–100). Static
+   under reduced motion. .mco-skeleton blocks are aria-hidden placeholders
+   (.is-block, .is-chart, or --skeleton-h); flat under reduced motion. */
+.mco-progress {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  overflow: hidden; z-index: var(--z-map-progress); pointer-events: none;
+}
+.mco-progress::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 35%;
+  background: var(--accent-line);
+  animation: mco-progress-sweep 1.2s ease-in-out infinite;
+}
+.mco-progress[aria-valuenow]::before { animation: none; width: calc(var(--progress, 0) * 1%); transition: width var(--transition); }
+@keyframes mco-progress-sweep { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+.mco-skeleton {
+  display: block; height: var(--skeleton-h, 0.9em); border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--bg-raised) 0%, var(--border) 50%, var(--bg-raised) 100%) 0 0 / 200% 100%;
+  animation: mco-skeleton-shimmer 1.4s linear infinite;
+}
+.mco-skeleton.is-block { --skeleton-h: 4rem; }
+.mco-skeleton.is-chart { --skeleton-h: 12rem; border-radius: var(--radius-md); }
+@keyframes mco-skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .mco-progress::before { animation: none; width: 100%; opacity: 0.6; }
+  .mco-skeleton { animation: none; background: var(--bg-raised); }
+}
 
 /* Notice (0.8.0): the persistent, actionable twin of the toast — a load
    failure with Retry, a data caveat, an outage. The toast is text-only and
@@ -902,6 +1042,113 @@ body {
 }
 .mco-scrim[data-scope="container"] { position: absolute; }
 
+/* Off-canvas drawer (0.9.0) — MCO.initDrawer. A labelled <aside> on the
+   --z-drawer tier, sliding in from data-side (start | end). [hidden] after the
+   slide-out, so nothing off-screen stays tabbable. data-scope="container"
+   keeps it inside a positioned frame (with a scoped scrim) so the navbar
+   stays live; data-docked (set by modal: 'compact' above compact) turns it
+   into a plain column in flow. */
+.mco-drawer {
+  position: fixed; top: 0; bottom: 0; left: 0;
+  width: min(var(--drawer-w, 320px), 88vw);
+  display: flex; flex-direction: column;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  z-index: var(--z-drawer);
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+  transform: translateX(-100%);
+  transition: transform var(--transition);
+}
+.mco-drawer[data-side="end"] { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--border); transform: translateX(100%); }
+.mco-drawer[data-scope="container"] { position: absolute; }
+.mco-drawer.is-open { transform: none; }
+.mco-drawer[data-docked] {
+  position: static; transform: none; box-shadow: none;
+  width: var(--drawer-w, 320px); flex-shrink: 0; z-index: auto;
+  padding-top: 0; transition: none;
+}
+.mco-drawer[data-docked] [data-close-drawer] { display: none; }
+.mco-drawer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) max(var(--space-4), env(safe-area-inset-left));
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.mco-drawer-body {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-4) var(--space-4) max(var(--space-4), env(safe-area-inset-left));
+}
+.mco-drawer[data-side="end"] .mco-drawer-head,
+.mco-drawer[data-side="end"] .mco-drawer-body { padding-right: max(var(--space-4), env(safe-area-inset-right)); }
+
+/* Bottom sheet (0.9.0) — MCO.initSheet, after mesonet-explorer's panel. Docks
+   at the end edge (full height under the chrome) above compact, and at the
+   bottom with peek/full detents on compact. --z-detail: under the drawer and
+   the chrome, over the map controls. Heights are 100dvh math. */
+.mco-sheet {
+  position: fixed; z-index: var(--z-detail);
+  top: var(--chrome-h, 0px); bottom: 0; right: 0;
+  width: min(var(--sheet-w, 360px), 40vw);
+  display: flex; flex-direction: column;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: none;
+  transition: transform 0.22s cubic-bezier(0.4,0,0.2,1), max-height 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+.mco-sheet.is-entering, .mco-sheet.is-leaving { transform: translateX(100%); }
+.mco-sheet-head {
+  position: relative; flex-shrink: 0;
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 48px; padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.mco-sheet-title { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); color: var(--text-primary); }
+.mco-sheet-title:focus { outline: none; }          /* programmatic focus target; never reached by Tab */
+.mco-sheet-grip { display: none; }
+.mco-sheet-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right)) var(--space-4) var(--space-4);
+}
+.is-compact .mco-sheet {
+  top: auto; left: 0; right: 0; bottom: 0; width: auto;
+  max-height: calc((100dvh - var(--chrome-h, 0px)) * 0.85);
+  border-left: 0; border-top: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.is-compact .mco-sheet.is-entering, .is-compact .mco-sheet.is-leaving { transform: translateY(100%); }
+.is-compact .mco-sheet[data-state="peek"] { max-height: var(--sheet-peek-h, 180px); }
+.is-compact .mco-sheet[data-state="peek"] .mco-sheet-body { overflow: hidden; }
+.is-compact .mco-sheet-head { touch-action: none; cursor: grab; padding-top: 18px; }
+/* The grip: a visible 40×4 bar inside a 44×24+ button — the keyboard and
+   tap twin of the drag. */
+.is-compact .mco-sheet-grip {
+  display: block; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 64px; height: 24px; min-height: 0; padding: 0;
+  background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+}
+.is-compact .mco-sheet-grip::before {
+  content: ''; position: absolute; left: 12px; right: 12px; top: 10px; height: 4px;
+  border-radius: 999px; background: var(--ctrl-border);
+}
+@media (hover: none) { .is-compact .mco-sheet-grip { width: 88px; height: 44px; top: -10px; } .is-compact .mco-sheet-grip::before { top: 20px; left: 24px; right: 24px; } }
+
+/* First-paint hold (0.9.0): see MCO.ready(). visibility, never display, so
+   the reserved layout doesn't shift when the hold lifts. */
+html.mco-booting [data-hold] { visibility: hidden; }
+html:not(.mco-booting) [data-skeleton] { display: none; }
+
+/* Overlay metrics + auto-lift (0.9.0). --chrome-h / --sheet-h / --tabbar-h
+   are written on <html> by MCO.metrics (the sheet publishes its own). Lifting
+   the toast and MapLibre's bottom corners is opt-in via html.mco-autolift
+   until 1.0.0 — the toast's position is an observable default. */
+:root { --chrome-h: 0px; --sheet-h: 0px; --tabbar-h: 0px; --overlay-bottom: calc(var(--sheet-h) + var(--tabbar-h)); }
+html { scroll-padding-top: var(--chrome-h); }
+html.mco-autolift .mco-toast { bottom: calc(1.5rem + var(--overlay-bottom) + env(safe-area-inset-bottom)); }
+html.mco-autolift .maplibregl-ctrl-bottom-left,
+html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 * var(--overlay-bottom))); transition: transform var(--transition); }
+
 /* ── 6. Responsive & touch ────────────────────────────────────────────────
    Breakpoint ladder (HOUSE-STYLE.md §3): 1400 shed button labels · 1060
    tighten chrome · 750 collapse the brand to the badge · 640 compact. "Compact" also has
@@ -974,6 +1221,8 @@ body {
 /* WCAG 2.5.5 — comfortable touch targets on touch-only devices. */
 @media (hover: none) {
   .nav-btn, .seg-btn { min-height: 40px; }
+  .nav-btn.mco-step { min-width: 40px; }
+  .mco-chip { min-height: 40px; padding: 4px 14px; }
   /* The :has() arm covers label-shed buttons squared by §6; above 1400px the
      label makes them wider than 40px anyway, so it's a no-op there. */
   .nav-btn.icon-only, .mco-navbar .nav-btn:has(> .btn-label) { min-width: 40px; }
@@ -981,5 +1230,11 @@ body {
   .modal-close { min-width: 44px; min-height: 44px; }
   .maplibregl-popup-close-button { width: 44px; height: 44px; top: 0; right: 0; }
   .maplibregl-popup-content:has(.maplibregl-popup-close-button) .mco-popup { padding-right: 2.4rem; }
-  .mco-panel-toggle { width: 36px; height: 36px; }
+  /* 40px, not 36 (0.9.0): the verify harness's touch-target audit caught it. */
+  .mco-panel-toggle { width: 40px; height: 40px; }
+  /* MapLibre's own controls are 29px (zoom/fit) and 24px (the compact
+     attribution ⓘ) — under the 40px floor on touch (0.9.0). */
+  .maplibregl-ctrl-group button { width: 40px; height: 40px; }
+  .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 40px; padding-right: 40px; }
+  .maplibregl-ctrl-attrib-button { width: 40px; height: 40px; border-radius: 20px; background-position: center; }
 }
