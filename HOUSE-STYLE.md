@@ -161,8 +161,17 @@ variant), segmented groups `.seg-btns > .seg-btn`, info button `.mco-btn-info`.
 `--accent` with `--text-on-accent`. Never hand-roll `color: #fff` on the
 accent, which is 2.2:1 in high contrast.
 
+The lockup is 12 px title / 11 px subtitle (0.10.0). Don't shrink it to buy
+a row: shed controls into a drawer or the rail instead.
+
 **Glass panels** (`.mco-panel`): floating surfaces over the map (legend,
 filters). Head + collapsible body; wire with `MCO.initCollapsible`.
+**Legibility never depends on the blur** (0.10.0): `--glass` is near-opaque
+(0.92 dark, 0.94 light, 0.96 high contrast) and `backdrop-filter` only
+softens what shows through. Engines and modes that drop the blur get the
+bare fill, and `prefers-reduced-transparency: reduce` makes every glass
+surface solid `--bg-surface`. An app-local glass surface follows the same
+rule: never a translucent fill that is only readable when blurred.
 
 **Z-index ladder**: add to a tier, never invent a number. Tiers (from
 `--z-map-ctrl: 2` to `--z-toast: 400`) are documented in the CSS. MapLibre's

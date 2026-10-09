@@ -152,7 +152,7 @@
   --accent-fill-hover: #114f80;   /* .nav-btn.is-primary hover; --text-on-accent ≥ 4.5:1 on it */
   --selection-ring: #5aaee8;
   --brand-gradient: linear-gradient(90deg, var(--accent-dk), var(--accent), var(--accent-light), var(--accent));
-  --glass:          rgba(30,37,48,0.82);
+  --glass:          rgba(30,37,48,0.92);   /* legible WITHOUT the blur (0.10.0) */
   --shadow:         0 4px 24px rgba(0,0,0,0.4);
   --transition:     0.2s cubic-bezier(0.4,0,0.2,1);
   --radius-sm:      4px;
@@ -160,7 +160,7 @@
   --radius-lg:      12px;
   --dot-stroke:     #ffffff;
   --input-bg:       #232a35;
-  --scrim:          rgba(0,0,0,0.45);
+  --scrim:          rgba(0,0,0,0.55);
   --ctrl-icon-filter: invert(1);
   /* Status tones (0.8.0) — CHROME, not data (HOUSE-STYLE §2): form errors,
      notices, the basemap-failure banner. Never the only channel: pair with
@@ -197,11 +197,11 @@
   --accent-fill-hover: #0d4f7a;
   --selection-ring: #1563a0;
   --brand-gradient: linear-gradient(90deg, #0a4a7a, #1266a8, #0d7fd4, #1266a8, #0a4a7a);
-  --glass:          rgba(255,255,255,0.88);
+  --glass:          rgba(255,255,255,0.94);
   --shadow:         0 4px 24px rgba(0,0,0,0.1);
   --dot-stroke:     #2a2a3a;
   --input-bg:       #f4f5f7;
-  --scrim:          rgba(0,0,0,0.35);
+  --scrim:          rgba(0,0,0,0.45);
   --ctrl-icon-filter: none;
   --danger:         #c2271c;
   --danger-fill:    #f8e5e4;
@@ -286,9 +286,9 @@
    visible snaps, so that sweep is MAJOR). --nav-gap stays, defaulting to
    --space-4. */
 :root {
-  --fs-2xs:     0.55rem;   /* lockup subtitle only */
-  --fs-xs:      0.65rem;   /* brand title, mono meta, tooltip sub */
-  --fs-sm:      0.75rem;   /* panel titles, seg/tooltip, captions */
+  --fs-2xs:     0.55rem;   /* unused by the kit since 0.10.0 (the lockup subtitle is 11px) */
+  --fs-xs:      0.65rem;   /* mono meta, tooltip sub */
+  --fs-sm:      0.75rem;   /* brand title, panel titles, seg/tooltip, captions */
   --fs-md:      0.8125rem;   /* buttons, toast, eyebrow h3 */
   --fs-base:    0.875rem;   /* prose, table cells */
   --fs-lg:      1.0625rem;   /* modal and card titles */
@@ -488,8 +488,11 @@ body {
    becomes −0.1rem, holding the 0.4rem rhythm either way. */
 .mco-navbar > .nav-divider { margin-inline: calc(0.4rem - var(--nav-gap)); }
 .brand { display: flex; flex-direction: column; justify-content: center; flex-shrink: 0; line-height: 1.2; }
-.brand-title    { font-size: 0.65rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; margin: 0; }
-.brand-subtitle { font-size: 0.55rem; font-weight: 400; letter-spacing: 0.04em; font-style: italic; color: var(--text-dim); white-space: nowrap; }
+/* 12px title, 11px subtitle (0.10.0; were 10.4 and 8.8px, below a legible
+   floor — #37). The lockup is wider for it: apps tuned to a wrap point
+   re-check their ladder. */
+.brand-title    { font-size: var(--fs-sm); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; margin: 0; }
+.brand-subtitle { font-size: 0.6875rem; font-weight: 400; letter-spacing: 0.04em; font-style: italic; color: var(--text-dim); white-space: nowrap; }
 .controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; row-gap: 0.3rem; }
 .nav-meta { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; margin-left: auto; }
 
@@ -1237,4 +1240,18 @@ html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 
   .maplibregl-ctrl-group button { width: 40px; height: 40px; }
   .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 40px; padding-right: 40px; }
   .maplibregl-ctrl-attrib-button { width: 40px; height: 40px; border-radius: 20px; background-position: center; }
+}
+
+/* Glass is legible on its own (0.10.0, #37): --glass is near-opaque and the
+   backdrop blur is an enhancement on top, because an engine that drops it
+   (headless WebKit, low-power modes) or a visitor who asks for Reduce
+   Transparency gets the bare fill. Under that preference every glass surface
+   goes solid: --glass becomes --bg-surface, and the blur is dropped.
+   html:root outranks the [data-theme] blocks without matching their selector. */
+@media (prefers-reduced-transparency: reduce) {
+  html:root { --glass: var(--bg-surface); }
+  .mco-navbar, .mco-panel, .mco-card.is-glass, .mco-tooltip, .maplibregl-ctrl-group,
+  .mco-navbar .mco-search-collapse.is-open, .mco-modal::backdrop {
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
 }
