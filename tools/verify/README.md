@@ -97,17 +97,26 @@ checkout write `root: '../mesonet-status'`, or pass `--root` to override.
 
 ## The canary (`canary.mjs`)
 
-The candidate run intercepts every `cdn.jsdelivr.net/gh/mt-climate-office/
-mco-web-style@<any>/…` request and answers it from this checkout, and strips
-`integrity` from the kit tags in the served HTML. The origin stays jsDelivr,
-so the consumer's real CSP still applies. It is the "consumer bumps its tags
-and nothing else" case, which is also how a consumer still on MapLibre 5
-meets a newer kit.
+The candidate is served by a second local server.
+- It rewrites every `cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@<any>/`
+  URL to `/__mco-kit/` on the same origin, answered from this checkout. That
+  covers the kit tags, plus app JS and CSS that build kit URLs.
+- It strips `integrity` from those tags.
+- It adds `'self'` to the CSP directives that already allow jsDelivr, so the
+  consumer's CSP is still enforced.
+
+It is the "consumer bumps its tags and nothing else" case, which is also how
+a consumer still on MapLibre 5 meets a newer kit. **No request interception
+(0.11.1):** in Playwright WebKit on macOS, any `context.route()`, even one
+that matches nothing, breaks every `blob:` worker, so MapLibre 6 draws
+nothing ("WebKitBlobResource error 1"). Don't reintroduce `route()` in a
+harness that loads a map.
 
 - **Noise:** the baseline loads twice. A selector whose geometry differs
   between the two baselines is listed as `noisy` and never blamed on the
   kit, and the pixel diff must beat the baseline-to-baseline diff by
-  `--threshold` (0.5%). Settling waits for 1.5 s of network quiet, then
+  `--threshold` (0.5%). Settling waits for 1.5 s of network quiet, capped at
+  `--quiet-cap` (8 s; a page that streams photos never goes quiet), then
   `--settle` ms.
 - **Expected changes:** list them in `canary-accept.json` with the reason
   (CHANGELOG), and empty it once the consumers have re-pointed past the
@@ -115,9 +124,9 @@ meets a newer kit.
   pixel diff up to that size, and only when nothing unaccepted moved: the
   0.10.0 lockup shifts the whole bar, about 0.6% of a 1440 frame. Anything else that
   moved is a regression until someone explains it.
-- **CI:** `.github/workflows/canary.yml` runs it for all six consumers on every
-  PR. Each job's report lands in the job summary and the images in an
-  artifact.
+- **CI:** `.github/workflows/canary.yml` runs it on every PR as 12 jobs, one
+  per consumer × browser, so the engines run side by side. Each job's report
+  lands in the job summary and its images in an artifact.
 - **Calibrated 2026-10-08:** three reruns with no kit change agree; a planted
   navbar regression (52→80px) is caught in WebKit with 3.87% pixels against a
   0.38% noise floor.

@@ -640,7 +640,7 @@ a.nav-btn { text-decoration: none; }
 
 /* Toast. One per page; created for you by MCO.showToast() if absent. */
 .mco-toast {
-  position: fixed; bottom: 1.5rem; left: 50%;
+  position: fixed; bottom: 1.5rem; left: calc(50% + var(--rail-inset, 0px) / 2);
   transform: translateX(-50%) translateY(0.75rem);
   background: var(--bg-surface);
   border: 1px solid var(--accent-line);
@@ -1010,6 +1010,9 @@ a.nav-btn { text-decoration: none; }
 .mco-search-option[aria-selected="true"] { background: var(--accent-hover); box-shadow: inset 3px 0 0 var(--accent-line); }
 .mco-search-option.is-current { font-weight: 600; }
 .mco-search-option.is-current > :first-child::before { content: "\2713\00a0"; content: "\2713\00a0" / ""; }
+/* The native clear (×) glyph is dark on every theme; flip it like the map
+   control icons (0.11.1). */
+.mco-search-input::-webkit-search-cancel-button { filter: var(--ctrl-icon-filter, none); }
 .mco-search-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
 .mco-search-note { padding: 6px 8px; font-size: 0.75rem; color: var(--text-secondary); cursor: default; }
 @media (hover: none) {
@@ -1091,7 +1094,7 @@ a.nav-btn { text-decoration: none; }
    stays live; data-docked (set by modal: 'compact' above compact) turns it
    into a plain column in flow. */
 .mco-drawer {
-  position: fixed; top: 0; bottom: 0; left: 0;
+  position: fixed; top: 0; bottom: 0; left: var(--rail-inset, 0px);
   width: min(var(--drawer-w, 320px), 88vw);
   display: flex; flex-direction: column;
   background: var(--bg-surface);
@@ -1104,6 +1107,8 @@ a.nav-btn { text-decoration: none; }
 }
 .mco-drawer[data-side="end"] { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--border); transform: translateX(100%); }
 .mco-drawer[data-scope="container"] { position: absolute; }
+/* Inside its frame, which the rail's body padding already clears. */
+.mco-drawer[data-scope="container"]:not([data-side="end"]) { left: 0; }
 .mco-drawer.is-open { transform: none; }
 .mco-drawer[data-docked] {
   position: static; transform: none; box-shadow: none;
@@ -1154,7 +1159,7 @@ a.nav-btn { text-decoration: none; }
   padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right)) var(--space-4) var(--space-4);
 }
 .is-compact .mco-sheet {
-  top: auto; left: 0; right: 0; bottom: 0; width: auto;
+  top: auto; left: var(--rail-inset, 0px); right: 0; bottom: 0; width: auto;
   max-height: calc((100dvh - var(--chrome-h, 0px)) * 0.85);
   border-left: 0; border-top: 1px solid var(--border);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -1314,7 +1319,12 @@ html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 
 @media (max-height: 560px) and (orientation: landscape) {
   body:has(> .mco-navbar[data-rail]) {
     --rail-w: 56px;
-    padding-left: calc(var(--rail-w) + env(safe-area-inset-left));
+    /* What the rail covers (0.11.1). Fixed surfaces anchored at the left
+       edge (the compact sheet, a start-side drawer, the toast's centre)
+       read it, so nothing lands under the rail; it is unset, so 0, outside
+       rail mode. */
+    --rail-inset: calc(var(--rail-w) + env(safe-area-inset-left));
+    padding-left: var(--rail-inset);
   }
   /* The rail isn't above anything: nothing needs scroll padding for it. */
   html:has(> body > .mco-navbar[data-rail]) { --chrome-h: 0px !important; }

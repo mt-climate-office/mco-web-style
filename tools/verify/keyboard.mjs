@@ -44,6 +44,15 @@ for (const engine of browsers(a)) {
   const env = await start({ root, page, engine });
   console.log(`keyboard (${engine}): ${env.base}${page.split('/').pop()}`);
 
+  // A page that never shows its render evidence is a FAILED check, not a
+  // crash: report it and skip that probe, as axe-matrix does (0.11.1).
+  const tryOpen = async (label, q, o = opts) => {
+    try { return await open(env, q, o); } catch (e) {
+      check(`${label}: render evidence`, false, String(e.message || e).split('\n')[0]);
+      return null;
+    }
+  };
+
   const focused = (p) => p.evaluate(() => {
     const el = document.activeElement;
     if (!el || el === document.body) return null;
@@ -60,8 +69,10 @@ for (const engine of browsers(a)) {
   });
 
   /* 1 + 2. Skip link first; a focus ring on every Tab stop. */
-  {
-    const { page: p, close } = await open(env, baseQuery, opts);
+  rings: {
+    const s = await tryOpen('skip link + focus rings', baseQuery);
+    if (!s) break rings;
+    const { page: p, close } = s;
     // A first-visit modal may be open (seed its storage key to avoid it): close
     // it so Tab starts from the top of the document, not inside the dialog.
     await p.evaluate(() => {
@@ -107,9 +118,11 @@ for (const engine of browsers(a)) {
   }
 
   /* 3. Dialog: open with Enter, focus inside, Esc closes, focus returns. */
-  {
+  dialog: {
     const sel = cfg.dialogOpener || '.mco-btn-info';
-    const { page: p, close } = await open(env, baseQuery, opts);
+    const s = await tryOpen('dialog probe', baseQuery);
+    if (!s) break dialog;
+    const { page: p, close } = s;
     const opener = await p.$(sel);
     if (!opener) {
       console.log(`– dialog probe skipped: no ${sel} on the page`);
@@ -139,7 +152,9 @@ for (const engine of browsers(a)) {
   for (const sc of cfg.shortcuts || []) {
     for (const off of [false, true]) {
       const q = baseQuery + (off ? (baseQuery.includes('?') ? '&' : '?') + 'kbd=off' : '');
-      const { page: p, close } = await open(env, q, opts);
+      const s = await tryOpen(`"${sc.key}" shortcut${off ? ' (?kbd=off)' : ''}`, q);
+      if (!s) continue;
+      const { page: p, close } = s;
       await p.evaluate(() => { document.activeElement && document.activeElement.blur(); });
       await p.keyboard.press(sc.key);
       await p.waitForTimeout(300);
@@ -150,7 +165,10 @@ for (const engine of browsers(a)) {
   }
 
   /* App-specific probes. */
-  if (cfg.probes) await cfg.probes({ env, open: (q, o) => open(env, q, { ...opts, ...o }), check });
+  if (cfg.probes) {
+    try { await cfg.probes({ env, open: (q, o) => open(env, q, { ...opts, ...o }), check }); }
+    catch (e) { check('app probes ran to the end', false, String(e.message || e).split('\n')[0]); }
+  }
 
   await env.close();
 }

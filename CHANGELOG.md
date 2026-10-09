@@ -8,6 +8,29 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.11.1] — 2026-10-09
+
+Fixes found by the first consumer re-point (mesonet-status). PATCH: the
+theme file changed, and core, map, cog and palette are the same as 0.11.0.
+
+### Fixed
+- **Rail mode: fixed surfaces cleared the rail** (0.10.0 defect). At 750×342,
+  the compact `.mco-sheet` sat under the 56px rail and clipped its title. A
+  start-side `.mco-drawer` slid in under it, and the toast centred on the
+  viewport. Rail mode now sets `--rail-inset` on the body, and all three
+  read it.
+- The search field's native clear (×) glyph is visible on dark themes.
+- `tools/verify/keyboard.mjs` reports a render-evidence timeout as a failed
+  check instead of crashing, as `axe-matrix.mjs` does.
+- `tools/verify/canary.mjs` no longer intercepts requests. Playwright WebKit
+  on macOS breaks every `blob:` worker under any `context.route()`, so
+  MapLibre 6 drew nothing in local WebKit candidate runs. The candidate is
+  now a second server that rewrites kit URLs to a same-origin path.
+
+### Changed
+- The canary is faster. The network-quiet wait is capped at 8 s (was 25 s;
+  `--quiet-cap`), and CI runs one job per consumer × browser.
+
 ## [0.11.0] — 2026-10-09
 
 The brand release: the MCO logo assets now live in the kit, and this repo is

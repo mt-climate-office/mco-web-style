@@ -25,9 +25,9 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/theme/mco-theme.css"
-      integrity="sha384-o2qizMsS3Rv2zcFIzQFUM1uiR59BnI6yKZOjmGiKG3dqP6p8jBkMaJCjg2dYN/eA" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.0/core/mco-core.js"
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/theme/mco-theme.css"
+      integrity="sha384-fgPQ77WorIiBcl64k4MazvEYd21g0lXRa8pDKCa+oUsOiQXHH8oY9FFuTWH6WyHv" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.11.1/core/mco-core.js"
         integrity="sha384-F/YeBkOPRU4+DPRf7McL88FjA76l+QnIEhFBUYDSrjBHcr4guZyDQvcG5x1VMjo/" crossorigin="anonymous"></script>
 ```
 
@@ -61,10 +61,10 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.11.0
+## SRI hashes — v0.11.1
 
 ```
-theme/mco-theme.css      sha384-o2qizMsS3Rv2zcFIzQFUM1uiR59BnI6yKZOjmGiKG3dqP6p8jBkMaJCjg2dYN/eA
+theme/mco-theme.css      sha384-fgPQ77WorIiBcl64k4MazvEYd21g0lXRa8pDKCa+oUsOiQXHH8oY9FFuTWH6WyHv
 core/mco-core.js         sha384-F/YeBkOPRU4+DPRf7McL88FjA76l+QnIEhFBUYDSrjBHcr4guZyDQvcG5x1VMjo/
 map/mco-map.js           sha384-tmDqtqi4yYiDHOxkZikwzXF3Lpkb63b0Tu6K7jeCpU9gJkPB2GbpFHLasGHka6zP
 map/cog-protocol.js      sha384-9hkbnrwnT71VgTqMFjTM8g3GFmvQH1z24Z9gvSAeCxF4YeuTS3lL3PMQTjWelFZm
