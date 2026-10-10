@@ -533,6 +533,9 @@ these rules:
   `Blues`, `PuRd`). **`Spectral` is banned** — it traverses red→green and is
   explicitly not colorblind-safe (it survives in one ramp picker as legacy;
   remove on migration).
+- **MCO's status ramps are Crameri `roma`** (decided 2026-10-09): status and
+  maintenance time-since, umrb's build stages. Take it from
+  `MCO.palette` (`roma`, 0.12.0) rather than pasting hexes.
 - **Diverging ramps require a labeled midpoint** (freezing, 0, 50%). Cyclic
   ramps (`romaO`) only for cyclic quantities (wind direction), labeled N…S…N.
 - **Color is never the sole channel** (WCAG 1.4.1). Redundancy options, in
@@ -545,7 +548,7 @@ these rules:
 **`MCO.palette`** (`palette/mco-palette.js`, 0.9.0) holds the approved ramps,
 ported from the dashboard's tested module (so its samples match the
 dashboard's exactly):
-- the ramps: batlow, romaO, RdBu, BrBG, YlGnBu, YlOrRd, Blues, PuRd, and Tol
+- the ramps: batlow, roma, romaO, RdBu, BrBG, YlGnBu, YlOrRd, Blues, PuRd, and Tol
   bright/muted/high-contrast
 - `sample()` / `colorAt()`, interpolated in OKLab
 - `span(name, theme)`: the part of a sequential ramp whose every color
