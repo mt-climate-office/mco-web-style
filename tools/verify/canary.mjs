@@ -34,6 +34,7 @@
        --consumer ../mesonet-photo-explorer:docs/index.html \
        [--browsers chromium,webkit] [--themes dark,light,high-contrast] \
        [--widths 1440,390] [--settle 2000] [--quiet-cap 8000] [--threshold 0.5] [--out ./canary-out]
+       [--ready '<selector>::<text>']   (or env CANARY_READY)
 
    Tooling (ephemeral, never committed — AGENTS rule 1):
      npm i --no-save playwright @axe-core/playwright pngjs pixelmatch
@@ -65,6 +66,17 @@ const SETTLE = Number(opt('settle', 2000));
 // Longest wait for network quiet. A page that streams (photos, polling)
 // never goes quiet; past this it is treated as settled (was 25 s).
 const QUIET_CAP = Number(opt('quiet-cap', 8000));
+// Optional "the data has landed" condition, for a feed slower than QUIET_CAP:
+// '<selector>::<text>' waits for that element to contain the text (the text
+// part is optional). A locator, not a JS string: string predicates are
+// eval'd in the page, and a consumer CSP without 'unsafe-eval' (maintenance's)
+// rejects them. mesonet-maintenance's live AirTable read can take
+// longer, and a shot taken while its stamp still says "loading…" put
+// .nav-meta 42px narrower than one taken after, which the geometry check
+// reported as a .controls regression on docs-only PRs. Waited for after the
+// quiet loop, up to READY_TIMEOUT; a timeout is recorded, not fatal.
+const READY = opt('ready', process.env.CANARY_READY || '');
+const READY_TIMEOUT = 45000;
 const THRESHOLD = Number(opt('threshold', 0.5));        // % of pixels
 const OUT = resolve(opt('out', './canary-out'));
 // Changes this release makes ON PURPOSE (CHANGELOG): geometry moves on these
@@ -156,6 +168,12 @@ async function run(browser, engine, base, c, theme, width, candidate) {
   await page.goto(`${base}/${c.page}?theme=${theme}`, { waitUntil: 'load', timeout: 45000 }).catch((e) => errors.push('goto: ' + e.message));
   const t0 = Date.now();
   while (Date.now() - t0 < QUIET_CAP && !(inflight === 0 && Date.now() - lastChange > 1500)) await page.waitForTimeout(200);
+  if (READY) {
+    const [sel, text] = READY.split('::');
+    // 'attached', not the default 'visible': narrow layouts hide status chrome.
+    await page.locator(sel, text ? { hasText: text } : {}).first().waitFor({ state: 'attached', timeout: READY_TIMEOUT })
+      .catch(() => errors.push(`ready: not true after ${READY_TIMEOUT / 1000} s: ${READY}`));
+  }
   await page.waitForTimeout(SETTLE);
   // First-visit info modals open in both runs; close them so they don't hide the page.
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close())).catch(() => {});
@@ -308,7 +326,7 @@ for (const c of consumers) {
       const pb = paints(b.mapShot), pk = paints(k.mapShot);
       if (pb && pk === false) issues.push('map: drew in baseline, BLANK in candidate');
       const info = `px ${pd.pct.toFixed(2)}% (noise ${floor.toFixed(2)}%)` + (expected.length ? ` · expected: ${expected.join(' | ')}` : '') + (noisy.length ? ` · noisy: ${noisy.join(' ')}` : '') + (pb === null ? '' : ` · map ${pb ? 'drew' : 'blank'}→${pk ? 'drew' : 'blank'}`) +
-        (b.errors.length ? ` · ${b.errors.length} baseline error(s)` : '');
+        (b.errors.length ? ` · ${b.errors.length} baseline error(s), first: ${b.errors[0].slice(0, 160)}` : '');
       if (issues.length) regressions++;
       console.log(`${issues.length ? '✗' : '✓'} ${tag} — ${issues.length ? issues.join('; ') : 'no change'} (${info})`);
       report.push(`| ${engine} | ${theme} | ${width} | ${issues.length ? '✗ ' + issues.join('<br>') : '✓ ' + info} |`);

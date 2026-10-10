@@ -24,6 +24,9 @@ jobs:
         include:
           - { page: index.html }
           - { repo: mesonet-photo-explorer, page: docs/index.html }
+          # Its live AirTable feed can outlast the canary's network-quiet cap:
+          # wait for the stamp to leave "loading…" (canary.mjs --ready).
+          - { repo: mesonet-maintenance, ready: "#refresh-stamp::loaded " }
           # web-next is the one bundled consumer: build it, then serve dist
           # under its Pages base path, which its asset URLs are absolute to.
           - { repo: mesonet-dashboard, page: mesonet-dashboard/next/index.html, root: site/web-next, build: web-next }
@@ -48,6 +51,8 @@ jobs:
           mkdir -p ${{ matrix.root }}/$(dirname ${{ matrix.page }})
           cp -R consumer/${{ matrix.repo }}/${{ matrix.build }}/dist/. ${{ matrix.root }}/$(dirname ${{ matrix.page }})/
       - name: Canary
+        env:
+          CANARY_READY: ${{ matrix.ready }}
         run: >
           node tools/verify/canary.mjs
           --consumer ${{ matrix.root || format('consumer/{0}', matrix.repo) }}:${{ matrix.page }}
