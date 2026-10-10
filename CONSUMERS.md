@@ -50,7 +50,8 @@ on an unexposed page; that is tracked in mesonet-ogc#1.
     brown for stale. White pill text clears 6:1 on both ends. umrb keeps its
     lightness-remapped stage hexes, whose hues match roma within about 1°
     (3° at its darkest stop); its comment cites the kit ramp. **Two marker
-    collisions PR B left, fixed in open PRs (2026-10-10):**
+    collisions PR B left, fixed, merged and verified live in Chromium and
+    WebKit (2026-10-10):**
     - **AgriMet ring (status #4):** a warm fill touched the orange ring
       directly (stale brown 1.60:1 on the light ring; the 6–24 h gold OKLab
       ΔE 2.8 from the dark ring under deuteranopia). A `--dot-stroke` gap
