@@ -305,7 +305,9 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   MapLibre's bottom corners clear it (opt-in until 1.0.0). **An app panel
   that shares a bottom corner (a legend) takes `data-autolift`** (0.13.0) and
   lifts with it; otherwise the corner's attribution rides up over the panel.
-  Before turning on `mco-autolift`, mark every bottom-docked panel. On compact,
+  Before turning on `mco-autolift`, mark every bottom-docked panel. The lift
+  stops 8px below the top of the element's container (0.13.1), so in the
+  short-landscape rail a tall panel should collapse rather than ride up. On compact,
   status, maint and umrb open this instead of the anchored popup.
 - Full-viewport apps use `100dvh` (never `100vh`) and `overflow: hidden` on body.
 - **`viewport-fit=cover` is required** for the safe-area insets in the kit CSS

@@ -8,6 +8,26 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.13.1] — 2026-10-10
+
+PATCH: theme and core. Map, cog and palette are the same as 0.13.0.
+
+### Fixed
+- **Autolift no longer lifts anything off the top of the map.** With
+  `html.mco-autolift`, a tall `[data-autolift]` panel (or a MapLibre
+  corner) rode past the top of its container when the sheet was taller
+  than the room above it. In the 750×342 rail, status's 234px legend went
+  to −153px with the sheet at peek. `MCO.metrics` now gives each lifted
+  element its own `--lift`: the overlay height, capped at the room between
+  its resting top and its container's top, less 8px. It updates when the
+  sheet or tab bar height changes, on resize, and when a lifted element
+  resizes (a legend collapsing). Without JS the CSS falls back to the old
+  uncapped lift.
+  - Verified on status (with `data-autolift` on its legend) in Chromium and
+    WebKit: at 390×844 with the sheet at 212px the legend lifts the full
+    amount; with the sheet at 600px, and in the 750×342 rail at 150 and
+    300px, the legend and the corners stop 8px below the map's top.
+
 ## [0.13.0] — 2026-10-10
 
 MINOR: theme only. Core, map, cog and palette are the same as 0.12.0.
