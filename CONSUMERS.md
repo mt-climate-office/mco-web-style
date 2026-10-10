@@ -27,7 +27,9 @@ in its PR #101 (merged 2026-10-10): web-next is on kit 0.11.2 with MapLibre
   per commit, plus the 0.10/0.11 opt-ins: the landscape rail in all six,
   the 3-state theme, and the export wordmark (snow, photos, explorer). PR B
   is retargeted to `main` and open for review: status #2, explorer #2,
-  maintenance #2, umrb #2, snow #2, photos #8.
+  maintenance #2, umrb #2, snow #2, photos #8. As of 2026-10-10 every PR B is
+  on @0.11.3 or later: status, maintenance and umrb on @0.12.0 (roma), the
+  other three on @0.11.3. Each is re-verified in both engines.
 - **Follow-ups decided 2026-10-09, in progress on PR B:**
   - status and umrb shed at the 1400 rung (HOUSE-STYLE §3);
   - explorer and photos adopt clean-URL defaults and `pushUrlState`, so
@@ -39,6 +41,16 @@ in its PR #101 (merged 2026-10-10): web-next is on kit 0.11.2 with MapLibre
     lightness isn't monotonic across status's time-since bins, and the
     fills alone fall under 3:1 on the light map. The dot strokes carry the
     edge. No kit recency ramp.
+  - **2026-10-10: real roma, from the kit (option B).** The status hexes
+    were hand-tuned look-alikes, not points on roma. 0.12.0 ships
+    `MCO.palette` `roma`, and status and maintenance now take
+    `sample('roma', 5, {from: .1, to: .9, reverse: true})`: blue for fresh to
+    brown for stale. White pill text clears 6:1 on both ends. umrb keeps its
+    lightness-remapped stage hexes, whose hues match roma within about 1°
+    (3° at its darkest stop); its comment cites the kit ramp. Still open, in
+    the PRs: a stale AgriMet dot (brown) sits inside an orange network ring
+    on status, and the pale 3–6 month mint sits near the no-data grey on
+    maintenance in dark and high-contrast.
   - Apps with a nightly preview bot keep their live `og:image` (HOUSE-STYLE
     §1).
 - **Found during the re-points and fixed in the kit:**
