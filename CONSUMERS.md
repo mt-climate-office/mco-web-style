@@ -60,7 +60,10 @@ in its PR #101 (merged 2026-10-10): web-next is on kit 0.11.2 with MapLibre
   - 0.11.3: cog `emptyTile` (the "[cog] OffscreenCanvas" errors snow logged
     were the kit's), drawer at compact load, overlay focus fallback,
     stepper hold flag, busy chips, conformance/lint-css agreement.
-- Open: #45 (autolift vs app corner panels, before 1.0.0).
+- #45 (autolift vs app corner panels) is fixed in 0.13.0 by `data-autolift`.
+  Found while fixing it: at 390 the status legend already sits over the
+  expanded map attribution at rest, hiding part of "© CARTO". That's an app
+  layout issue, separate from the lift.
 
 **History, 2026-09-30: all six consumers were on @0.7.1 (first paint + metric-matched fallback
 fonts), deployed and verified live 2026-09-30.** Each followed the MIGRATING.md § "0.6.x → 0.7.0" checklist (tags

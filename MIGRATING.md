@@ -503,6 +503,15 @@ snippet and CSP are unchanged.
   roma with per-theme lightness remapped offline; they stay derived hexes,
   citing the kit's ramp as their source.
 
+## Re-pointing an existing consumer: 0.12.0 → 0.13.0
+
+Only `theme/mco-theme.css` changed (new hash). The other files, the
+snippet and the CSP are unchanged.
+- **`data-autolift`** on any bottom-docked panel (a legend in a bottom
+  corner) before you add `html.mco-autolift`. Without it the lifted
+  attribution draws over the panel (#45). Nothing changes for an app that
+  doesn't use autolift.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export is known duplication that the kit has **deliberately not
