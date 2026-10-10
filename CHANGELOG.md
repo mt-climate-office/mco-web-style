@@ -8,6 +8,17 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.12.0] — 2026-10-10
+
+MINOR: palette only. Theme, core, map and cog are the same as 0.11.3.
+
+### Added
+- **`MCO.palette` `roma`**: Crameri's roma (v8), 11 stops, diverging with
+  `midpoint: 0.5`. It is the house ramp for status-style data (HOUSE-STYLE
+  §6), which status, maintenance and umrb had each pasted by hand. Like every diverging ramp it has no mark
+  `span()`: use it as fills with an outline (`--dot-stroke`), which is how
+  all three draw it.
+
 ## [0.11.3] — 2026-10-09
 
 Fixes found by the six consumer re-points. PATCH: theme, core and cog

@@ -491,6 +491,18 @@ A sheet that opens a `<dialog>` can now pass
 `inertRoots: () => MCO.overlay.siblingsOf(sheet, [dialog])` instead of an
 array.
 
+## Re-pointing an existing consumer: 0.11.3 → 0.12.0
+
+Only `palette/mco-palette.js` changed (new hash); theme, core, map and cog
+are byte-identical to 0.11.3, so their tags just change version. The
+snippet and CSP are unchanged.
+- **`MCO.palette` `roma`** is new. Apps that pasted roma hexes (status,
+  maintenance) can take them from `colorAt('roma', t)` / `sample('roma', …)`.
+  It is diverging, so `span()` is `null`: draw it as fills with the
+  `--dot-stroke` outline, as those apps already do. umrb's stage colors are
+  roma with per-theme lightness remapped offline; they stay derived hexes,
+  citing the kit's ramp as their source.
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export is known duplication that the kit has **deliberately not
