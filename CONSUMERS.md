@@ -19,8 +19,8 @@ different states, and the first one silently forks the tokens.
 0 CSP violations). status, maintenance and umrb are on @0.12.0 (roma);
 explorer, snow and photos are on @0.11.3. That closes GHSA-jrc7-96c5-q579
 in those six. **mesonet-dashboard** closed it in its PR #101 (merged
-2026-10-10): web-next is on kit 0.11.2 with MapLibre 6.11.2 from the import
-map, and the live frozen `web/` is on MapLibre 6.11.2. web-next is in the
+2026-10-10): web-next is on kit 0.11.3 (bumped from 0.11.2 the same day) with
+MapLibre 6.11.2 from the import map, and the live frozen `web/` is on MapLibre 6.11.2. web-next is in the
 canary as the seventh consumer. **mesonet-ogc** still loads MapLibre 3.6.2
 on an unexposed page; that is tracked in mesonet-ogc#1.
 
@@ -28,11 +28,11 @@ on an unexposed page; that is tracked in mesonet-ogc#1.
   re-point (PR A) came first. The cleanup PR (PR B) deletes local copies of what the kit now owns, one item
   per commit, plus the 0.10/0.11 opt-ins: the landscape rail in all six,
   the 3-state theme, and the export wordmark (snow, photos, explorer). PR B
-  is retargeted to `main` and open for review: status #2, explorer #2,
-  maintenance #2, umrb #2, snow #2, photos #8. As of 2026-10-10 every PR B is
-  on @0.11.3 or later: status, maintenance and umrb on @0.12.0 (roma), the
-  other three on @0.11.3. Each is re-verified in both engines.
-- **Follow-ups decided 2026-10-09, in progress on PR B:**
+  was status #2, explorer #2, maintenance #2, umrb #2, snow #2, photos #8,
+  all merged to `main` and re-verified in both engines. status, maintenance
+  and umrb landed on @0.12.0 (roma), the other three on @0.11.3. None of the
+  six has an open PR.
+- **Follow-ups decided 2026-10-09, shipped in PR B:**
   - status and umrb shed at the 1400 rung (HOUSE-STYLE §3);
   - explorer and photos adopt clean-URL defaults and `pushUrlState`, so
     Back closes the drill-down.
@@ -49,8 +49,8 @@ on an unexposed page; that is tracked in mesonet-ogc#1.
     `sample('roma', 5, {from: .1, to: .9, reverse: true})`: blue for fresh to
     brown for stale. White pill text clears 6:1 on both ends. umrb keeps its
     lightness-remapped stage hexes, whose hues match roma within about 1°
-    (3° at its darkest stop); its comment cites the kit ramp. Still open, in
-    the PRs: a stale AgriMet dot (brown) sits inside an orange network ring
+    (3° at its darkest stop); its comment cites the kit ramp. **Still open
+    (PR B did not fix them):** a stale AgriMet dot (brown) sits inside an orange network ring
     on status, and the pale 3–6 month mint sits near the no-data grey on
     maintenance in dark and high-contrast.
   - Apps with a nightly preview bot keep their live `og:image` (HOUSE-STYLE
@@ -64,7 +64,7 @@ on an unexposed page; that is tracked in mesonet-ogc#1.
     stepper hold flag, busy chips, conformance/lint-css agreement.
 - #45 (autolift vs app corner panels) is fixed in 0.13.0 by `data-autolift`,
   and 0.13.1 caps the lift at the top of each lifted element's container.
-  No consumer has adopted 0.13.x yet. Found while fixing it: at 390 the
+  Of the kit-consuming apps only mesonet-aq is on 0.13.x. Found while fixing it: at 390 the
   status legend sat over the expanded map attribution at rest, hiding part
   of "© CARTO"; status #3 (merged) moved it clear. Adopting `data-autolift`
   on the status legend is an optional follow-up.
@@ -139,14 +139,13 @@ first, then **pass 2** one deletion at a time.
   `color: #fff` on `--accent` (`#scale-apply` → `.nav-btn.is-primary`).
 - Record each app's `tools/conformance.mjs` score before and after.
 
-Still open from the 0.8.x line: **#27 logo assets**, which waits on brand-owner
-sign-off for a `currentColor` wordmark.
+Nothing is still open from the 0.8.x line: **#27 logo assets** shipped in
+0.11.0 (§ 0a).
 
 ### 2. Next migrations, in the order I would take them
 
 | Property | Why it is next | Shape of the work |
 |---|---|---|
-| **mesonet-dashboard** | Most-linked page in the network and mid-rewrite — the cheapest adoption moment there will be | Different: React 19 + Mantine 8. Inject `tokens/tokens.json` into `web/src/lib/theme.ts`. Tests whether the kit works outside vanilla apps, which it has never had to. |
 | **mesonet_app Leaflet pages** | Same repo, momentum, and the deploy path is already understood | `latest` (1479 lines, the real one), `stations`, `funding`. All Leaflet 1.9.4, no framework. ⚠️ Settle first whether `progress` and `Sensor_Map` should exist at all — both are unmounted dead directories, and `Sensor_Map` is the Leaflet ancestor of the UMRB build map. |
 | **mesonet-ogc** | Small, mechanical | Token swap + MapLibre bump; confirm it is actually deployed first. (mesonet-aq: rebuilt 2026-10-10, see Migrated.) |
 
@@ -196,6 +195,7 @@ watch, DOM popups, clean URLs, MapLibre 6). Re-measure after each pass.
 | **mesonet-maintenance** (Station Maintenance; was `mesonet_app/static/maintenance/`) | **@0.12.0** (2026-10-10; @0.11.2 2026-10-09; @0.7.1 2026-09-30; @0.6.0 2026-08-16) | 14 → 18/30 → 29/30 | Fourth consumer; near-identical twin of the build-status map, migrated in the same pass. **Moved to its own GitHub Pages repo on 2026-09-29** alongside it — `main` root, proxied at `mesonet.climate.umt.edu/maintenance/`; the frozen `mesonet_app` copy still serves at `/api/v2/map/maintenance/` for now and mesonet-db-rds 301s it here. Live AirTable feed read cross-origin from `mesonet2.climate.umt.edu` — 524 of that map's 571 CSS lines had been byte-identical to this file's. Same adoptions. Its tribal paints and `TRIBAL_LABEL_LAYOUT` were **byte-identical to the kit's already** (this page is where those values came from), so consuming them back was pure deletion. **Fixed in flight:** three popup pills failed WCAG 1.4.3 — `new` at 2.43:1, `as_needed` 3.46:1, `visited` 4.14:1, all white-on-light; text color is now per-pill with the measured ratio recorded. An axe scan never caught them because the popup only exists after a click. Also `src=""` on the lightbox image (re-requests the page), and a `map(escapeHTML)` reference the migration's own sweep missed because it had no paren. ⚠️ **Visit photos are AirTable attachments on `*.airtableusercontent.com`** — those URLs appear only in the API response, never in the HTML, so the first CSP cut allowed `'self' data: blob:` and every thumbnail died silently (a blocked CSS `background-image` renders as an empty box, not an error). `img-src` now carries the wildcarded attachment host. Kept app-local: compliance model, colocation/spider, photo gallery + lightbox, trip-type chips. Verified: 33 checks, axe 0 serious/critical in all three themes, against captures of the live 231-station / 179-record feeds. |
 | **mesonet-explorer** | **@0.11.3** (2026-10-10; @0.11.2 2026-10-09; @0.7.1 2026-09-30; @0.6.0 2026-08-16) | 14 → 19/30 → 26/30 → 29/30 | Fifth consumer and the closest to the house style already: **all 55 tokens it defined that the kit also defines were byte-identical**, so the palette was pure deletion, and 24 CSS rules matched the kit exactly. index.html 1801 → 1588 (CSS 1299 → ~1040). Adopted high-contrast (no values existed here at all), hillshade, `MCO.viewport` — which retires a documented "KEEP THE QUERY IN SYNC" hazard, since the breakpoint was duplicated between its JS and its CSS — the MT time helpers, skip link, and the §1 page-title rule. **Fixed in flight:** `shiftDate` ended in `toISOString()`, so the date stepper did nothing at UTC+13/+14 and skipped two days at UTC−12 (reproduced; correct in MT, which is why it hid); info-modal prose links were colour-only; the dimmed legend row put its label at 2.69:1 — the fix had to move the dim onto the swatch, because parent `opacity` composites the whole subtree and a child cannot undo it; the AgriMet chip hardcoded `#fff` on `--accent` (2.22:1 once high-contrast existed). **Daily mode never rendered at all** — see the API note below; the client half is fixed and uniform. `Spectral` left the ramp picker (HOUSE-STYLE §6) with its ramp data kept so shared links still render. **Kit-overrides, both marked for deletion at 0.7.0:** underlined attribution links, and the long-modal sticky header + scroll shade. Its `#sidebar-scrim` is deliberately NOT `.mco-scrim` (absolute inside the map, not viewport-fixed). Verified against a pristine pre-migration checkout rather than assumption: its own suite 149–152/152 across four runs with every failure traced to two flakes that are **worse at baseline**, plus a separate axe pass clean in all three themes, then re-verified live. ⚠️ Pages deploys from `main` root — a push IS the deploy. |
 | **mco-snowpack-explorer** | **@0.11.3** (2026-10-10; @0.11.2 2026-10-09; @0.7.1 2026-09-30; @0.6.0 2026-08-16) | 10 → 15/29 → 21/29 | Sixth consumer and the least-migrated starting point: no CSP, SRI, favicon, skip link, `<main>`, `.sr-only`, reduced-motion gate or high-contrast, and 894 lines of app JS inline. index.html 1536 → ~460; the JS is now `app.js` (kept an ES module — it imports hyparquet from esm.sh at runtime). Its local `cog-protocol.js` was **byte-identical** to the kit's and is deleted in favour of it. 🔑 **Both API keys are gone**: moving to keyless CARTO and the kit's terrarium hillshade retired `STADIA_API_KEY` and `MAPTILER_KEY`, so this static site ships no credential. ⚠️ **They remain in git history on a public repo and must be revoked at both vendors** — removing them from HEAD does not retire them. **Fixed in flight:** `--text-dim` #6b7a90/#7a8190 (the fourth app carrying that AA failure); the gridded raster was reachable by **hover only** — no touch path and nothing for AT — so a click/tap now pins a reading and announces it through a live region; `role="tooltip"` on a permanently-nameless element (it was *hurting*, promising a name and trigger that do not exist); the SNODAS ramp is hue-only, so **USDM category names are now printed in the legend** as the WCAG 1.4.1 redundant channel — they had lived only in code comments; a hard-coded `animate: true`; and no touch targets. `flatgeobuf@3` was a **floating major** — SRI against a floating version hard-fails the day the CDN moves — pinned to 3.38.0. **Migration defect worth recording:** deleting the navbar CSS section wholesale took four app-owned rules with it (`.control-group`, `.date-stepper`, `.nav-actions`, `.nav-btn.date-step`), which let the kit's 34px `.nav-btn` minimum apply to the date steppers and inflated the navbar 52px → 150px. An orphan-class scan caught only four of six; the computed-layout dump found the rest. Restoring `.nav-btn.date-step` verbatim would have restored a 15px touch target, so the mesonet-photos precedent applies (row of 40px targets on `hover: none`). Verified: 20 checks, axe clean at serious/critical in all three themes, COG raster confirmed painting on a winter date rather than trusted from a summer screenshot. ⚠️ Pages deploys from `main` root to **snow.climate.umt.edu** — a push IS the deploy. |
+| **mesonet-dashboard** (`web-next/`; the live `/mesonet-dashboard/` is still the frozen `web/`) | **@0.11.3** (2026-10-10; @0.11.2 earlier the same day) | 17/29 automatic, **not comparable** — `tools/conformance.mjs` reads only the page's local `<script src>`, and web-next's map, URL and selection code lives in TypeScript modules under `src/` (it does call `watchBasemap`, `addNavigation`, `--selection-ring`, `pushUrlState`) | Seventh consumer and the first that is not a hand-written vanilla page: a rebuild on the kit with Alpine.js, ECharts and TypeScript under Vite (started 2026-10-01), previewed at `/mesonet-dashboard/next/` and replacing `web/` at cutover. The earlier React 19 + Mantine plan (inject `tokens.json` into a Mantine theme) was dropped. MapLibre 6.11.2 from the import map in web-next and in the frozen `web/` (PR #101, GHSA-jrc7-96c5-q579). In the canary. Its own `npm run verify` covers kit-consumer checks, the axe matrix and keyboard walks. What it wants from the kit is in `web-next/KIT-PROPOSALS.md` and `KIT-NOTES.md`; its deliberate departures are in `DIVERGENCES.md`. |
 | **mesonet-aq** | **@0.13.1** (2026-10-10, PR open: mesonet-aq#6) | 30/30 | Rebuilt from the exemplar rather than migrated: the old page read a bucket that went private and 403'd. MapLibre map plus an `MCO.initSheet` detail with an **ECharts 6** chart (lazy, SRI; dispose/re-init on `mco:themechange`, axes pre-shifted to Mountain Time under `useUTC`). It is the second ECharts consumer after the dashboard. **App-local role, kit-override:** EPA/AirNow AQI category colors (hue-coded), with the AQI number printed on every dot and category names in the legend, tooltip, sheet and sr-table (Kyle, 2026-10-10). Reads Parquet with a vendored hyparquet + fzstd bundle served from `'self'` (no `wasm-unsafe-eval`). The `MCO.srTable` chart twin is rebuilt when the columns change, because srTable columns are fixed at creation. Verified: head 15/15, axe-matrix 45/45 and keyboard 5/5 in Chromium against a local dry run; WebKit pending. |
 
 ## House-styled, not kit-consuming
@@ -213,7 +213,6 @@ now" — the distinction is what tells you the work is mostly deletion.
 |---|---|---|
 | mco-drought-dashboard ⛔ **hands-off** | Vanilla OpenLayers SPA (docs/) | **Do not touch unless Kyle asks for this repo by name** (2026-08-16) — it is deliberately different and must be excluded from every cross-cutting sweep (title standardization, token reconciliation, bulk kit adoption). Read-only surveys are fine. Original notes: Most token-mature, deliberately drifted (bg-deep #10141d etc.) — reconcile to kit tokens or record as sanctioned overrides. Its high-contrast theme is now the kit's (with fixed accent tints — its own lines 121-125 still carry stale rgba values). Replace the 25-selector focus-visible list with the universal rule. Fold in `docs/legacy/` copies and the unbranded `methods.html`. |
 | mco-data-cdn (storage browser) | React + Vite | Already drift-free; swap `--mco-*`-prefixed theme.css for kit tokens (or keep the prefix as a local alias of tokens.json values). Natural home stays as-is — the kit ships via jsDelivr because this CDN resolves to a private IP on campus. |
-| mesonet-dashboard (`/dash/` rewrite, `web/`) | React 19 + Mantine 8 + MapLibre 5.24 | The most-linked page in the network, mid-rewrite = cheapest adoption moment. Inject `tokens/tokens.json` into `web/src/lib/theme.ts` (currently stock Mantine blue + system fonts). |
 | mesonet_app Leaflet pages | FastAPI `StaticFiles` mounts: `latest`, `stations`, `funding` — 3 unstyled Leaflet pages | The two MapLibre maps moved to the section above (`status` converted 2026-08-15). The census's "1 MapLibre + 6 Leaflet" is really **2 MapLibre + 3 Leaflet served**: `main.py:372` has `progress` commented out and `Sensor_Map` is never mounted, so both are dead directories on disk — confirm before styling, and consider deleting them. These three: adopt theme/core now; MapLibre migration opportunistically (house library — HOUSE-STYLE §7). |
 | mesonet-db-rds static maps | Active rewrite carrying a stale fork of the same map suite | Adopt the kit here rather than re-forking unstyled pages; its `status/` diverged and `maintenance/` is missing from the copy. |
 | mesonet-ogc | Single MapLibre 3.6 landing map | Smallest file, biggest visual win per line. Bump MapLibre to the family pin (6.x, ESM via `MCO.map.loadMapLibre`) while in there. Confirm it's actually deployed (nothing references it from the Docker/pygeoapi config). |
