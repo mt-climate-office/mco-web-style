@@ -170,7 +170,8 @@ async function run(browser, engine, base, c, theme, width, candidate) {
   while (Date.now() - t0 < QUIET_CAP && !(inflight === 0 && Date.now() - lastChange > 1500)) await page.waitForTimeout(200);
   if (READY) {
     const [sel, text] = READY.split('::');
-    await page.locator(sel, text ? { hasText: text } : {}).first().waitFor({ timeout: READY_TIMEOUT })
+    // 'attached', not the default 'visible': narrow layouts hide status chrome.
+    await page.locator(sel, text ? { hasText: text } : {}).first().waitFor({ state: 'attached', timeout: READY_TIMEOUT })
       .catch(() => errors.push(`ready: not true after ${READY_TIMEOUT / 1000} s: ${READY}`));
   }
   await page.waitForTimeout(SETTLE);
