@@ -318,7 +318,7 @@ for (const c of consumers) {
       const pb = paints(b.mapShot), pk = paints(k.mapShot);
       if (pb && pk === false) issues.push('map: drew in baseline, BLANK in candidate');
       const info = `px ${pd.pct.toFixed(2)}% (noise ${floor.toFixed(2)}%)` + (expected.length ? ` · expected: ${expected.join(' | ')}` : '') + (noisy.length ? ` · noisy: ${noisy.join(' ')}` : '') + (pb === null ? '' : ` · map ${pb ? 'drew' : 'blank'}→${pk ? 'drew' : 'blank'}`) +
-        (b.errors.length ? ` · ${b.errors.length} baseline error(s)` : '');
+        (b.errors.length ? ` · ${b.errors.length} baseline error(s), first: ${b.errors[0].slice(0, 160)}` : '');
       if (issues.length) regressions++;
       console.log(`${issues.length ? '✗' : '✓'} ${tag} — ${issues.length ? issues.join('; ') : 'no change'} (${info})`);
       report.push(`| ${engine} | ${theme} | ${width} | ${issues.length ? '✗ ' + issues.join('<br>') : '✓ ' + info} |`);
