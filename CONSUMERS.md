@@ -49,10 +49,22 @@ on an unexposed page; that is tracked in mesonet-ogc#1.
     `sample('roma', 5, {from: .1, to: .9, reverse: true})`: blue for fresh to
     brown for stale. White pill text clears 6:1 on both ends. umrb keeps its
     lightness-remapped stage hexes, whose hues match roma within about 1°
-    (3° at its darkest stop); its comment cites the kit ramp. **Still open
-    (PR B did not fix them):** a stale AgriMet dot (brown) sits inside an orange network ring
-    on status, and the pale 3–6 month mint sits near the no-data grey on
-    maintenance in dark and high-contrast.
+    (3° at its darkest stop); its comment cites the kit ramp. **Two marker
+    collisions PR B left, fixed in open PRs (2026-10-10):**
+    - **AgriMet ring (status #4):** a warm fill touched the orange ring
+      directly (stale brown 1.60:1 on the light ring; the 6–24 h gold OKLab
+      ΔE 2.8 from the dark ring under deuteranopia). A `--dot-stroke` gap
+      now separates them, via a decorative `*-fill` layer (`kit-override`;
+      kit issue #56 covers `markerPaint` hollow + `fill`).
+    - **No-data grey (status #4, maintenance #3):** the recorded pair was
+      the 3–6 month mint, which measures ΔE 20 and is fine. The real
+      collision is the **cyan bin against `#9aa3b3`**: 1.04:1, ΔE ≈ 4 under
+      protanopia or deuteranopia. No neutral grey clears all five roma bins,
+      because the ramp runs dark → light → dark, so no-data markers are now
+      **hollow** (a 2px `--dot-stroke` edge). Shape, not color, carries it.
+    - Not changed: maintenance trip type's Ground Game `#5aaee8` against
+      "Other / none" `#9aa3b3` (1.05:1, ΔE 9.5). That's a categorical
+      choice, and "Other" is a real category.
   - Apps with a nightly preview bot keep their live `og:image` (HOUSE-STYLE
     §1).
 - **Found during the re-points and fixed in the kit:**
