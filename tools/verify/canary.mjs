@@ -34,6 +34,7 @@
        --consumer ../mesonet-photo-explorer:docs/index.html \
        [--browsers chromium,webkit] [--themes dark,light,high-contrast] \
        [--widths 1440,390] [--settle 2000] [--quiet-cap 8000] [--threshold 0.5] [--out ./canary-out]
+       [--ready '<JS expression>']   (or env CANARY_READY)
 
    Tooling (ephemeral, never committed — AGENTS rule 1):
      npm i --no-save playwright @axe-core/playwright pngjs pixelmatch
@@ -65,6 +66,14 @@ const SETTLE = Number(opt('settle', 2000));
 // Longest wait for network quiet. A page that streams (photos, polling)
 // never goes quiet; past this it is treated as settled (was 25 s).
 const QUIET_CAP = Number(opt('quiet-cap', 8000));
+// Optional page-side condition that means "the data has landed", for a feed
+// slower than QUIET_CAP. mesonet-maintenance's live AirTable read can take
+// longer, and a shot taken while its stamp still says "loading…" put
+// .nav-meta 42px narrower than one taken after, which the geometry check
+// reported as a .controls regression on docs-only PRs. Waited for after the
+// quiet loop, up to READY_TIMEOUT; a timeout is recorded, not fatal.
+const READY = opt('ready', process.env.CANARY_READY || '');
+const READY_TIMEOUT = 45000;
 const THRESHOLD = Number(opt('threshold', 0.5));        // % of pixels
 const OUT = resolve(opt('out', './canary-out'));
 // Changes this release makes ON PURPOSE (CHANGELOG): geometry moves on these
@@ -156,6 +165,7 @@ async function run(browser, engine, base, c, theme, width, candidate) {
   await page.goto(`${base}/${c.page}?theme=${theme}`, { waitUntil: 'load', timeout: 45000 }).catch((e) => errors.push('goto: ' + e.message));
   const t0 = Date.now();
   while (Date.now() - t0 < QUIET_CAP && !(inflight === 0 && Date.now() - lastChange > 1500)) await page.waitForTimeout(200);
+  if (READY) await page.waitForFunction(READY, null, { timeout: READY_TIMEOUT }).catch(() => errors.push(`ready: not true after ${READY_TIMEOUT / 1000} s: ${READY}`));
   await page.waitForTimeout(SETTLE);
   // First-visit info modals open in both runs; close them so they don't hide the page.
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close())).catch(() => {});
