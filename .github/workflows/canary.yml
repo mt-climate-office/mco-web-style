@@ -19,11 +19,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repo: [mesonet-status, mesonet-explorer, mesonet-maintenance, mesonet-umrb-build, mco-snowpack-explorer, mesonet-photo-explorer]
+        repo: [mesonet-status, mesonet-explorer, mesonet-maintenance, mesonet-umrb-build, mco-snowpack-explorer, mesonet-photo-explorer, mesonet-dashboard]
         browser: [chromium, webkit]
         include:
           - { page: index.html }
           - { repo: mesonet-photo-explorer, page: docs/index.html }
+          # web-next is the one bundled consumer: build it, then serve dist
+          # under its Pages base path, which its asset URLs are absolute to.
+          - { repo: mesonet-dashboard, page: mesonet-dashboard/next/index.html, root: site/web-next, build: web-next }
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
@@ -38,10 +41,16 @@ jobs:
           npm init -y > /dev/null
           npm install --no-save playwright @axe-core/playwright pngjs pixelmatch
           npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Build (bundled consumers)
+        if: matrix.build
+        run: |
+          (cd consumer/${{ matrix.repo }}/${{ matrix.build }} && npm ci && npm run build)
+          mkdir -p ${{ matrix.root }}/$(dirname ${{ matrix.page }})
+          cp -R consumer/${{ matrix.repo }}/${{ matrix.build }}/dist/. ${{ matrix.root }}/$(dirname ${{ matrix.page }})/
       - name: Canary
         run: >
           node tools/verify/canary.mjs
-          --consumer consumer/${{ matrix.repo }}:${{ matrix.page }}
+          --consumer ${{ matrix.root || format('consumer/{0}', matrix.repo) }}:${{ matrix.page }}
           --browsers ${{ matrix.browser }}
           --accept tools/verify/canary-accept.json
           --out canary-out

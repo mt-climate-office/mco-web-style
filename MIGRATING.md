@@ -142,6 +142,19 @@ for kit calls:
   Get it wrong and the basemap draws but no GeoJSON layer ever does, and the
   console says only "Worker failed to load. Check that the worker URL is
   correct", with no "Refused to…" line.
+- **Bundled consumers must ship MapLibre 6's worker themselves** (found by
+  mesonet-dashboard, 2026-10-09). A Vite build that imports `maplibre-gl`
+  ships without the worker unless you import it as an asset and register it:
+  `import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'`
+  then `setWorkerUrl(workerUrl)` (named export of `maplibre-gl`; see the
+  dashboard's `web/src/lib/maplibreWorker.ts`). react-map-gl needs **8.1.3** or
+  later with MapLibre 6; 8.1.1 crashes. Apps on the kit's import map
+  (`MCO.map.loadMapLibre()`) don't need any of this.
+- **`announce()` text arrives a beat late.** The kit clears the live region,
+  then sets the message after a short gap, so screen readers re-read a
+  repeated message. A test that reads the region right after `announce()`
+  sees it empty: wait for the text (`expect(...).toHaveText`), don't read
+  it synchronously.
 - **WebKit ignores `min-height` on a native `<select>`** (found by the 0.9.0
   WebKit pass). A select sized for touch with `min-height: 40px` stays about
   20px tall on iPhone and iPad. Use `height` on selects.

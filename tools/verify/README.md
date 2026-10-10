@@ -126,8 +126,13 @@ harness that loads a map.
   pixel diff up to that size, and only when nothing unaccepted moved: the
   0.10.0 lockup shifts the whole bar, about 0.6% of a 1440 frame. Anything else that
   moved is a regression until someone explains it.
-- **CI:** `.github/workflows/canary.yml` runs it on every PR as 12 jobs, one
-  per consumer × browser, so the engines run side by side. Each job's report
+- **CI:** `.github/workflows/canary.yml` runs it on every PR as 14 jobs, one
+  per consumer × browser, so the engines run side by side. mesonet-dashboard's
+  web-next is the one bundled consumer: the job builds it (`npm ci && npm run
+  build`) and serves `dist/` under its Pages base path
+  (`mesonet-dashboard/next/`), since its asset URLs are absolute to that
+  path. The rewrite still applies, because web-next loads the kit from
+  `<link>`/`<script>` tags in its HTML, not through the bundle. Each job's report
   lands in the job summary and its images in an artifact.
 - **Calibrated 2026-10-08:** three reruns with no kit change agree; a planted
   navbar regression (52→80px) is caught in WebKit with 3.87% pixels against a

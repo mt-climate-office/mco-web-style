@@ -17,10 +17,10 @@ different states, and the first one silently forks the tokens.
 **All six consumers are on @0.11.2 with MapLibre 6.11.2, deployed and verified
 live 2026-10-09** (Chromium and WebKit, every production URL: kit 0.11.2,
 MapLibre 6.11.2, the map paints, 0 CSP violations, 0 console errors). That
-closes GHSA-jrc7-96c5-q579 everywhere except **mesonet-dashboard**. Its
-web-next (CDN-pinned 5.18.0) and the live frozen `web/` (npm `^5.24.0`)
-are both exposed; the session working in that repo has the brief, and
-Kyle sequences it.
+closes GHSA-jrc7-96c5-q579 in those six. **mesonet-dashboard** closed it
+in its PR #101 (merged 2026-10-10): web-next is on kit 0.11.2 with MapLibre
+6.11.2 from the import map, and the live frozen `web/` is on MapLibre
+6.11.2. web-next is in the canary as the seventh consumer.
 
 - **Each app had two PRs.** The security re-point (PR A) is merged. The
   cleanup PR (PR B) deletes local copies of what the kit now owns, one item
