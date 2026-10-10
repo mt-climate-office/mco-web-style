@@ -512,6 +512,15 @@ snippet and the CSP are unchanged.
   attribution draws over the panel (#45). Nothing changes for an app that
   doesn't use autolift.
 
+### 0.13.0 → 0.13.1
+
+Theme and core changed (new hashes); map, cog, palette, the snippet and
+the CSP are unchanged. Autolift now caps each lifted element at the top of
+its container. When the room runs out (the rail with the sheet open), a
+capped panel and the capped attribution both stop at the top and can
+overlap there, so collapse a tall corner panel in rail mode
+(`MCO.viewport.isRail()`).
+
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 
 Branded PNG export is known duplication that the kit has **deliberately not

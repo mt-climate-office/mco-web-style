@@ -885,6 +885,7 @@
   MCO.metrics = {
     set: function (name, px) {
       document.documentElement.style.setProperty(name, Math.max(0, Math.round(px || 0)) + 'px');
+      if (name === '--sheet-h' || name === '--tabbar-h') _clampLift();
     },
     get: function (name) {
       return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
@@ -898,6 +899,38 @@
       return function () { ro.disconnect(); };
     },
   };
+  /* Autolift clamp (0.13.1). html.mco-autolift lifts MapLibre's bottom
+     corners and [data-autolift] panels by --overlay-bottom. A panel taller
+     than the room left above the sheet would ride off the top of the map (a
+     234px legend in the 750x342 rail rode to -153px), so each lifted element
+     gets its own --lift: the overlay height, capped at the room between its
+     resting top and its container's top, less 8px. Its resting top is
+     offsetTop, which transforms and `translate` don't move. A fixed element
+     (no offsetParent) measures from the viewport. Without JS, CSS falls back
+     to the uncapped --overlay-bottom. */
+  var _LIFTED = '[data-autolift], .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right';
+  var _liftRO = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(function () { _clampLift(); }) : null;
+  var _liftSeen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  function _clampLift() {
+    var root = document.documentElement;
+    if (!root.classList.contains('mco-autolift')) return;
+    var lift = MCO.metrics.get('--sheet-h') + MCO.metrics.get('--tabbar-h');
+    var els = document.querySelectorAll(_LIFTED), room = [], i;
+    for (i = 0; i < els.length; i++) {
+      var el = els[i], top;
+      if (el.offsetParent) top = el.offsetTop;
+      else {
+        // Fixed: the viewport top, less whatever lift is applied right now.
+        var t = (getComputedStyle(el).translate || '').split(' ')[1];
+        top = el.getBoundingClientRect().top - (parseFloat(t) || 0) - MCO.metrics.get('--chrome-h');
+      }
+      room.push(Math.max(0, top - 8));
+      if (_liftRO && _liftSeen && !_liftSeen.has(el)) { _liftSeen.add(el); _liftRO.observe(el); }
+    }
+    for (i = 0; i < els.length; i++) els[i].style.setProperty('--lift', Math.round(Math.min(lift, room[i])) + 'px');
+  }
+  window.addEventListener('resize', _clampLift);
+
   // A sticky navbar (0.10.0) publishes its own height, so scroll-padding-top
   // keeps anchor targets and focused elements out from under it (WCAG 2.4.11).
   var _stickyBar = document.querySelector('.mco-navbar.is-sticky');
