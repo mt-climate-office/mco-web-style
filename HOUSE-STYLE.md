@@ -302,7 +302,10 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
 - Bottom sheet for detail panels: `.mco-sheet` + `MCO.initSheet`, with peek
   and full detents, drag on the head, and the grip button as the keyboard
   twin. It publishes `--sheet-h`. With `html.mco-autolift` the toast and
-  MapLibre's bottom corners clear it (opt-in until 1.0.0). On compact,
+  MapLibre's bottom corners clear it (opt-in until 1.0.0). **An app panel
+  that shares a bottom corner (a legend) takes `data-autolift`** (0.13.0) and
+  lifts with it; otherwise the corner's attribution rides up over the panel.
+  Before turning on `mco-autolift`, mark every bottom-docked panel. On compact,
   status, maint and umrb open this instead of the anchored popup.
 - Full-viewport apps use `100dvh` (never `100vh`) and `overflow: hidden` on body.
 - **`viewport-fit=cover` is required** for the safe-area insets in the kit CSS

@@ -8,6 +8,19 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.13.0] — 2026-10-10
+
+MINOR: theme only. Core, map, cog and palette are the same as 0.12.0.
+
+### Added
+- **`[data-autolift]`** (#45): with `html.mco-autolift`, an app's own
+  bottom-corner panel lifts by `--overlay-bottom` together with MapLibre's
+  bottom corners, so the attribution no longer rides up over a legend when
+  the sheet opens. It uses the `translate` property, so it composes with a
+  panel's own `transform`. Opt-in, like autolift itself. Verified on status
+  at 390 in Chromium and WebKit: the legend keeps its offset to the corner,
+  clears the sheet, and returns when it closes.
+
 ## [0.12.0] — 2026-10-10
 
 MINOR: palette only. Theme, core, map and cog are the same as 0.11.3.
