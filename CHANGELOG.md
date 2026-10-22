@@ -8,6 +8,41 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.15.0] — 2026-10-22
+
+MINOR: one additive option in `photos/mco-photos.js`. Theme, core, map,
+cog and palette are byte-identical to 0.14.0, so their SRI hashes are
+unchanged. Owner decision: website DECISIONS D16, which corrects D15's
+reading of D7. The 2026-10-22 public start is for the website's photo hero
+only; the Photo Explorer and the Station Dashboard keep the full public
+history.
+
+### Added
+- **`{fullHistory: true}`** on `MCO.photos.parseSchedule()` and
+  `MCO.photos.load()`: a public schedule with no date floor and no `REAIMED`
+  block. Pre-cutover North and South (aimed at the pluviometer and the snow
+  stake until 2026-10-21 16:00 MDT) are offered and labelled "North" and
+  "South", as the tools showed them before 0.14.0. The audience is still
+  public: Snow, North Snow, South Snow, Pluvio and Solar stay behind
+  `{internal: true}`, the retired sky views (NS, SS) stay staff-only, PARK
+  is never a view.
+  - Precedence for the first date: an explicit `since` (null included),
+    else none for `internal` or `fullHistory`, else `PUBLIC_SINCE`. An
+    explicit `since` never brings `REAIMED` back under `fullHistory`.
+  - The parsed schedule carries `fullHistory`; `frameFilter()`,
+    `fetchMonthFrames()`, `fetchLatestFrames()`, `listDay()`,
+    `confirmDerived()` and `initPhotoControls()` follow it through the
+    schedule. `frameFilter(null)` is still the public default.
+  - `load()` caches `fullHistory` under its own key.
+  - `fullHistory` with `internal` is the same as `internal`.
+- `tools/check-photos.mjs`: full-history cases (pre-cutover N/S back to the
+  first archived month, the default still clamped, staff unchanged, `since`
+  precedence, the cache key) and a `--live` check against data2.
+
+### Unchanged
+- **The default.** A caller passing nothing still gets the 2026-10-22
+  public start in every direction. The website does not pass `fullHistory`.
+
 ## [0.14.0] — 2026-10-22
 
 MINOR: one new published file, additive API. Theme, core, map, cog and

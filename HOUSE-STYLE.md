@@ -455,7 +455,7 @@ moved off `<body>`). An auto-open that lands after the map loads otherwise
 yanks focus from someone already tabbing (WCAG 3.2.1/3.2.2). **`?export=` convention**: a URL param that forces a theme and triggers
 the app's export path — keeps branded-PNG generation headless-scriptable.
 
-**Station photos** (0.14.0) come from `MCO.photos`, which reads the camera
+**Station photos** (0.14.0; full history 0.15.0) come from `MCO.photos`, which reads the camera
 schedule and manifests on data2. Rules every app inherits from it:
 - **The schedule is data.** Slots, views and dates come from
   `schedule.json`. No app, page or sentence states the capture times.
@@ -466,11 +466,19 @@ schedule and manifests on data2. Rules every app inherits from it:
   persisted. PARK is the camera's rest position, never a view. The sky views
   (NS, SS) are retired history.
 - **Before 2026-10-21 16:00 MDT, "N" was the pluviometer and "S" the snow
-  stake.** Every public surface starts on 2026-10-22, in every direction:
-  keep the kit's default and do not pass `since` to a public view. (If an
-  app ever widens it, the kit still never shows an old N or S as a public
-  direction.) Staff views label those old frames "North" and "South", as
-  the files are named.
+  stake.** Two public audiences follow from that (website DECISIONS D16):
+  - **The website's photo hero keeps the kit's default.** It starts on
+    2026-10-22 in every direction. Do not pass `since` or `fullHistory`.
+    (If `since` alone ever widens it, the kit still never shows an old N or
+    S as a public direction.)
+  - **The tools that browse the archive** (the Photo Explorer, the Station
+    Dashboard's photo tile) **pass `{fullHistory: true}`**: the whole public
+    archive, all four directions, pre-cutover North and South included,
+    exactly as those tools showed it before 0.14.0. It is still public:
+    staff views stay behind `{internal: true}`.
+
+  Every audience labels the old frames "North" and "South", as the files
+  are named.
 - **A move the visitor did not ask for is said in words**: a time that day
   never offered, a slot not in yet, a direction nobody shot. The kit
   returns the reason; the app announces or toasts it once, after stepping
