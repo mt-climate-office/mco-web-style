@@ -8,6 +8,72 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.14.0] — 2026-10-22
+
+MINOR: one new published file, additive API. Theme, core, map, cog and
+palette are byte-identical to 0.13.1, so their SRI hashes are unchanged.
+Owner decisions for this release are website DECISIONS D7, D8, D9 and D15:
+the D7 clamp covers every public surface and every direction (first public
+date 2026-10-22); public order is N, E, S, W; staff labels for pre-cutover
+N and S stay "North" and "South".
+
+### Added
+- **`photos/mco-photos.js` → `MCO.photos`** (website D9, extraction #1).
+  Mesonet station photos from the data2 archive, for any app that shows
+  them. A port of mesonet-dashboard's tested `web/src/core/photos` merged
+  with the slot rules mesonet-photo-explorer relies on. Loads after
+  `core/mco-core.js`. Two consumers today (dashboard, Photo Explorer), three
+  with climate.umt.edu, so it passes the admission rule.
+  - **Schedule:** `load()` (cached; `{fresh: true}` refetches) / `parseSchedule()` read `schedule.json` into
+    per-station view windows. The capture schedule is never written into the
+    kit. `slotsForDate()` offers the slots at least half the shooting
+    stations were scheduled for (so a one-camera hourly pilot stays out of
+    the menu); `viewsForSlot()`, `isShotAt()`, `viewsBetween()`,
+    `hasCamera()`.
+  - **Time:** `readySlots()` (the processing lag), `latestSlot()`,
+    `previousSlot()`, `resolveTime()` (the wanted time, else the next later
+    one, with a `reason`: `pending` or `unscheduled`), `resolveView()`,
+    `rollMessage()`.
+  - **Mountain wall clock ↔ UTC**, which the kit did not have:
+    `toUtcMs()`, `toWallClock()`, `localYmd()`, `compactUtc()`, `parseUtc()`,
+    `utcDaysOfLocalDay()`, and engine-stable `slotLabel()`, `timeLabel()`,
+    `stampLabel()`. DST-safe; tested under three process time zones.
+  - **Archive:** `frameUrl()`, `manifestUrl()`, `parseManifest()` (the
+    blank-`webp_large` quirk and the snap limit), `parseListingKeys()`,
+    `framesFromListing()`, `fetchMonthFrames()`, `fetchLatestFrames()`,
+    `confirmDerived()`, `framesFor()`, `newest()`.
+  - **Vocabulary:** `VIEWS`, `ORDER`, `label()`, `shortLabel()`,
+    `viewName()` (keeps the visible text inside the accessible name, WCAG
+    2.5.3), `isPublic()`, `isVisible()`. NSNOW and SOLAR are registered.
+  - **`MCO.photos.initPhotoControls()`**: the date / time / direction group
+    on `MCO.initStepper` and `MCO.initSegmentedFallback`. Reads `?date`,
+    `?time`, `?dir`; keeps the wanted time and view sticky across days;
+    reports moves the visitor did not ask for as `rolls` and announces them
+    once stepping settles. It does not write the URL: `params()` gives the
+    app its part.
+- **Public and staff views are decided here, once** (website D7, D8). The
+  public sees N, E, S, W, North by default. That is an allowlist, so a view
+  the schedule adds later is staff-only until it is added to the kit. Staff
+  views need `{internal: true}`. PARK is never a view. Before 2026-10-21
+  16:00 MDT, N was aimed at the pluviometer and S at the snow stake, so the
+  public default starts there (`PUBLIC_SINCE`), and a public N or S frame
+  from before it is never offered even when an app widens the range
+  (`REAIMED`).
+- `tools/check-photos.mjs`: the dashboard's tests ported to `node:test`,
+  plus the Photo Explorer's slot rules and the D7/D8 rules. Zero
+  dependencies: the kit loads in `node:vm` as `check-contrast.mjs` loads the
+  palette. CI runs it under `America/Denver`, `Pacific/Kiritimati` and
+  `Etc/GMT+12`. `--live` also checks the live data2 files.
+- Demo: a Photos card exercises `initPhotoControls` over a fixture schedule.
+  `demo/cdn.html` checks the published file; `snippets/head.html` carries
+  its tag.
+- README: how a consumer's Node tests load the pinned kit files in
+  `node:vm` (the dashboard's vitest suite does this, D15).
+
+### Notes
+- `MCO.versions.photos` reports `'0.1.0'`, like `core`, `map` and
+  `palette`. The field is still not a version check; the pinned URL is.
+
 ## [0.13.1] — 2026-10-10
 
 PATCH: theme and core. Map, cog and palette are the same as 0.13.0.

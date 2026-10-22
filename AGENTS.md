@@ -37,10 +37,10 @@ it from an app. The reasoning behind each rule is in
 
 0. Start from a **clean tree** — land or stash unrelated doc/tool changes
    first; a release commit contains only the release.
-1. Gates green locally: `node --check` the three JS files, then
-   `tools/check-tokens.mjs`, `tools/check-contrast.mjs`; eyeball `demo/` in all
-   three themes.
-2. Freeze the four published css/js files. Any byte change after this point
+1. Gates green locally: `node --check` the published JS files, then
+   `tools/check-tokens.mjs`, `tools/check-contrast.mjs`,
+   `tools/check-photos.mjs`; eyeball `demo/` in all three themes.
+2. Freeze the published css/js files (the list in `tools/sri.sh`). Any byte change after this point
    restarts here.
 3. Bump `@version` in `snippets/head.html`, `demo/cdn.html`, `README.md`.
 4. `tools/sri.sh` → paste hashes into those same three files →

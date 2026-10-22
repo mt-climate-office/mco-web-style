@@ -455,6 +455,30 @@ moved off `<body>`). An auto-open that lands after the map loads otherwise
 yanks focus from someone already tabbing (WCAG 3.2.1/3.2.2). **`?export=` convention**: a URL param that forces a theme and triggers
 the app's export path — keeps branded-PNG generation headless-scriptable.
 
+**Station photos** (0.14.0) come from `MCO.photos`, which reads the camera
+schedule and manifests on data2. Rules every app inherits from it:
+- **The schedule is data.** Slots, views and dates come from
+  `schedule.json`. No app, page or sentence states the capture times.
+- **The public sees North, East, South and West**, North by default, and
+  the most recent capture when nothing else is asked for. The list is an
+  allowlist in the kit. Snow, Pluvio, Solar and the snow stakes are staff
+  views behind an explicit internal option, reached by URL and never
+  persisted. PARK is the camera's rest position, never a view. The sky views
+  (NS, SS) are retired history.
+- **Before 2026-10-21 16:00 MDT, "N" was the pluviometer and "S" the snow
+  stake.** Every public surface starts on 2026-10-22, in every direction:
+  keep the kit's default and do not pass `since` to a public view. (If an
+  app ever widens it, the kit still never shows an old N or S as a public
+  direction.) Staff views label those old frames "North" and "South", as
+  the files are named.
+- **A move the visitor did not ask for is said in words**: a time that day
+  never offered, a slot not in yet, a direction nobody shot. The kit
+  returns the reason; the app announces or toasts it once, after stepping
+  settles.
+- Times are Mountain wall-clock times everywhere a person reads them;
+  archive keys are UTC. Convert with `MCO.photos.toUtcMs` / `toWallClock`,
+  never with the viewer's zone.
+
 ---
 
 ## 5. Accessibility standards

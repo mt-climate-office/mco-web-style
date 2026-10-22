@@ -288,7 +288,8 @@
     <h2>Controls &amp; cards</h2>
     <p>An in-flow <code>.mco-card</code> holding the 0.9.0 controls: <code>.mco-chips</code> (pressed ✓),
        <code>MCO.initStepper</code> with a live readout, and a radio <code>.seg-btns.is-radio</code> that
-       becomes a <code>&lt;select&gt;</code> below 1060px (<code>MCO.initSegmentedFallback</code>).</p>
+       becomes a <code>&lt;select&gt;</code> below 1060px (<code>MCO.initSegmentedFallback</code>).
+       The Photos card is <code>MCO.photos.initPhotoControls</code> (0.14.0) over a fixture schedule.</p>
     <div class="demo-cards">
       <section class="mco-card" aria-labelledby="card-controls-title">
         <div class="mco-card-head"><h3 class="mco-card-title" id="card-controls-title">Filters</h3></div>
@@ -353,6 +354,28 @@
         <div class="mco-card-body">
           <div class="demo-ramps" id="demo-ramps"></div>
           <dl class="mco-facts" id="demo-networks"></dl>
+        </div>
+      </section>
+      <!-- MCO.photos.initPhotoControls (0.14.0): date, time and direction for
+           Mesonet station photos, from a fixture schedule so the demo needs no
+           network. Public views only: N/E/S/W, North by default. -->
+      <section class="mco-card" aria-labelledby="card-photos-title">
+        <div class="mco-card-head"><h3 class="mco-card-title" id="card-photos-title">Photos</h3></div>
+        <div class="mco-card-body demo-stack">
+          <div class="demo-row" role="group" aria-label="Photo date">
+            <button type="button" class="nav-btn mco-step" id="photo-prev" aria-label="Previous day">‹</button>
+            <label class="sr-only" for="photo-date">Date</label>
+            <input type="date" id="photo-date" class="demo-select">
+            <button type="button" class="nav-btn mco-step" id="photo-next" aria-label="Next day">›</button>
+            <label class="sr-only" for="photo-time">Time</label>
+            <select id="photo-time" class="demo-select"></select>
+          </div>
+          <fieldset class="seg-btns is-radio" id="photo-views">
+            <legend class="sr-only">Direction</legend>
+          </fieldset>
+          <label class="sr-only" for="photo-view-select">Direction</label>
+          <select id="photo-view-select" class="demo-select" hidden></select>
+          <span class="demo-peek" id="photo-readout" role="status"></span>
         </div>
       </section>
     </div>
@@ -461,6 +484,7 @@
 
 <script src="../core/mco-core.js"></script>
 <script src="../palette/mco-palette.js"></script>
+<script src="../photos/mco-photos.js"></script>
 <script src="../map/mco-map.js"></script>
 <script>
   'use strict';
@@ -491,6 +515,31 @@
     group: document.getElementById('units-seg'),
     select: document.getElementById('units-select'),
     onChange: (v) => MCO.announce(`Units: ${v}.`),
+  });
+
+  /* ── Photos (0.14.0) ─────────────────────────────────────────────────── */
+  // A fixture shaped like data2's schedule.json: three cameras on the
+  // re-aimed plan, with staff views the public never sees. Real apps call
+  // MCO.photos.load() instead.
+  const hz = (name) => ({ view: name, slots_local: ['09:00', '12:00', '15:00'] });
+  const am = (name) => ({ view: name, slots_local: ['09:00'] });
+  const demoSchedule = MCO.photos.parseSchedule({ schema: 1, stations: Object.fromEntries(
+    ['acebozem', 'acebrady', 'acecrowa'].map((id) => [id, { first_month: '2017-01', periods: [
+      { from: MCO.photos.PUBLIC_SINCE, until: null, views: {
+        N: hz('North'), E: hz('East'), S: hz('South'), W: hz('West'),
+        SNOW: am('Snow'), PLUVIO: am('Pluvio'), PARK: hz('Park') } }] }])) });
+  const photoReadout = document.getElementById('photo-readout');
+  MCO.photos.initPhotoControls({
+    schedule: demoSchedule,
+    date: document.getElementById('photo-date'),
+    time: document.getElementById('photo-time'),
+    prev: document.getElementById('photo-prev'), next: document.getElementById('photo-next'),
+    views: { group: document.getElementById('photo-views'), select: document.getElementById('photo-view-select') },
+    params: new URLSearchParams(),   // the demo's URL is not photo state
+    onChange: (st) => {
+      photoReadout.textContent = st.ms == null ? 'No photos'
+        : `${MCO.photos.stampLabel(st.ms)} · ${MCO.photos.label(st.view)}`;
+    },
   });
   const load = MCO.loading(document.getElementById('load-box'), { label: 'Loading demo data' });
   document.getElementById('btn-load').addEventListener('click', () => { load.start(); setTimeout(load.done, 1500); });
