@@ -55,6 +55,10 @@ kit asset backs the mark with white, as the PNG badge always has.
 beneath it the subtitle line, italic, `--text-dim`:
 **“A service of the Montana Climate Office.”** Every public MCO app carries this.
 
+**The website is the exception** (decided 2026-10-22). On `climate.umt.edu`
+itself the navbar carries no subtitle, because the site is the office, and the
+badge links to the site's own home in the same tab.
+
 **Page title.** `<Short name> · <Family>` — one middot, spaces either side.
 Decided 2026-08 across a family that had drifted to four separators (`·`, `—`,
 `|`, none) and two orderings.
