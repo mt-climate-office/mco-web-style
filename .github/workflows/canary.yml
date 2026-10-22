@@ -27,9 +27,11 @@ jobs:
           # Its live AirTable feed can outlast the canary's network-quiet cap:
           # wait for the stamp to leave "loading…" (canary.mjs --ready).
           - { repo: mesonet-maintenance, ready: "#refresh-stamp::loaded " }
-          # web-next is the one bundled consumer: build it, then serve dist
-          # under its Pages base path, which its asset URLs are absolute to.
-          - { repo: mesonet-dashboard, page: mesonet-dashboard/next/index.html, root: site/web-next, build: web-next }
+          # web/ is the one bundled consumer (web-next/ until mesonet-dashboard
+          # b2a1cf9e, 2026-10-12): build it, then serve dist under its Pages
+          # base path (VITE_BASE default /mesonet-dashboard/), which its asset
+          # URLs are absolute to.
+          - { repo: mesonet-dashboard, page: mesonet-dashboard/index.html, root: site/web, build: web }
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
