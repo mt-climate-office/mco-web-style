@@ -131,6 +131,7 @@ const RAW = {
 const STAFF = P.parseSchedule(RAW, { internal: true });      // everything but PARK, all history
 const PUB = P.parseSchedule(RAW);                             // the D7 default
 const PUB_HIST = P.parseSchedule(RAW, { since: null });       // public, with E/W history
+const FULL = P.parseSchedule(RAW, { fullHistory: true });     // D16: the tools' full public history
 
 const ms = (iso) => Date.parse(iso);
 
@@ -248,6 +249,59 @@ test('schedule: public with since:null keeps E/W history, never a re-aimed N or 
   // Staff see what the cameras actually named it.
   eq(day(STAFF, 'acebozem', '2025-07-15', '09:00'), ['N', 'E', 'S', 'W', 'SNOW', 'NS']);
   assert.equal(PUB_HIST.minDate, '2017-01-01');
+});
+
+test('schedule: fullHistory is the whole public archive, pre-cutover N and S included (D16)', () => {
+  const day = (sch, sta, d, t) => P.viewsForSlot(sch, d, t, { stations: [sta] });
+  assert.ok(FULL.fullHistory && !FULL.internal);
+  assert.ok(!PUB.fullHistory && !STAFF.fullHistory);
+  assert.equal(FULL.sinceMs, -Infinity);
+  // Back to the first archived month, in every public direction.
+  assert.equal(FULL.minDate, '2017-01-01');
+  eq(day(FULL, 'acebozem', '2017-01-01', '09:00'), ['N', 'E', 'S', 'W']);
+  eq(day(FULL, 'acebozem', '2025-07-15', '09:00'), ['N', 'E', 'S', 'W']);
+  eq(day(FULL, 'acebozem', '2026-10-21', '15:00'), ['N', 'E', 'S', 'W']);
+  eq(day(FULL, 'acebozem', '2026-10-22', '09:00'), ['N', 'E', 'S', 'W']);
+  assert.ok(P.isShotAt(FULL, 'acebozem', 'N', '2026-09-30', '12:00'));
+  assert.ok(P.isShotAt(FULL, 'acebrady', 'N', '2023-05-01', '09:00'));
+  assert.ok(!P.isShotAt(FULL, 'acebrady', 'N', '2023-04-30', '09:00'), 'not before the first archived month');
+  // Labelled as they always were.
+  assert.equal(FULL.stations.get('acebozem').allLabels.N, 'North');
+  assert.equal(FULL.stations.get('acebozem').allLabels.S, 'South');
+  // Still public: no staff views, no PARK, no retired sky views.
+  eq(FULL.tokens, ['N', 'E', 'S', 'W']);
+  eq(day(FULL, 'acecrowa', '2025-07-15', '09:00'), ['E', 'W']);
+  assert.ok(!FULL.stations.has('skycam'));
+  // The pilot's East is public history now (it was clamped away before).
+  assert.ok(FULL.stations.has('acepilot'));
+  eq(P.slotsForDate(FULL, '2026-09-15'), ['09:00', '15:00'], 'majority rule still holds');
+  // Same windows as staff for the public tokens.
+  const pubOf = (sch) => sch.stations.get('acebozem').windows
+    .filter((w) => P.isPublic(w.token)).map((w) => [w.token, w.fromMs, w.untilMs]);
+  eq(pubOf(FULL), pubOf(STAFF));
+  // fullHistory with internal changes nothing.
+  const both = P.parseSchedule(RAW, { internal: true, fullHistory: true });
+  eq(both.tokens, STAFF.tokens);
+  assert.equal(both.minDate, STAFF.minDate);
+});
+
+test('schedule: an explicit since wins over fullHistory; REAIMED stays lifted', () => {
+  const sch = P.parseSchedule(RAW, { fullHistory: true, since: '2026-10-01' });
+  assert.equal(sch.sinceMs, P.toUtcMs('2026-10-01'));
+  assert.equal(sch.minDate, '2026-10-01');
+  eq(P.viewsForSlot(sch, '2026-10-05', '09:00', { stations: ['acebozem'] }), ['N', 'E', 'S', 'W']);
+  eq(P.viewsForSlot(sch, '2026-09-30', '09:00', { stations: ['acebozem'] }), []);
+  // since: null with fullHistory is the same as fullHistory alone.
+  const n = P.parseSchedule(RAW, { fullHistory: true, since: null });
+  assert.equal(n.minDate, FULL.minDate);
+  eq(n.tokens, FULL.tokens);
+});
+
+test('schedule: the default is unchanged by the opt-in (still the D7 clamp)', () => {
+  const def = P.parseSchedule(RAW, { fullHistory: false });
+  assert.equal(def.sinceMs, PUB.sinceMs);
+  assert.equal(def.minDate, '2026-10-22');
+  eq(P.viewsForSlot(PUB, '2026-10-21', '15:00'), []);
 });
 
 test('schedule: hasCamera needs a current window with a visible view', () => {
@@ -482,6 +536,20 @@ test('manifest: the public default keeps only post-cutover N/E/S/W', () => {
     ['acebozem_E_20260901T210000Z.webp', 'acebozem_N_20261022T150000Z.webp']);
 });
 
+test('manifest: fullHistory keeps September\'s North; still no sky view or PARK', () => {
+  eq(P.parseManifest(MANIFEST, 'acebozem', { base: B, allow: P.frameFilter(FULL) }).map((f) => P.basename(f.webpUrl)), [
+    'acebozem_N_20260901T150000Z.webp',
+    'acebozem_N_20260901T180000Z.webp',
+    'acebozem_E_20260901T210000Z.webp',
+    'acebozem_N_20261022T150000Z.webp',
+  ]);
+  const f = P.framesFromListing(LISTING, 'acebozem', 'N', { base: B, allow: P.frameFilter(FULL) });
+  assert.equal(f.length, 2);
+  assert.equal(f[0].label, 'North');
+  // A schedule-less filter is still the public default.
+  eq(P.framesFromListing(LISTING, 'acebozem', 'N', { base: B, allow: P.frameFilter(null) }), []);
+});
+
 test('manifest: header only / empty → []', () => {
   eq(P.parseManifest(HEADER, 'acebozem'), []);
   eq(P.parseManifest('', 'acebozem'), []);
@@ -561,6 +629,7 @@ test('fetchers: month manifest URL; 404 → []; schedule filter applies', async 
   });
   assert.equal((await P.fetchMonthFrames(STAFF, 'acebozem', '2026-09')).length, 5);
   assert.equal((await P.fetchMonthFrames(PUB, 'acebozem', '2026-09')).length, 1);
+  assert.equal((await P.fetchMonthFrames(FULL, 'acebozem', '2026-09')).length, 4);
   eq(await P.fetchMonthFrames(PUB, 'acebozem', '2016-01'), []);
   assert.equal(urls[0], `${B}photos/manifest/acebozem/acebozem_2026-09.csv`);
 });
@@ -579,6 +648,27 @@ test('fetchers: load() caches per audience and evicts a failure', async () => {
   const c = await P.load({ base: 'https://example.test/m/', fresh: true });
   assert.notEqual(c, a);
   assert.equal(n, 4);
+});
+
+test('fetchers: load() keys fullHistory apart from the default and from staff', async () => {
+  let n = 0;
+  stub(async () => { n++; return new Response(JSON.stringify(RAW)); });
+  const base = 'https://example.test/full/';
+  const def = await P.load({ base });
+  const full = await P.load({ base, fullHistory: true });
+  const full2 = await P.load({ base, fullHistory: true });
+  const staff = await P.load({ base, internal: true });
+  assert.equal(n, 3);
+  assert.equal(full, full2);
+  assert.notEqual(full, def);
+  assert.notEqual(full, staff);
+  assert.ok(full.fullHistory && !full.internal);
+  assert.ok(!def.fullHistory);
+  assert.equal(def.minDate, '2026-10-22');
+  assert.equal(full.minDate, '2017-01-01');
+  const fullSince = await P.load({ base, fullHistory: true, since: '2026-10-01' });
+  assert.notEqual(fullSince, full);
+  assert.equal(fullSince.minDate, '2026-10-01');
 });
 
 /* ── Live (opt-in) ───────────────────────────────────────────────────────── */
@@ -601,4 +691,31 @@ test('live: schedule.json and a manifest parse as expected', { skip: !LIVE }, as
   console.log(`# live: ${pub.stations.size} public cameras, staff tokens ${staff.tokens.join(' ')}, ` +
     `min ${pub.minDate}, latest ${latest.date} ${latest.time}, slots today ${P.slotsForDate(pub, latest.date).join(' ')}, ` +
     `${sta} ${ym}: ${frames.length} public frames`);
+});
+
+test('live: fullHistory reaches back to the first archived month, with pre-cutover N', { skip: !LIVE }, async () => {
+  sandbox.fetchImpl = (...a) => fetch(...a);
+  const full = await P.load({ fullHistory: true });
+  const pub = await P.load();
+  eq(full.tokens, ['N', 'E', 'S', 'W']);
+  assert.ok(full.stations.size >= pub.stations.size, `${full.stations.size} >= ${pub.stations.size}`);
+  // The earliest first_month in the schedule bounds minDate from below.
+  let first = null;
+  full.stations.forEach((st) => { if (st.firstMonth && (!first || st.firstMonth < first)) first = st.firstMonth; });
+  assert.ok(first, 'some station has a first_month');
+  assert.ok(full.minDate < '2026-10-21', full.minDate);
+  assert.ok(full.minDate >= first + '-01', `${full.minDate} >= ${first}-01`);
+  // A pre-cutover North exists publicly somewhere, a month before the cutover.
+  const before = '2026-09-30';
+  const offered = P.viewsForSlot(full, before, P.slotsForDate(full, before)[0]);
+  assert.ok(offered.includes('N'), `N on ${before}: ${offered.join(' ')}`);
+  // And the manifest agrees for some station with a North that month.
+  const sta = [...full.stations.values()].find((st) => P.isShotAt(full, st, 'N', before, '09:00'));
+  assert.ok(sta, 'a station shot N at 09:00 on ' + before);
+  const frames = await P.fetchMonthFrames(full, sta.station, before.slice(0, 7));
+  const oldN = frames.filter((f) => f.token === 'N' && f.slotUtcMs < Date.parse(P.PUBLIC_SINCE));
+  assert.ok(frames.every((f) => P.isPublic(f.token)));
+  console.log(`# live fullHistory: ${full.stations.size} cameras, min ${full.minDate} (first_month ${first}), ` +
+    `${sta.station} ${before.slice(0, 7)}: ${frames.length} frames, ${oldN.length} pre-cutover N`);
+  assert.ok(oldN.length > 0, 'pre-cutover North frames are public under fullHistory');
 });

@@ -30,9 +30,17 @@
      is an allowlist, so a token the schedule adds later stays staff-only
      until someone adds it here.
    - Before 2026-10-21 16:00 MDT the token N was preset 1, aimed at the
-     pluviometer, and S was preset 2, aimed at the snow stake. Public N and S
-     frames before that instant are never offered (REAIMED), and the public
-     default clamps every view to on or after it (PUBLIC_SINCE).
+     pluviometer, and S was preset 2, aimed at the snow stake. By default a
+     public view starts at that instant in every direction (PUBLIC_SINCE),
+     and a public N or S frame from before it is never offered, even when an
+     app widens the range with `since` (REAIMED). This is the website's
+     photo hero.
+   - {fullHistory: true} (0.15.0, D16) is the public opt-in for tools that
+     show the whole archive (the Photo Explorer, the Station Dashboard): no
+     date floor and no REAIMED block, so pre-cutover N and S appear as
+     "North" and "South", as they always did there. It is still public:
+     the allowlist below applies unchanged. An explicit `since` still sets
+     the floor.
    - Snow, North Snow, South Snow, Pluvio and Solar are staff-only, behind
      {internal: true}. The sky views (NS, SS) are retired history. PARK is the
      camera's rest position and is never a view.
@@ -247,8 +255,8 @@
   P.isDate = isYmd;
 
   /* ── Schedule ──────────────────────────────────────────────────────────────
-     parseSchedule(doc, {internal, since, base}) → a schedule:
-       { base, patterns, snapMaxMs, internal, sinceMs, generated,
+     parseSchedule(doc, {internal, fullHistory, since, base}) → a schedule:
+       { base, patterns, snapMaxMs, internal, fullHistory, sinceMs, generated,
          stations: Map<id, station>, tokens: [...], candidates: ['HH:MM'…],
          minDate: 'YYYY-MM-DD' | null }
      station: { station, name, firstMonth, windows, currentViews, allLabels }
@@ -257,8 +265,16 @@
      The audience filter is applied here, once, as an allowlist, so nothing
      downstream (slot counts, direction controls, manifests) can leak a staff
      view. A window is a view's dated stretch, clipped to: the station's
-     first archived month, `since`, and (public) REAIMED. Defaults: public
-     since = PUBLIC_SINCE; internal since = none.
+     first archived month, `since`, and (public, unless fullHistory)
+     REAIMED.
+
+     The floor, in order of precedence:
+       1. `since` given (a date, an instant, ms, or null for none): that.
+       2. internal or fullHistory: none (the first archived month).
+       3. otherwise: PUBLIC_SINCE.
+     REAIMED applies to every public schedule except fullHistory, whatever
+     `since` says. fullHistory never widens the audience: with internal it
+     changes nothing.
 
      Resolved between the two consumers:
      - The dashboard kept a station with no current views (hasCamera false);
@@ -276,8 +292,9 @@
       throw new Error('schedule.json: unexpected schema ' + doc.schema);
     }
     var internal = !!opts.internal;
-    // undefined = the default; only an explicit null turns the clamp off.
-    var since = opts.since !== undefined ? opts.since : (internal ? null : P.PUBLIC_SINCE);
+    var full = !!opts.fullHistory;
+    // undefined = the default; an explicit since (null included) wins.
+    var since = opts.since !== undefined ? opts.since : (internal || full ? null : P.PUBLIC_SINCE);
     var sinceMs = toInstant(since);
     var stations = new Map();
     var tokenSet = {}, candSet = {};
@@ -296,7 +313,7 @@
           var v = views[raw] || {};
           var slots = (v.slots_local || []).map(P.normalizeTime).filter(Boolean);
           if (!slots.length) return;
-          var reaimed = !internal && P.REAIMED[token] ? Date.parse(P.REAIMED[token]) : -Infinity;
+          var reaimed = !internal && !full && P.REAIMED[token] ? Date.parse(P.REAIMED[token]) : -Infinity;
           var lo = Math.max(from, firstMs, sinceMs, reaimed);
           if (!(lo < until)) return;
           var label = allLabels[token] || P.label(token, v.view);
@@ -329,6 +346,7 @@
       patterns: Object.assign({}, P.DEFAULT_PATTERNS, pats),
       snapMaxMs: (doc.snap_max_seconds == null ? 1800 : doc.snap_max_seconds) * 1000,
       internal: internal,
+      fullHistory: full,
       sinceMs: sinceMs,
       generated: doc.generated || null,
       stations: stations,
@@ -588,16 +606,18 @@
               jpgUrl?, derived? } */
 
   // The filter a schedule implies for frames read from the archive: the
-  // audience's views, on or after `since`, and (public) never a re-aimed
-  // token before its cutover.
+  // audience's views, on or after `since`, and (public, unless fullHistory)
+  // never a re-aimed token before its cutover. No schedule → the public
+  // default.
   P.frameFilter = function (schedule) {
     var internal = !!(schedule && schedule.internal);
+    var full = !!(schedule && schedule.fullHistory);
     var sinceMs = schedule && schedule.sinceMs != null ? schedule.sinceMs
-      : (internal ? -Infinity : Date.parse(P.PUBLIC_SINCE));
+      : (internal || full ? -Infinity : Date.parse(P.PUBLIC_SINCE));
     return function (token, slotUtcMs) {
       var T = up(token);
       if (!P.isVisible(T, internal) || slotUtcMs < sinceMs) return false;
-      return internal || !P.REAIMED[T] || slotUtcMs >= Date.parse(P.REAIMED[T]);
+      return internal || full || !P.REAIMED[T] || slotUtcMs >= Date.parse(P.REAIMED[T]);
     };
   };
 
@@ -743,7 +763,8 @@
   P.fetchText = fetchText;
 
   var _cache = null;
-  // Fetch and parse schedule.json, once per (base, audience, since). Failed
+  // Fetch and parse schedule.json, once per (base, audience, fullHistory,
+  // since). {internal, fullHistory, since} as parseSchedule. Failed
   // loads evict themselves (MCO.promiseCache), so a retry refetches. The
   // parsed `base` is the host fetched from, not the file's own patterns.base,
   // so a base swap carries through to every URL. {fresh: true} refetches
@@ -751,12 +772,13 @@
   P.load = function (opts) {
     opts = opts || {};
     var base = opts.base || P.BASE;
-    var key = [base, !!opts.internal, opts.since !== undefined ? String(opts.since) : 'default'].join('|');
+    var key = [base, !!opts.internal, !!opts.fullHistory,
+      opts.since !== undefined ? String(opts.since) : 'default'].join('|');
     if (!_cache) _cache = MCO.promiseCache();
     if (opts.fresh) _cache.invalidate(key);
     return _cache.cached(key, function () {
       return MCO.fetchJSON(P.scheduleUrl(base), { timeoutMs: opts.timeoutMs || 20000 }).then(function (doc) {
-        var o = { internal: !!opts.internal, base: base };
+        var o = { internal: !!opts.internal, fullHistory: !!opts.fullHistory, base: base };
         if (opts.since !== undefined) o.since = opts.since;
         return P.parseSchedule(doc, o);
       });
@@ -831,7 +853,9 @@
   /* ── initPhotoControls ─────────────────────────────────────────────────────
      The date / time / direction group, on the kit's own parts:
        var photos = MCO.photos.initPhotoControls({
-         schedule,                       // from MCO.photos.load()
+         schedule,                       // from MCO.photos.load(); its audience
+                                         // ({internal}, {fullHistory}, since)
+                                         // sets the views and the first date
          date: dateInput,                // <input type="date"> with a <label>
          time: timeSelect,               // <select> with a <label>
          steppers: [{prev, next}],       // optional day steppers (.nav-btn.mco-step)
