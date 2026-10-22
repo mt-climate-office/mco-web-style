@@ -24,6 +24,7 @@ jobs:
           node --check map/mco-map.js
           node --check map/cog-protocol.js
           node --check palette/mco-palette.js
+          node --check photos/mco-photos.js
           node --check exemplar/app.js
           for f in tools/*.mjs tools/verify/*.mjs; do node --check "$f"; done
 
@@ -32,6 +33,15 @@ jobs:
 
       - name: WCAG contrast matrix
         run: node tools/check-contrast.mjs
+
+      # The photo slots are Mountain wall-clock times; the module must not
+      # depend on the runner's zone. Kiritimati (UTC+14) and GMT+12 (UTC-12)
+      # are the edges that broke shiftDate once.
+      - name: MCO.photos unit tests (three zones)
+        run: |
+          TZ=America/Denver node tools/check-photos.mjs
+          TZ=Pacific/Kiritimati node tools/check-photos.mjs
+          TZ=Etc/GMT+12 node tools/check-photos.mjs
 
       - name: SRI hash freshness
         run: node tools/check-sri.mjs

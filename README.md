@@ -25,20 +25,50 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.13.1/theme/mco-theme.css"
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.14.0/theme/mco-theme.css"
       integrity="sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.13.1/core/mco-core.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.14.0/core/mco-core.js"
         integrity="sha384-0SiGncfP37X1rYs83vpTsUgtsQMruIVGkbWHdrWeF8fIr7IWYHM/+NSR/PDLIDhJ" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
-Map apps add `map/mco-map.js` (targets MapLibre GL 6.x, which it imports for
+Apps that show station photos add `photos/mco-photos.js` after the core
+(`MCO.photos`; CSP `connect-src` and `img-src` need
+`https://data2.climate.umt.edu`). Map apps add `map/mco-map.js` (targets MapLibre GL 6.x, which it imports for
 you — `MCO.map.loadMapLibre()`; the import map in `snippets/head.html` carries
 MapLibre's SRI hashes) and, for COG rasters,
 `map/cog-protocol.js` (exposes `window.CogProtocol`). The API surface is
 documented in the source headers and JSDoc-style comments of
 `core/mco-core.js` and `map/mco-map.js` — read them for argument shapes
 rather than guessing.
+
+### Testing against the kit in Node
+
+A consumer's unit tests (vitest, `node:test`) use the same pinned bytes the
+page loads, not a copy. The kit has no package, so:
+
+1. Fetch the pinned files once, for example
+   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.14.0/core/mco-core.js`
+   and `…@0.14.0/photos/mco-photos.js`, into a cache directory, and check
+   each against the `integrity` hash your `index.html` pins (sha384, base64)
+   before using it. A mismatch fails the run.
+2. Evaluate them **in order, core first**, as classic scripts with
+   `vm.runInContext`, in a context whose `window` is the context itself.
+   `mco-photos.js` touches nothing at load but `window.MCO`; `mco-core.js`
+   reads `matchMedia`, `document`, `location` and `history` when it loads, so
+   the context needs stubs for those (jsdom provides all but `matchMedia`).
+3. Read the API off `context.MCO`. Values cross a realm boundary, so compare
+   objects and arrays structurally (`JSON.parse(JSON.stringify(x))`), not
+   with `instanceof` or a strict deep-equal on the raw value.
+
+[`tools/check-photos.mjs`](tools/check-photos.mjs) is the reference: its
+sandbox (stub DOM, `fetch` hook) is what the kit's own photo tests run in.
+Run such tests under more than one `TZ`; photo slots are Mountain wall-clock
+times and must not depend on the machine's zone.
+
+`MCO.versions` is not a version check. Every module reports `'0.1.0'`
+(`photos` included, to match its siblings) whatever the tag. The pinned URL
+and its hash are the version.
 
 Non-vanilla consumers (React/Mantine, Tailwind, Quarto, email) read
 [`tokens/tokens.json`](tokens/tokens.json) — the machine-readable mirror of the
@@ -53,6 +83,7 @@ CSS custom properties, kept in lockstep by CI.
 | `map/mco-map.js` | `window.MCO.map`: MapLibre 6 loader, Montana bounds, basemap URLs + failure watch, controls, zoom floor, DOM popups, cursor tooltip, hillshade, overlay paints | MapLibre apps |
 | `map/cog-protocol.js` | `cog://` raster protocol (`window.CogProtocol`) | COG raster apps |
 | `palette/mco-palette.js` | `window.MCO.palette`: approved data ramps (OKLab sampling, per-theme 3:1 spans), Tol categoricals, the station-network registry | apps that color data |
+| `photos/mco-photos.js` | `window.MCO.photos`: Mesonet station photos from data2. Camera schedule, capture slots, Mountain wall clock ↔ UTC, frame and manifest URLs, the manifest reader, the public / staff view rules, and `initPhotoControls` (date, time, direction). Load after `mco-core.js` | apps that show station photos |
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
 | `fonts/` | Outfit + Space Mono woff2 (latin + latin-ext; SIL OFL, license texts alongside), declared by `mco-theme.css` | every page (preload the two latin files — `snippets/head.html`) |
@@ -61,7 +92,7 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.13.1
+## SRI hashes — v0.14.0
 
 ```
 theme/mco-theme.css      sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu
@@ -69,6 +100,7 @@ core/mco-core.js         sha384-0SiGncfP37X1rYs83vpTsUgtsQMruIVGkbWHdrWeF8fIr7IW
 map/mco-map.js           sha384-tmDqtqi4yYiDHOxkZikwzXF3Lpkb63b0Tu6K7jeCpU9gJkPB2GbpFHLasGHka6zP
 map/cog-protocol.js      sha384-8KfmwSk9894unD1VJPQLo2DlTUp7+wLpl0ViJpo2LYG1J61nyqQ4twyvubpHLaeY
 palette/mco-palette.js   sha384-nmQlqM0DO86ApUoiACDt0cl/bUjemVhSUytRow9vdP1ydxnXGamD81mumft3n41L
+photos/mco-photos.js     sha384-m4vVDxtr83VCXSdZQh9wyfNTrUcWM24vh+azNcGGVHq33RvbTHj+/v+P6bssVsSr
 ```
 
 Recompute with `tools/sri.sh`. CI (`tools/check-sri.mjs`) fails if this table,
@@ -96,11 +128,11 @@ Rules that keep consumers safe:
 
 1. Make changes; keep `tokens/tokens.json` in sync with the CSS.
 2. Run the gates locally:
-   `node --check core/mco-core.js map/mco-map.js map/cog-protocol.js palette/mco-palette.js` ·
-   `node tools/check-tokens.mjs` · `node tools/check-contrast.mjs`
+   `node --check core/mco-core.js map/mco-map.js map/cog-protocol.js palette/mco-palette.js photos/mco-photos.js` ·
+   `node tools/check-tokens.mjs` · `node tools/check-contrast.mjs` · `node tools/check-photos.mjs`
 3. Eyeball `demo/` in all three themes: `python3 -m http.server 8000` from the
    repo root → `http://localhost:8000/demo/`.
-4. **Freeze** the four published css/js files. Bump the `@version` in
+4. **Freeze** the published css/js files (`tools/sri.sh` lists them). Bump the `@version` in
    `snippets/head.html`, `demo/cdn.html`, and this README.
 5. `tools/sri.sh` → paste the hashes into the same three files.
    `node tools/check-sri.mjs` must pass. Any byte change after this restarts at 4.
