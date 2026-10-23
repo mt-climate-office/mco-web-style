@@ -10,7 +10,7 @@
    mesonet-photos (fixed in v0.5.1).
 
    Requires (installed ephemerally — NOT kit dependencies; see .gitignore):
-     npm init -y && npm i --no-save playwright @axe-core/playwright
+     npm init -y && npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0
      npx playwright install --with-deps chromium webkit
    Then: node tools/a11y-audit.mjs */
 import { createServer } from 'node:http';
@@ -137,6 +137,18 @@ for (const engine of BROWSERS) {
     const s1 = await cb();
     probe('typing opens the list and makes the best match active (aria-activedescendant + aria-selected)',
       s1.expanded === 'true' && /^Gallatin/.test(s1.active || '') && s1.selected === 'true', JSON.stringify(s1));
+    // 0.16.1: the default row's name reads label, then meta, with a
+    // separator ("Gallatin, 30031", not "Gallatin30031"), and the separator
+    // is visually hidden. rowName is the option's name from Playwright's
+    // ARIA tree.
+    const rowName = (await page.locator('#demo-search-list [role="option"][aria-selected="true"]').ariaSnapshot().catch(() => '')).trim();
+    const sepHidden = await page.evaluate(() => {
+      const s = document.querySelector('#demo-search-list .mco-search-option .sr-only');
+      return !!s && s.getBoundingClientRect().width <= 1 && getComputedStyle(s).position === 'absolute';
+    });
+    probe('default search row: the name separates label and meta ("Gallatin, 30031"); the separator is sr-only',
+      /^Gallatin, 30031$/.test(s1.active || '') && /option "Gallatin\s*,\s*30031"/.test(rowName) && sepHidden,
+      JSON.stringify({ textContent: s1.active, rowName, sepHidden }));
     const results = await new AxeBuilder({ page }).include('#search-wrap').analyze();
     const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
     probe('axe: open listbox has no serious/critical violations', bad.length === 0, bad.map((v) => v.id).join(', '));
@@ -161,6 +173,45 @@ for (const engine of BROWSERS) {
     await page.waitForTimeout(150);
     const announcedLater = await page.evaluate(() => document.querySelector('.sr-only[aria-live="polite"]').textContent);
     probe('Enter selects: list closes, onSelect ran', s6.expanded === 'false' && /selected/.test(announced + announcedLater), JSON.stringify(s6));
+
+    /* 0.16.0: MCO.places.initPlaceSearch. Stations first, places under
+       them while typing, each section headed; a picked place lists its
+       stations and says how many. */
+    await page.keyboard.press('Escape');
+    const pl = () => page.evaluate(() => {
+      const i = document.getElementById('place-search');
+      const ad = i.getAttribute('aria-activedescendant');
+      const a = ad && document.getElementById(ad);
+      return {
+        expanded: i.getAttribute('aria-expanded'), active: a ? a.textContent : null,
+        heads: [...document.querySelectorAll('#place-search-list .mco-search-group')].map((g) => g.textContent),
+        title: document.getElementById('place-results-title').textContent,
+        rows: document.querySelectorAll('#place-list li').length,
+        live: document.querySelector('.sr-only[aria-live="polite"]').textContent,
+      };
+    });
+    await page.focus('#place-search');
+    await page.keyboard.type('bozeman');
+    await page.waitForFunction(() => [...document.querySelectorAll('#place-search-list .mco-search-group')].length === 2, null, { timeout: 10000 }).catch(() => {});
+    const p1 = await pl();
+    probe('places: "bozeman" heads Stations then Places, the station active',
+      p1.expanded === 'true' && p1.heads.join('|') === 'Stations|Places' && /^Bozeman(?!.*City)/.test(p1.active || ''), JSON.stringify(p1));
+    const pbad = (await new AxeBuilder({ page }).include('.demo-place-search').analyze()).violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    probe('axe: open place list (two headed groups) has no serious/critical violations', pbad.length === 0, pbad.map((v) => v.id).join(', '));
+    await page.keyboard.press('Escape');
+    await page.keyboard.type('59715');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(150);
+    const p2 = await pl();
+    probe('places: a ZIP code lists the 5 nearest stations and says so',
+      p2.expanded === 'false' && p2.title === 'Near 59715' && p2.rows === 5 && /5 stations near 59715/.test(p2.live), JSON.stringify(p2));
+    await page.keyboard.type('salish');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelectorAll('#place-list li').length > 0, null, { timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(150);   // MCO.announce writes on the next tick
+    const p3 = await pl();
+    probe('places: a reservation lists the stations inside its boundary (loaded on the pick)',
+      p3.title === 'Flathead Reservation' && p3.rows >= 1 && /on the Flathead Reservation/.test(p3.live), JSON.stringify(p3));
 
     /* 0.9.0: drawer, sheet, stepper, radio segmented. */
     await page.keyboard.press('Escape');

@@ -1852,7 +1852,18 @@
      substring · a typo (1 edit from 5 letters, 2 from 8; numbers never).
      With no query, every item in its group, groups in first-appearance
      order; with a query, one ranked list (shorter label, then alphabetical,
-     breaks ties). `best` indexes the top match in `flat`. */
+     breaks ties). `best` indexes the top match in `flat`.
+     Sections (0.16.0, also from the dashboard's model), for one field over
+     two kinds of thing, such as stations and places (MCO.places):
+       items: [{…, section?, queryOnly?}]
+       MCO.searchModel.filter(items, q, limit, sectionLimits)
+     With a query, matches sort by section (first-appearance order) before
+     rank, so a weaker station still lists above a stronger place; a section
+     is headed (a group named for it) only when more than one has matches;
+     `best` is still the top rank (an earlier section wins a tie);
+     sectionLimits ({Places: 8}) caps a section, and `total` still counts
+     every match. queryOnly items are left out of the no-query list. Items
+     with neither field behave exactly as before. */
   var SM = MCO.searchModel = {};
   SM.normalize = function (s) {
     return String(s).normalize('NFD').replace(/\p{M}/gu, '').replace(/['’`]/g, '').toLowerCase();
@@ -1902,26 +1913,43 @@
     if (typoMatch(q, words.concat([label], codes))) return 7;
     return Infinity;
   };
-  SM.filter = function (items, query, limit) {
+  SM.filter = function (items, query, limit, sectionLimits) {
     limit = limit == null ? 200 : limit;
+    sectionLimits = sectionLimits || {};
     var q = SM.normalize(String(query || '').trim());
     var groupIndex = new Map();
-    items.forEach(function (it) { if (!groupIndex.has(it.group)) groupIndex.set(it.group, groupIndex.size); });
+    var sectionIndex = new Map();
+    items.forEach(function (it) {
+      if (!groupIndex.has(it.group)) groupIndex.set(it.group, groupIndex.size);
+      if (!sectionIndex.has(it.section)) sectionIndex.set(it.section, sectionIndex.size);
+    });
     var matches = items.map(function (item, index) {
-      return { item: item, index: index, rank: SM.matchRank(item, q), group: groupIndex.get(item.group) };
+      return {
+        item: item, index: index,
+        rank: q === '' && item.queryOnly ? Infinity : SM.matchRank(item, q),
+        group: groupIndex.get(item.group), section: sectionIndex.get(item.section),
+      };
     }).filter(function (m) { return m.rank !== Infinity; });
     matches.sort(function (a, b) {
       if (q === '') return a.group - b.group || a.index - b.index;
-      return a.rank - b.rank || a.item.label.length - b.item.label.length ||
+      return a.section - b.section || a.rank - b.rank || a.item.label.length - b.item.label.length ||
         a.item.label.localeCompare(b.item.label) || a.index - b.index;
     });
-    var kept = matches.slice(0, Math.max(0, limit));
+    var perSection = new Map();
+    var kept = matches.filter(function (m) {
+      var cap = m.item.section == null ? undefined : sectionLimits[m.item.section];
+      var n = (perSection.get(m.item.section) || 0) + 1;
+      perSection.set(m.item.section, n);
+      return cap == null || n <= cap;
+    }).slice(0, Math.max(0, limit));
     var flat = kept.map(function (m) { return m.item; });
     var best = kept.length ? 0 : -1;
     kept.forEach(function (m, i) { if (m.rank < kept[best].rank) best = i; });
+    var headed = q !== '' && new Set(flat.map(function (it) { return it.section; })).size > 1;
     var groups = [];
     flat.forEach(function (item) {
-      var name = q === '' && item.group != null ? item.group : null;
+      var name = q === '' ? (item.group != null ? item.group : null)
+        : headed && item.section != null ? item.section : null;
       var last = groups[groups.length - 1];
       if (last && last.name === name) last.items.push(item);
       else groups.push({ name: name, items: [item] });
@@ -1962,6 +1990,7 @@
          onSelect: function (id) { openStation(id); },
          value: function () { return selectedId; },   // marks the current item ✓
          label: 'Stations', limit: 200, announce: true,
+         sectionLimits: { Places: 8 },        // 0.16.0: see the search model
        });
 
      Keys: Down/Up open the list and wrap (Alt+Down opens in place);
@@ -2005,7 +2034,7 @@
     var announceTimer = null;
 
     function optionId(i) { return base + '-opt-' + i; }
-    function compute() { result = SM.filter(getItems(), input.value, limit); }
+    function compute() { result = SM.filter(getItems(), input.value, limit, opts.sectionLimits); }
 
     function render() {
       list.textContent = '';
@@ -2042,7 +2071,14 @@
             var m = document.createElement('span');
             m.className = 'mco-search-meta';
             m.textContent = item.meta != null ? item.meta : item.id;
-            el.append(l, m);
+            // A separator for the accessible name only (0.16.1): without it
+            // the name and textContent run together ("Bozeman" + "HydroMet").
+            // sr-only is absolutely positioned, so it is not a flex item and
+            // the row's layout is unchanged.
+            var sep = document.createElement('span');
+            sep.className = 'sr-only';
+            sep.textContent = ', ';
+            el.append(l, sep, m);
           }
           host.appendChild(el);
           idx++;

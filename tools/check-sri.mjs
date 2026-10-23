@@ -18,6 +18,8 @@ const FILES = [
   'map/mco-map.js',
   'map/cog-protocol.js',
   'palette/mco-palette.js',
+  'photos/mco-photos.js',
+  'places/mco-places.js',
 ];
 const DOCS = ['README.md', 'snippets/head.html', 'demo/cdn.html'];
 

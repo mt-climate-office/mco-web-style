@@ -37,15 +37,25 @@ it from an app. The reasoning behind each rule is in
 
 0. Start from a **clean tree** — land or stash unrelated doc/tool changes
    first; a release commit contains only the release.
-1. Gates green locally: `node --check` the three JS files, then
-   `tools/check-tokens.mjs`, `tools/check-contrast.mjs`; eyeball `demo/` in all
-   three themes.
-2. Freeze the four published css/js files. Any byte change after this point
+1. Gates green locally: `node --check` the published JS files, then
+   `tools/check-tokens.mjs`, `tools/check-contrast.mjs`,
+   `tools/check-photos.mjs`, `tools/check-places.mjs`; eyeball `demo/` in all three themes.
+2. Freeze the published css/js files (the list in `tools/sri.sh`). Any byte change after this point
    restarts here.
 3. Bump `@version` in `snippets/head.html`, `demo/cdn.html`, `README.md`.
 4. `tools/sri.sh` → paste hashes into those same three files →
    `tools/check-sri.mjs` passes.
-5. `CHANGELOG.md` entry. Commit, push, wait for green Actions.
+5. `CHANGELOG.md` entry. Commit, push, open the release PR titled
+   `vX.Y.Z: <summary>`, and wait for green Actions.
+   **The full canary — every consumer in Chromium AND WebKit — and the axe
+   audit in both engines must be green on the release candidate before
+   tagging.** Ordinary PRs run the canary and axe in Chromium only, and skip
+   them when no published byte changed; a release candidate gets both engines
+   when its PR title starts `vX.Y.Z` or it carries the `release` label
+   (adding the label starts a run). To run it by hand on any branch:
+   `gh workflow run canary.yml --ref <branch>` and
+   `gh workflow run a11y.yml --ref <branch>` (`-f engines=webkit` for one
+   engine; the default is both). A red WebKit job is a hard stop, as in rule 6.
 6. `git tag vX.Y.Z && git push origin vX.Y.Z`. **Never delete or re-point a
    tag** — jsDelivr caches tag content permanently; a bad release gets a new
    patch tag.

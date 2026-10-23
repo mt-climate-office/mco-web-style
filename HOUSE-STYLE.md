@@ -343,7 +343,9 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   through (stopping propagation, so the next layer out only closes on a later
   press). Ranking is the dashboard's model (`MCO.searchModel`). Accent- and
   typo-tolerant, so “bozman” finds Bozeman. Five hand-rolled copies retire
-  with it.
+  with it. Items may carry a `section` and `queryOnly` (0.16.0): with more
+  than one section matching, each is headed, and `sectionLimits` caps one.
+  `MCO.places.initPlaceSearch` is this box with places added (§4).
 - A navbar **search field collapses to a disclosure** at compact widths (≤640 px)
   rather than being hidden: `MCO.initSearchCollapse` moves focus into the field on open and
   back to the button on close, and the app keeps control of Esc precedence and
@@ -458,6 +460,54 @@ key, **and never once the visitor has started using the page** (focus has
 moved off `<body>`). An auto-open that lands after the map loads otherwise
 yanks focus from someone already tabbing (WCAG 3.2.1/3.2.2). **`?export=` convention**: a URL param that forces a theme and triggers
 the app's export path — keeps branded-PNG generation headless-scriptable.
+
+**Station photos** (0.14.0; full history 0.15.0) come from `MCO.photos`, which reads the camera
+schedule and manifests on data2. Rules every app inherits from it:
+- **The schedule is data.** Slots, views and dates come from
+  `schedule.json`. No app, page or sentence states the capture times.
+- **The public sees North, East, South and West**, North by default, and
+  the most recent capture when nothing else is asked for. The list is an
+  allowlist in the kit. Snow, Pluvio, Solar and the snow stakes are staff
+  views behind an explicit internal option, reached by URL and never
+  persisted. PARK is the camera's rest position, never a view. The sky views
+  (NS, SS) are retired history.
+- **Before 2026-10-21 16:00 MDT, "N" was the pluviometer and "S" the snow
+  stake.** Two public audiences follow from that (website DECISIONS D16):
+  - **The website's photo hero keeps the kit's default.** It starts on
+    2026-10-22 in every direction. Do not pass `since` or `fullHistory`.
+    (If `since` alone ever widens it, the kit still never shows an old N or
+    S as a public direction.)
+  - **The tools that browse the archive** (the Photo Explorer, the Station
+    Dashboard's photo tile) **pass `{fullHistory: true}`**: the whole public
+    archive, all four directions, pre-cutover North and South included,
+    exactly as those tools showed it before 0.14.0. It is still public:
+    staff views stay behind `{internal: true}`.
+
+  Every audience labels the old frames "North" and "South", as the files
+  are named.
+- **A move the visitor did not ask for is said in words**: a time that day
+  never offered, a slot not in yet, a direction nobody shot. The kit
+  returns the reason; the app announces or toasts it once, after stepping
+  settles.
+- Times are Mountain wall-clock times everywhere a person reads them;
+  archive keys are UTC. Convert with `MCO.photos.toUtcMs` / `toWallClock`,
+  never with the viewer's zone.
+
+**Place search** (0.16.0) is `MCO.places`, on the kit's search box:
+- **One field finds stations and places.** Stations list first; places
+  (county, reservation, tribe, town, ZIP code) list under them only while
+  typing, headed "Places", at most eight, so a station name still wins its
+  own search and Enter never jumps to a town.
+- **A place answers with stations.** A county lists the stations in it, a
+  reservation the stations inside its boundary, anything else the five
+  nearest. Every row shows its distance (`formatMiles`), and the count is
+  announced in words ("5 stations near Bozeman").
+- **Near me asks once, on a press.** Never request a position on load, on
+  focus, or in a retry loop. A refusal or a failure is said in words beside
+  the button, with a way forward (search by name); the button stays.
+- **The gazetteer is the kit's.** Place names come from the Census file at
+  the pinned tag, never typed into an app. Station counts in a list are
+  data, like every count (website VOICE).
 
 ---
 

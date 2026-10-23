@@ -8,6 +8,207 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.16.1] — 2026-10-23
+
+PATCH: core only. Theme, map, cog, palette, photos and places are
+byte-identical to 0.16.0, so their SRI hashes are unchanged; core's hash
+changes.
+
+### Fixed
+- **Default search rows read "label, meta" to screen readers.**
+  `MCO.initSearchBox`'s default row put the label and the mono meta in two
+  adjacent spans with nothing between them, so the option's text ran
+  together ("Gallatin30031", "BozemanHydroMet"): axe's accessible-name
+  computation and `textContent` both read it that way, and Chromium's AX
+  tree read "Gallatin 30031" with no pause. A visually hidden `", "`
+  (`.sr-only`, absolutely positioned, so not a flex item) now sits between
+  them: the name is "Gallatin, 30031". The row looks the same (screenshots
+  of the open demo list are pixel-identical to 0.16.0 in all three themes,
+  Chromium and WebKit). Affected every `initSearchBox` consumer using the
+  default row since 0.8.0, including `MCO.places.initPlaceSearch`. Rows
+  drawn by an app's `renderRow`, group headings, and the "No matches" and
+  truncation notes are unchanged. An app that reads an option's
+  `textContent` now gets the separator in it.
+- Demo: the Places card's result list gets the same separator.
+- `tools/a11y-audit.mjs`: a keyboard probe asserts the default row's name
+  separates label and meta and that the separator is visually hidden.
+
+## [0.16.0] — 2026-10-22
+
+MINOR: one new published file, and two additive options in core. Theme,
+map, cog, palette and photos are byte-identical to 0.15.1, so their SRI
+hashes are unchanged; core's hash changes. Owner decision: website
+DECISIONS D9, extraction #2 (place search). Two consumers: the Station
+Dashboard, which this replaces, and climate.umt.edu's station search.
+
+### Added
+- **`places/mco-places.js` → `MCO.places`.** A typed county, reservation,
+  tribe, town or ZIP code resolves to a point, and a point to the nearest
+  stations with great-circle distances. A port of mesonet-dashboard's
+  tested `web/src/core/places` and `web/src/core/stations/nearest.ts`.
+  Loads after `core/mco-core.js`.
+  - **Gazetteer:** `places/mt-places.json`, the US Census 2026 Gazetteer
+    Files for Montana (public domain): 56 counties, 7 reservations, 497
+    towns and CDPs, 369 ZIP codes, and the Little Shell Tribe at Great
+    Falls; 930 places, 47 KB (15 KB gzipped). Byte-identical to the
+    dashboard's copy, and regenerated from Census by
+    `tools/vendor-places.mjs`. `load()` fetches it from the tag the script
+    came from with `integrity` set to a hash the module carries, so the
+    data is pinned by the script's own SRI. `{url}` loads a vendored copy.
+  - **Stations for a place:** `stationsFor()` lists a county's stations
+    (by the catalog's `county`), a reservation's (inside its boundary,
+    `pointInGeometry()`, from the kit's `map/data` file via `loadAreas()`),
+    else the five nearest; `announcement()` says it ("5 stations near
+    Bozeman"). `nearest({lat, lon}, stations, n)`, `haversineKm()`,
+    `formatMiles()`.
+  - **Search:** `items()` makes places into search items (query-only, in a
+    "Places" section, the kind as meta). **`initPlaceSearch()`** is
+    `MCO.initSearchBox` over the app's stations with the places added: they
+    load on first focus, a station pick goes to `onSelect`, a place pick is
+    resolved and goes to `onPlace` (reservations load their boundary on the
+    first pick), and the count is announced. Not a second combobox.
+  - **Near me:** `locate()` / `nearMe()`, for a button press only. A
+    failure rejects with a `reason`: `denied`, `unavailable`, `timeout` or
+    `unsupported`. Nothing asks for a position on its own.
+- **`MCO.searchModel` sections** (core): items may carry `section` and
+  `queryOnly`, and `filter(items, q, limit, sectionLimits)` takes a fourth
+  argument. With a query, matches sort by section before rank, each
+  section is headed when more than one matches, and `sectionLimits` caps
+  one; queryOnly items stay out of the no-query list. The dashboard's model,
+  where it was tested. **`MCO.initSearchBox({sectionLimits})`** passes it
+  through. Items with neither field filter exactly as in 0.15.1
+  (`tools/check-places.mjs` compares the two cores on the station catalog).
+- `tools/check-places.mjs`: the dashboard's place, nearest and section tests
+  ported to `node:test`, the data hashes, `KIT_BASE`, the loaders and
+  geolocation failure reasons; `--live` checks the mesonet2 station catalog
+  against the gazetteer, and with `KIT_TAG` the files jsDelivr serves.
+- Demo: a Places card (`initPlaceSearch` over a fixture of 24 stations, and
+  Near me). The a11y audit probes it in both engines: sections headed,
+  the station active, axe on the open list, a ZIP and a reservation pick.
+  `demo/cdn.html` loads the published file and its data with integrity.
+- HOUSE-STYLE §4: place search conventions. README: usage, CSP
+  (`connect-src https://cdn.jsdelivr.net`).
+
+### Notes
+- `MCO.versions.places` reports `'0.1.0'`, like its siblings. Not a version
+  check.
+
+## [0.15.1] — 2026-10-22
+
+PATCH: one fix in `map/mco-map.js`. Theme, core, cog, palette and photos
+are byte-identical to 0.15.0, so their SRI hashes are unchanged.
+
+### Fixed
+- **Tribal-label font stack.** `MCO.map.TRIBAL_LABEL_LAYOUT` asked CARTO's
+  glyph endpoint for `Open Sans Semibold, Arial Unicode MS Bold`, which CARTO
+  no longer serves (404, alone or in that stack). Every map drawing tribal
+  labels logged a 404 per page, and the label face was not the one
+  specified. The stack is now `Montserrat SemiBold, Open Sans Bold`, the bold
+  label face CARTO's own dark-matter, positron and voyager styles use; the
+  stack URL MapLibre requests returns 200. Owner decision. No selector,
+  token, signature or default changes.
+
+## [0.15.0] — 2026-10-22
+
+MINOR: one additive option in `photos/mco-photos.js`. Theme, core, map,
+cog and palette are byte-identical to 0.14.0, so their SRI hashes are
+unchanged. Owner decision: website DECISIONS D16, which corrects D15's
+reading of D7. The 2026-10-22 public start is for the website's photo hero
+only; the Photo Explorer and the Station Dashboard keep the full public
+history.
+
+### Added
+- **`{fullHistory: true}`** on `MCO.photos.parseSchedule()` and
+  `MCO.photos.load()`: a public schedule with no date floor and no `REAIMED`
+  block. Pre-cutover North and South (aimed at the pluviometer and the snow
+  stake until 2026-10-21 16:00 MDT) are offered and labelled "North" and
+  "South", as the tools showed them before 0.14.0. The audience is still
+  public: Snow, North Snow, South Snow, Pluvio and Solar stay behind
+  `{internal: true}`, the retired sky views (NS, SS) stay staff-only, PARK
+  is never a view.
+  - Precedence for the first date: an explicit `since` (null included),
+    else none for `internal` or `fullHistory`, else `PUBLIC_SINCE`. An
+    explicit `since` never brings `REAIMED` back under `fullHistory`.
+  - The parsed schedule carries `fullHistory`; `frameFilter()`,
+    `fetchMonthFrames()`, `fetchLatestFrames()`, `listDay()`,
+    `confirmDerived()` and `initPhotoControls()` follow it through the
+    schedule. `frameFilter(null)` is still the public default.
+  - `load()` caches `fullHistory` under its own key.
+  - `fullHistory` with `internal` is the same as `internal`.
+- `tools/check-photos.mjs`: full-history cases (pre-cutover N/S back to the
+  first archived month, the default still clamped, staff unchanged, `since`
+  precedence, the cache key) and a `--live` check against data2.
+
+### Unchanged
+- **The default.** A caller passing nothing still gets the 2026-10-22
+  public start in every direction. The website does not pass `fullHistory`.
+
+## [0.14.0] — 2026-10-22
+
+MINOR: one new published file, additive API. Theme, core, map, cog and
+palette are byte-identical to 0.13.1, so their SRI hashes are unchanged.
+Owner decisions for this release are website DECISIONS D7, D8, D9 and D15:
+the D7 clamp covers every public surface and every direction (first public
+date 2026-10-22); public order is N, E, S, W; staff labels for pre-cutover
+N and S stay "North" and "South".
+
+### Added
+- **`photos/mco-photos.js` → `MCO.photos`** (website D9, extraction #1).
+  Mesonet station photos from the data2 archive, for any app that shows
+  them. A port of mesonet-dashboard's tested `web/src/core/photos` merged
+  with the slot rules mesonet-photo-explorer relies on. Loads after
+  `core/mco-core.js`. Two consumers today (dashboard, Photo Explorer), three
+  with climate.umt.edu, so it passes the admission rule.
+  - **Schedule:** `load()` (cached; `{fresh: true}` refetches) / `parseSchedule()` read `schedule.json` into
+    per-station view windows. The capture schedule is never written into the
+    kit. `slotsForDate()` offers the slots at least half the shooting
+    stations were scheduled for (so a one-camera hourly pilot stays out of
+    the menu); `viewsForSlot()`, `isShotAt()`, `viewsBetween()`,
+    `hasCamera()`.
+  - **Time:** `readySlots()` (the processing lag), `latestSlot()`,
+    `previousSlot()`, `resolveTime()` (the wanted time, else the next later
+    one, with a `reason`: `pending` or `unscheduled`), `resolveView()`,
+    `rollMessage()`.
+  - **Mountain wall clock ↔ UTC**, which the kit did not have:
+    `toUtcMs()`, `toWallClock()`, `localYmd()`, `compactUtc()`, `parseUtc()`,
+    `utcDaysOfLocalDay()`, and engine-stable `slotLabel()`, `timeLabel()`,
+    `stampLabel()`. DST-safe; tested under three process time zones.
+  - **Archive:** `frameUrl()`, `manifestUrl()`, `parseManifest()` (the
+    blank-`webp_large` quirk and the snap limit), `parseListingKeys()`,
+    `framesFromListing()`, `fetchMonthFrames()`, `fetchLatestFrames()`,
+    `confirmDerived()`, `framesFor()`, `newest()`.
+  - **Vocabulary:** `VIEWS`, `ORDER`, `label()`, `shortLabel()`,
+    `viewName()` (keeps the visible text inside the accessible name, WCAG
+    2.5.3), `isPublic()`, `isVisible()`. NSNOW and SOLAR are registered.
+  - **`MCO.photos.initPhotoControls()`**: the date / time / direction group
+    on `MCO.initStepper` and `MCO.initSegmentedFallback`. Reads `?date`,
+    `?time`, `?dir`; keeps the wanted time and view sticky across days;
+    reports moves the visitor did not ask for as `rolls` and announces them
+    once stepping settles. It does not write the URL: `params()` gives the
+    app its part.
+- **Public and staff views are decided here, once** (website D7, D8). The
+  public sees N, E, S, W, North by default. That is an allowlist, so a view
+  the schedule adds later is staff-only until it is added to the kit. Staff
+  views need `{internal: true}`. PARK is never a view. Before 2026-10-21
+  16:00 MDT, N was aimed at the pluviometer and S at the snow stake, so the
+  public default starts there (`PUBLIC_SINCE`), and a public N or S frame
+  from before it is never offered even when an app widens the range
+  (`REAIMED`).
+- `tools/check-photos.mjs`: the dashboard's tests ported to `node:test`,
+  plus the Photo Explorer's slot rules and the D7/D8 rules. Zero
+  dependencies: the kit loads in `node:vm` as `check-contrast.mjs` loads the
+  palette. CI runs it under `America/Denver`, `Pacific/Kiritimati` and
+  `Etc/GMT+12`. `--live` also checks the live data2 files.
+- Demo: a Photos card exercises `initPhotoControls` over a fixture schedule.
+  `demo/cdn.html` checks the published file; `snippets/head.html` carries
+  its tag.
+- README: how a consumer's Node tests load the pinned kit files in
+  `node:vm` (the dashboard's vitest suite does this, D15).
+
+### Notes
+- `MCO.versions.photos` reports `'0.1.0'`, like `core`, `map` and
+  `palette`. The field is still not a version check; the pinned URL is.
+
 ## [0.13.1] — 2026-10-10
 
 PATCH: theme and core. Map, cog and palette are the same as 0.13.0.

@@ -10,7 +10,7 @@
    and any app automation are yours to add.
 
    Ephemeral tooling (in the app repo; keep out of git):
-     npm init -y && npm i --no-save playwright @axe-core/playwright
+     npm init -y && npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0
      npx playwright install chromium
    Then: node consumer-verify.mjs
 */

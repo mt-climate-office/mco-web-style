@@ -744,7 +744,10 @@
   };
 
   // Symbol layout for tribal-nation labels: Census names shortened to common
-  // usage. Font stack exists in the CARTO basemap glyph set.
+  // usage. Font stack exists in the CARTO basemap glyph set: CARTO stopped
+  // serving 'Open Sans Semibold' (404, 2026-10-22), so this matches the bold
+  // label face CARTO's own dark-matter/positron/voyager styles use.
+  // MapLibre requests the whole stack as one URL; check it returns 200.
   M.TRIBAL_LABEL_LAYOUT = {
     'text-field': ['match', ['get', 'NAME'],
       'Blackfeet Indian Reservation', 'Blackfeet',
@@ -756,7 +759,7 @@
       "Rocky Boy's Reservation", "Rocky Boy's",
       ['get', 'NAME'],
     ],
-    'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+    'text-font': ['Montserrat SemiBold', 'Open Sans Bold'],
     'text-size': ['interpolate', ['linear'], ['zoom'], 7, 10, 10, 13, 13, 16],
     'text-letter-spacing': 0.05, 'text-max-width': 8, 'text-padding': 2,
     'text-allow-overlap': false, 'symbol-placement': 'point',

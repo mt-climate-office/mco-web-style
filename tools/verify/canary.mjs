@@ -37,7 +37,7 @@
        [--ready '<selector>::<text>']   (or env CANARY_READY)
 
    Tooling (ephemeral, never committed — AGENTS rule 1):
-     npm i --no-save playwright @axe-core/playwright pngjs pixelmatch
+     npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0 pngjs@7.0.0 pixelmatch@8.0.0
      npx playwright install chromium webkit
    Exit code: 0 when no consumer regressed, 1 otherwise.
    ========================================================================== */

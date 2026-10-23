@@ -1,6 +1,11 @@
-# Axe accessibility audit of the demo page (all three themes).
+# Axe accessibility audit of the demo and exemplar pages (all three themes).
 # Fails on serious/critical violations. Tooling is installed ephemerally —
 # the kit stays zero-dependency (package.json is gitignored by design).
+#
+# Tiered like the canary (.github/scripts/plan.sh): a PR runs it when it
+# touches published bytes, demo/, exemplar/ or the audit itself, in Chromium;
+# release candidates (title "vX.Y.Z: …" or the `release` label), tags and
+# manual dispatches add WebKit. Pushes to main always run, in Chromium.
 name: a11y
 
 on:
@@ -8,10 +13,50 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      engines:
+        description: Engines to run
+        type: choice
+        options: ['chromium,webkit', chromium, webkit]
+        default: 'chromium,webkit'
+
+concurrency:
+  group: a11y-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
-  axe:
+  plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+      engines: ${{ steps.plan.outputs.engines }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          PATHS_RE: '^(theme|core|map|palette|photos|places|fonts|tokens|assets|snippets|demo|exemplar)/|^tools/(a11y-audit\.mjs|verify/lib\.mjs)$|^\.github/(workflows/a11y\.yml|actions/playwright/|scripts/plan\.sh$)'
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          INPUT_ENGINES: ${{ inputs.engines }}
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/plan.sh
+
+  axe:
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    name: axe · ${{ needs.plan.outputs.engines }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -19,11 +64,13 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install audit tooling (ephemeral)
-        run: |
-          npm init -y > /dev/null
-          npm install --no-save playwright @axe-core/playwright
-          npx playwright install --with-deps chromium webkit
+      - name: Install Playwright ${{ needs.plan.outputs.engines }} (cached)
+        timeout-minutes: 8
+        uses: ./.github/actions/playwright
+        with:
+          engines: ${{ needs.plan.outputs.engines }}
 
-      - name: Run axe over demo (dark, light, high-contrast)
+      - name: Run axe over demo + exemplar (dark, light, high-contrast)
+        env:
+          BROWSERS: ${{ needs.plan.outputs.engines }}
         run: node tools/a11y-audit.mjs
