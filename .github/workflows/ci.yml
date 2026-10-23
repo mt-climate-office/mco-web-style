@@ -49,6 +49,10 @@ jobs:
       - name: MCO.places unit tests
         run: node tools/check-places.mjs
 
+      # The verify harness's one-retry rule, with fake scenarios (no browser).
+      - name: Verify harness retry tests
+        run: node tools/check-verify.mjs
+
       - name: SRI hash freshness
         run: node tools/check-sri.mjs
 

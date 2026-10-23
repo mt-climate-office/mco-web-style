@@ -50,6 +50,33 @@ use an install elsewhere, set `VERIFY_MODULES=/path/to/node_modules` (ESM
 ignores `NODE_PATH`). `VERIFY_CHANNEL=chrome` uses installed Chrome.
 Chromium runs with SwiftShader, so MapLibre's WebGL2 works headless.
 
+## Retries
+
+A failed scenario is re-run once, in a fresh browser context, before it
+counts (0.16.2). In `axe-matrix.mjs` a scenario is one page visit (engine ×
+scenario × theme × width, all its checks); in `keyboard.mjs` it is one probe
+block (skip link + focus rings, the dialog, each shortcut with and without
+`?kbd=off`, and your `probes` function as a whole, so a probe must open and
+close its own pages). A retry is always logged:
+
+```
+↻ retried [webkit · default · dark · 1440], passed (first attempt: [webkit · default · dark · 1440] console, page errors, CSP clean — console: Failed to load resource: HTTP/2 Error: NO_ERROR)
+```
+
+It exists for transient network failures, such as a third-party file whose
+connection resets mid-fetch: one console error fails the "console, page
+errors, CSP clean" gate, and the next load is clean. The rules are not
+looser. A console error, page error or CSP violation passes only if it does
+not happen again; a deterministic failure fails both attempts and is
+reported with the retry's results, the ↻ line naming the first. There is
+exactly one retry, never more.
+
+`VERIFY_RETRIES=0` turns it off (for chasing a flake); `1` is the default,
+and any other value is an error. `head.mjs` and `lint-css.mjs` read files
+with no browser or network, so they have nothing to retry. `canary.mjs`
+has its own rule: a run that crashes is retried once (`runSafe`), and its
+noise floor comes from loading each baseline twice.
+
 ## Config
 
 Without a config the scripts load the page once and wait for `load`. Real

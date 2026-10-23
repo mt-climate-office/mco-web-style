@@ -27,8 +27,10 @@
    `ready` is a FUNCTION run in the page (never a string: a meta CSP without
    'unsafe-eval' rejects Playwright's string predicates) or a CSS selector.
    The theme comes from ?theme=, appended to each scenario's query.
+   A visit with a failed check is re-run once in a fresh context and logged
+   as "↻ retried …" (0.16.2); VERIFY_RETRIES=0 turns that off.
    ========================================================================== */
-import { THEMES, VIEWPORTS, args, browsers, check, config, finish, load, open, smallTargets, start } from './lib.mjs';
+import { THEMES, VIEWPORTS, args, browsers, config, finish, load, open, scenario, smallTargets, start } from './lib.mjs';
 
 const a = args();
 const cfg = await config(a.config);
@@ -50,25 +52,30 @@ for (const engine of browsers(a)) {
         const q = (sc.query || '');
         const query = q + (q.includes('?') ? '&' : '?') + 'theme=' + theme;
         const label = `[${engine} · ${sc.name} · ${theme} · ${vp.name}]`;
-        let session;
-        try {
-          session = await open(env, query, { viewport: vp, storage: cfg.storage || {}, ready: sc.ready, settleMs });
-        } catch (e) {
-          check(`${label} render evidence`, false, String(e.message || e).split('\n')[0]);
-          continue;
-        }
-        const { page: p, problems, close } = session;
-        const results = await new AxeBuilder({ page: p }).analyze();
-        const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-        check(`${label} axe: 0 serious/critical`, bad.length === 0,
-          bad.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0]?.target.join(' ')}`).join(' | '));
-        const probs = (await problems()).filter((x) => !allow.some((s) => x.includes(s)));
-        check(`${label} console, page errors, CSP clean`, probs.length === 0, probs.slice(0, 3).join(' | '));
-        if (vp.touch) {
-          const small = await smallTargets(p, cfg.exemptTargets || '');
-          check(`${label} touch targets ≥ 40px (44px close)`, small.length === 0, `${small.length}: ${small.slice(0, 12).join(' | ')}`);
-        }
-        await close();
+        // One page visit is one scenario: a failed check re-runs the whole
+        // visit once in a fresh context (lib.mjs scenario(), VERIFY_RETRIES).
+        await scenario(label, async (rec) => {
+          let session;
+          try {
+            session = await open(env, query, { viewport: vp, storage: cfg.storage || {}, ready: sc.ready, settleMs });
+          } catch (e) {
+            rec(`${label} render evidence`, false, String(e.message || e).split('\n')[0]);
+            return;
+          }
+          const { page: p, problems, close } = session;
+          try {
+            const results = await new AxeBuilder({ page: p }).analyze();
+            const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+            rec(`${label} axe: 0 serious/critical`, bad.length === 0,
+              bad.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0]?.target.join(' ')}`).join(' | '));
+            const probs = (await problems()).filter((x) => !allow.some((s) => x.includes(s)));
+            rec(`${label} console, page errors, CSP clean`, probs.length === 0, probs.slice(0, 3).join(' | '));
+            if (vp.touch) {
+              const small = await smallTargets(p, cfg.exemptTargets || '');
+              rec(`${label} touch targets ≥ 40px (44px close)`, small.length === 0, `${small.length}: ${small.slice(0, 12).join(' | ')}`);
+            }
+          } finally { await close().catch(() => {}); }
+        });
       }
     }
   }

@@ -8,6 +8,31 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.16.2] — 2026-10-23
+
+PATCH: tooling only. Every published file (theme, core, map, cog, palette,
+photos, places, fonts, assets, tokens) is byte-identical to 0.16.1, so the
+SRI hashes are unchanged; only the version in the pinned URLs moves.
+
+### Tooling
+- **The verify harness retries a failed scenario once.** A website deploy
+  failed on 2026-10-23 because one WebKit page visit logged `Failed to load
+  resource: HTTP/2 Error: NO_ERROR`, a connection reset fetching a
+  third-party file; every other scenario passed and a re-run passed.
+  `tools/verify/lib.mjs` gains `scenario()`: `axe-matrix.mjs` re-runs a
+  page visit (engine × scenario × theme × width) in a fresh context when
+  any of its checks fails, and `keyboard.mjs` does the same per probe block
+  (the app's `probes` function counts as one block). Exactly one retry; a
+  retry prints `↻ retried <scenario>, passed|failed again (first attempt:
+  <reason>)`, and when it fails too its results are what count. The checks
+  are unchanged: a console error, page error or CSP violation passes only if
+  it does not recur. `VERIFY_RETRIES=0` disables it (default 1). `head.mjs`
+  and `lint-css.mjs` read files and have nothing to retry; the canary keeps
+  its own crash retry.
+- `tools/check-verify.mjs`: unit tests for the retry with fake scenarios
+  (fails once then passes; fails twice; throws; `VERIFY_RETRIES`). Runs in
+  CI.
+
 ## [0.16.1] — 2026-10-23
 
 PATCH: core only. Theme, map, cog, palette, photos and places are
