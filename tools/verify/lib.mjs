@@ -202,6 +202,51 @@ export function check(label, ok, detail = '') {
   if (ok) passes++; else failures++;
   return ok;
 }
+/* ── Retry (0.16.2) ─────────────────────────────────────────────────────── */
+
+/**
+ * How many times a failed scenario is re-run: $VERIFY_RETRIES, 1 by default,
+ * 0 to disable. Never more than one, so a deterministic failure still fails
+ * on the second look and a flake costs one extra page load.
+ */
+export function retryCount(env = process.env) {
+  const raw = env.VERIFY_RETRIES;
+  if (raw === undefined || raw === '') return 1;
+  if (raw !== '0' && raw !== '1') throw new Error(`VERIFY_RETRIES must be 0 or 1, not ${JSON.stringify(raw)}`);
+  return Number(raw);
+}
+
+/**
+ * Run one scenario (a page visit, or one keyboard probe block) and report
+ * its checks, re-running it once if any check failed. `fn(rec)` does the
+ * work in its own fresh context and records each check with
+ * rec(label, ok, detail) instead of check(); a throw counts as a failed
+ * check. Nothing is printed until an attempt is final, so a flake prints one
+ * line, `↻ retried <label> (first attempt: <reason>)`, then the retry's
+ * results. If the retry fails too, its results are what count, and the ↻
+ * line still names the first failure. The rules themselves are unchanged: a
+ * console error, page error or CSP violation passes only if it does not
+ * recur. Returns { ok, retried, first, results }.
+ */
+export async function scenario(label, fn, { retries = retryCount(), report = check, log = console.log } = {}) {
+  let first = null;
+  for (let attempt = 0; ; attempt++) {
+    const results = [];
+    const rec = (l, ok, detail = '') => { results.push({ label: l, ok: !!ok, detail: String(detail) }); return !!ok; };
+    try { await fn(rec, attempt); } catch (e) {
+      rec(`${label} ran to the end`, false, String((e && e.message) || e).split('\n')[0]);
+    }
+    const failed = results.filter((r) => !r.ok);
+    if (failed.length && attempt < retries) { first = failed; continue; }
+    if (first) {
+      const why = first.map((r) => r.detail ? `${r.label} — ${r.detail}` : r.label).join(' | ').slice(0, 400);
+      log(`↻ retried ${label}, ${failed.length ? 'failed again' : 'passed'} (first attempt: ${why})`);
+    }
+    for (const r of results) report(r.label, r.ok, r.detail);
+    return { ok: failed.length === 0, retried: !!first, first, results };
+  }
+}
+
 /** Print the summary and exit (0 when every check passed). */
 export function finish(name) {
   console.log(failures === 0 ? `${name}: ALL ${passes} CHECKS PASSED` : `${name}: ${failures} of ${passes + failures} CHECK(S) FAILED`);
