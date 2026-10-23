@@ -201,7 +201,8 @@ for (const engine of BROWSERS) {
     await page.keyboard.press('Escape');
     await page.keyboard.type('59715');
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(150);
+    // MCO.announce writes on the next tick; under load that can take longer than a fixed pause.
+    await page.waitForFunction(() => /stations near/.test(document.querySelector('.sr-only[aria-live="polite"]').textContent), null, { timeout: 5000 }).catch(() => {});
     const p2 = await pl();
     probe('places: a ZIP code lists the 5 nearest stations and says so',
       p2.expanded === 'false' && p2.title === 'Near 59715' && p2.rows === 5 && /5 stations near 59715/.test(p2.live), JSON.stringify(p2));
@@ -212,6 +213,32 @@ for (const engine of BROWSERS) {
     const p3 = await pl();
     probe('places: a reservation lists the stations inside its boundary (loaded on the pick)',
       p3.title === 'Flathead Reservation' && p3.rows >= 1 && /on the Flathead Reservation/.test(p3.live), JSON.stringify(p3));
+
+    /* 0.17.0: MCO.summary.summarize. The sentence follows the readings and
+       the units, and a change is announced once. */
+    await page.keyboard.press('Escape');
+    const su = () => page.evaluate(() => ({
+      text: document.getElementById('summary-out').textContent,
+      live: document.querySelector('.sr-only[aria-live="polite"]').textContent,
+    }));
+    const q1 = await su();
+    probe('summary: the VOICE model sentence on load',
+      q1.text === 'Partly cloudy tonight, calm, no precipitation in 3 days.', JSON.stringify(q1));
+    await page.selectOption('#summary-case', 'rain');
+    await page.evaluate(() => {   // the radios, or the select that replaces them below 1060 px
+      const sel = document.getElementById('summary-units-select');
+      if (!sel.hidden) { sel.value = 'si'; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      else document.querySelector('input[name="demo-summary-units"][value="si"]').click();
+    });
+    await page.waitForTimeout(150);
+    const q2 = await su();
+    probe('summary: SI amounts, and the change is announced',
+      q2.text === 'Rain likely, strong WNW wind, 10.7 mm of precipitation today.' && q2.live === q2.text, JSON.stringify(q2));
+    await page.evaluate(() => {
+      const sel = document.getElementById('summary-units-select');
+      if (!sel.hidden) { sel.value = 'us'; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      else document.querySelector('input[name="demo-summary-units"][value="us"]').click();
+    });
 
     /* 0.9.0: drawer, sheet, stepper, radio segmented. */
     await page.keyboard.press('Escape');

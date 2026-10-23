@@ -48,7 +48,7 @@ jobs:
           # Everything a consumer can load from the jsDelivr tag, plus the
           # canary's own harness. demo/ and exemplar/ are not loaded by any
           # consumer (checked 2026-10-22), so they are a11y's concern only.
-          PATHS_RE: '^(theme|core|map|palette|photos|places|fonts|tokens|assets|snippets)/|^tools/verify/(canary\.mjs|lib\.mjs|canary-accept\.json)$|^\.github/(workflows/canary\.yml|actions/playwright/|scripts/plan\.sh$)'
+          PATHS_RE: '^(theme|core|map|palette|photos|places|summary|fonts|tokens|assets|snippets)/|^tools/verify/(canary\.mjs|lib\.mjs|canary-accept\.json)$|^\.github/(workflows/canary\.yml|actions/playwright/|scripts/plan\.sh$)'
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}

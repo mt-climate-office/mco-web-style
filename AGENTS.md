@@ -39,7 +39,7 @@ it from an app. The reasoning behind each rule is in
    first; a release commit contains only the release.
 1. Gates green locally: `node --check` the published JS files, then
    `tools/check-tokens.mjs`, `tools/check-contrast.mjs`,
-   `tools/check-photos.mjs`, `tools/check-places.mjs`; eyeball `demo/` in all three themes.
+   `tools/check-photos.mjs`, `tools/check-places.mjs`, `tools/check-summary.mjs`; eyeball `demo/` in all three themes.
 2. Freeze the published css/js files (the list in `tools/sri.sh`). Any byte change after this point
    restarts here.
 3. Bump `@version` in `snippets/head.html`, `demo/cdn.html`, `README.md`.

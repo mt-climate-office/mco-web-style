@@ -83,6 +83,7 @@
     .demo-hero-unit { font-size: var(--fs-sm); color: var(--text-muted); }
     .demo-hero-mono { font-family: var(--font-mono); }
     .demo-peek { font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
+    .demo-summary { margin: 0; font-size: var(--fs-lg); line-height: 1.35; color: var(--text-primary); }
     .demo-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     #map { width: 100%; height: 100%; }
@@ -299,7 +300,9 @@
        becomes a <code>&lt;select&gt;</code> below 1060px (<code>MCO.initSegmentedFallback</code>).
        The Photos card is <code>MCO.photos.initPhotoControls</code> (0.14.0) over a fixture schedule.
        The Places card is <code>MCO.places.initPlaceSearch</code> (0.16.0): a station, county,
-       reservation, town or ZIP code, over the kit's gazetteer and a fixture of 24 stations.</p>
+       reservation, town or ZIP code, over the kit's gazetteer and a fixture of 24 stations.
+       The Summary card is <code>MCO.summary.summarize</code> (0.17.0): the plain-language
+       conditions line, from fixture readings so the demo needs no network.</p>
     <div class="demo-cards">
       <section class="mco-card" aria-labelledby="card-controls-title">
         <div class="mco-card-head"><h3 class="mco-card-title" id="card-controls-title">Filters</h3></div>
@@ -406,6 +409,33 @@
             <p class="demo-place-note" id="place-note"></p>
             <ul class="demo-place-list" id="place-list" aria-labelledby="place-results-title"></ul>
           </div>
+        </div>
+      </section>
+      <!-- MCO.summary.summarize (0.17.0): one sentence from the NWS period, the
+           latest wind, the 24 h peak gust and the precipitation record. The
+           readings are fixtures; real apps call MCO.summary.forStation(). -->
+      <section class="mco-card" aria-labelledby="card-summary-title">
+        <div class="mco-card-head"><h3 class="mco-card-title" id="card-summary-title">Summary</h3></div>
+        <div class="mco-card-body demo-stack">
+          <label class="demo-label" for="summary-case">Readings</label>
+          <select id="summary-case" class="demo-select">
+            <option value="day">Afternoon, breezy, dry 5 days</option>
+            <option value="night" selected>Evening, calm, dry 3 days</option>
+            <option value="gusts">Evening, calm after a windy day</option>
+            <option value="rain">Raining, strong wind</option>
+            <option value="noforecast">No forecast</option>
+            <option value="none">Nothing known</option>
+          </select>
+          <fieldset class="seg-btns is-radio" id="summary-units">
+            <legend class="sr-only">Units</legend>
+            <label class="nav-btn seg-btn"><input type="radio" name="demo-summary-units" value="us" checked>US</label>
+            <label class="nav-btn seg-btn"><input type="radio" name="demo-summary-units" value="si">Metric</label>
+          </fieldset>
+          <label class="sr-only" for="summary-units-select">Units</label>
+          <select id="summary-units-select" class="demo-select" hidden>
+            <option value="us">US</option><option value="si">Metric</option>
+          </select>
+          <p class="demo-summary" id="summary-out"></p>
         </div>
       </section>
     </div>
@@ -516,6 +546,7 @@
 <script src="../palette/mco-palette.js"></script>
 <script src="../photos/mco-photos.js"></script>
 <script src="../places/mco-places.js"></script>
+<script src="../summary/mco-summary.js"></script>
 <script src="../map/mco-map.js"></script>
 <script>
   'use strict';
@@ -634,6 +665,33 @@
       MCO.announce(note);
     });
   });
+
+  /* ── Summary (0.17.0) ────────────────────────────────────────────────── */
+  // Inputs as MCO.summary.inputFrom() builds them from API rows; US values,
+  // Mountain wall-clock ms for the time of day.
+  const wall = (h) => Date.UTC(2026, 9, 2, h);
+  const summaryCases = {
+    day: { shortForecast: 'Partly Sunny', windMph: 12, windDeg: 270, precipTodayIn: 0, daysSincePrecip: 5, nowWallMs: wall(14) },
+    night: { shortForecast: 'Partly Cloudy', windMph: 0.4, windDeg: 200, precipTodayIn: 0, daysSincePrecip: 3, nowWallMs: wall(21) },
+    gusts: { shortForecast: 'Mostly Clear', windMph: 0.3, windDeg: 180, peakGustMph: 43.2, precipTodayIn: 0, daysSincePrecip: Infinity, nowWallMs: wall(22) },
+    rain: { shortForecast: 'Rain Showers Likely then Chance Snow', windMph: 24, windDeg: 292, precipTodayIn: 0.42, daysSincePrecip: 0, nowWallMs: wall(10) },
+    noforecast: { shortForecast: null, windMph: 6, windDeg: 157.5, precipTodayIn: 0, daysSincePrecip: 1, nowWallMs: wall(9) },
+    none: { shortForecast: null, windMph: null, windDeg: null, precipTodayIn: null, daysSincePrecip: null, nowWallMs: wall(9) },
+  };
+  const summaryOut = document.getElementById('summary-out');
+  let summaryUnits = 'us';
+  function renderSummary(say) {
+    const text = MCO.summary.summarize({ ...summaryCases[document.getElementById('summary-case').value], units: summaryUnits });
+    summaryOut.textContent = text || 'No readings to summarize.';
+    if (say) MCO.announce(summaryOut.textContent);
+  }
+  document.getElementById('summary-case').addEventListener('change', () => renderSummary(true));
+  MCO.initSegmentedFallback({
+    group: document.getElementById('summary-units'),
+    select: document.getElementById('summary-units-select'),
+    onChange: (v) => { summaryUnits = v; renderSummary(true); },
+  });
+  renderSummary(false);
 
   const load = MCO.loading(document.getElementById('load-box'), { label: 'Loading demo data' });
   document.getElementById('btn-load').addEventListener('click', () => { load.start(); setTimeout(load.done, 1500); });

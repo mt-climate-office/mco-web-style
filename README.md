@@ -25,9 +25,9 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.2/theme/mco-theme.css"
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.17.0/theme/mco-theme.css"
       integrity="sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.2/core/mco-core.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.17.0/core/mco-core.js"
         integrity="sha384-5LuIiruVjXsc4aJP9psEF1MLhfwow4XrNztT4Sn1OSCbbY7wkqTpgWbX+ucBlUlC" crossorigin="anonymous"></script>
 ```
 
@@ -75,6 +75,31 @@ pieces, for an app that draws its own field. Location is asked for only by
 `locate()` / `nearMe()`, which an app calls from a button press; a refusal
 rejects with a `reason` (`denied`, `unavailable`, `timeout`, `unsupported`).
 
+Apps that show a station's current conditions in one sentence add
+`summary/mco-summary.js` (`MCO.summary`, 0.17.0): "Partly cloudy tonight,
+calm, no precipitation in 3 days." The sentence comes from the NWS
+forecast's current period, the latest wind, the 24 h peak gust and the
+precipitation record. The core is pure and needs nothing from core: pass the
+readings, the Mountain wall-clock time and the display units.
+
+```js
+// Rows the app already holds (API JSON or the dashboard's CSV rows):
+const input = MCO.summary.inputFrom({ latest, hourly, ppt, periods, units: 'us' });
+line.textContent = input ? MCO.summary.summarize(input) : '';
+
+// Or let the kit fetch them (four requests; any that fails is left out):
+MCO.summary.forStation({ station: s.station, lat: s.latitude, lon: s.longitude,
+  derivedPpt: s.sub_network === 'HydroMet', units: 'us' })
+  .then((r) => { line.textContent = r.text; });   // '' when nothing is known; never rejects
+```
+
+`summarize()`, `skyPhrase()`, `windPhrase()`, `precipPhrase()`,
+`daysSincePrecip()` and `peakGust()` are the pieces. Data stays US (in,
+mph) and every threshold is tested in US units; `units: 'si'` changes only
+how the two amounts print (mm, m/s). Rows may carry a Mountain wall-clock
+string or epoch ms. The fetcher needs `connect-src`
+`https://mesonet2.climate.umt.edu https://api.weather.gov` (§ CSP notes).
+
 Map apps add `map/mco-map.js` (targets MapLibre GL 6.x, which it imports for
 you — `MCO.map.loadMapLibre()`; the import map in `snippets/head.html` carries
 MapLibre's SRI hashes) and, for COG rasters,
@@ -89,8 +114,8 @@ A consumer's unit tests (vitest, `node:test`) use the same pinned bytes the
 page loads, not a copy. The kit has no package, so:
 
 1. Fetch the pinned files once, for example
-   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.2/core/mco-core.js`
-   and `…@0.16.2/photos/mco-photos.js`, into a cache directory, and check
+   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.17.0/core/mco-core.js`
+   and `…@0.17.0/photos/mco-photos.js`, into a cache directory, and check
    each against the `integrity` hash your `index.html` pins (sha384, base64)
    before using it. A mismatch fails the run.
 2. Evaluate them **in order, core first**, as classic scripts with
@@ -98,6 +123,8 @@ page loads, not a copy. The kit has no package, so:
    `mco-photos.js` touches nothing at load but `window.MCO`;
    `mco-places.js` also reads `document.currentScript` (absent in `vm`, so
    pass `{url}` to `MCO.places.load()` there, or test the pure helpers);
+   `mco-summary.js` touches nothing at load but `window.MCO`, and its pure
+   part runs without core;
    `mco-core.js`
    reads `matchMedia`, `document`, `location` and `history` when it loads, so
    the context needs stubs for those (jsdom provides all but `matchMedia`).
@@ -108,7 +135,8 @@ page loads, not a copy. The kit has no package, so:
 [`tools/check-photos.mjs`](tools/check-photos.mjs) is the reference: its
 sandbox (stub DOM, `fetch` hook) is what the kit's own photo tests run in.
 Run such tests under more than one `TZ`; photo slots are Mountain wall-clock
-times and must not depend on the machine's zone.
+times and must not depend on the machine's zone. The same goes for
+`MCO.summary`, which reads epoch-ms rows as Mountain wall clock.
 
 `MCO.versions` is not a version check. Every module reports `'0.1.0'`
 (`photos` included, to match its siblings) whatever the tag. The pinned URL
@@ -129,6 +157,7 @@ CSS custom properties, kept in lockstep by CI.
 | `palette/mco-palette.js` | `window.MCO.palette`: approved data ramps (OKLab sampling, per-theme 3:1 spans), Tol categoricals, the station-network registry | apps that color data |
 | `places/mco-places.js` | `window.MCO.places`: place search. A typed county, reservation, tribe, town or ZIP code → its point → the nearest stations with distances (haversine); `initPlaceSearch` on `MCO.initSearchBox`; Near me on an explicit press. Load after `mco-core.js` | apps with a station search |
 | `places/mt-places.json` | The Montana gazetteer (US Census 2026 Gazetteer Files, public domain; 930 places). Fetched by `mco-places.js` from its own tag; `tools/vendor-places.mjs` regenerates it | — (data) |
+| `summary/mco-summary.js` | `window.MCO.summary`: the plain-language conditions line ("Partly cloudy tonight, calm, no precipitation in 3 days."). Pure `summarize()` and its phrase rules, `inputFrom()` for API rows, and an optional fetcher (`forStation()`: mesonet2 + api.weather.gov) that never rejects | apps that show current conditions |
 | `photos/mco-photos.js` | `window.MCO.photos`: Mesonet station photos from data2. Camera schedule, capture slots, Mountain wall clock ↔ UTC, frame and manifest URLs, the manifest reader, the public / staff view rules, and `initPhotoControls` (date, time, direction). Load after `mco-core.js` | apps that show station photos |
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
@@ -138,7 +167,7 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.16.2
+## SRI hashes — v0.17.0
 
 ```
 theme/mco-theme.css      sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu
@@ -148,6 +177,7 @@ map/cog-protocol.js      sha384-8KfmwSk9894unD1VJPQLo2DlTUp7+wLpl0ViJpo2LYG1J61n
 palette/mco-palette.js   sha384-nmQlqM0DO86ApUoiACDt0cl/bUjemVhSUytRow9vdP1ydxnXGamD81mumft3n41L
 photos/mco-photos.js     sha384-VepbbKE6CKKljLPjOlw1TATvqOZH73WIWtFXmpSR5RAgYVEphm1rE2fkGa+vK17C
 places/mco-places.js     sha384-4Amo71pLoRONH4SjB2I+Ai9FpSNqDDGGqQVxq4z0Yu/0c7GtGgLUYtNX/wQDUHVg
+summary/mco-summary.js   sha384-9qE6iFiGkwK/CB8QUbb3Ue7Dd8n8XeXgyVkoBs9TJFcCIO3d+XlfpHfRvnnMplcj
 ```
 
 Recompute with `tools/sri.sh`. CI (`tools/check-sri.mjs`) fails if this table,
@@ -175,9 +205,9 @@ Rules that keep consumers safe:
 
 1. Make changes; keep `tokens/tokens.json` in sync with the CSS.
 2. Run the gates locally:
-   `node --check core/mco-core.js map/mco-map.js map/cog-protocol.js palette/mco-palette.js photos/mco-photos.js places/mco-places.js` ·
+   `node --check core/mco-core.js map/mco-map.js map/cog-protocol.js palette/mco-palette.js photos/mco-photos.js places/mco-places.js summary/mco-summary.js` ·
    `node tools/check-tokens.mjs` · `node tools/check-contrast.mjs` · `node tools/check-photos.mjs` ·
-   `node tools/check-places.mjs`
+   `node tools/check-places.mjs` · `node tools/check-summary.mjs`
 3. Eyeball `demo/` in all three themes: `python3 -m http.server 8000` from the
    repo root → `http://localhost:8000/demo/`.
 4. **Freeze** the published css/js files (`tools/sri.sh` lists them). Bump the `@version` in
@@ -204,6 +234,10 @@ GitHub-Pages meta-tag pattern) need:
 - `img-src`: add `https://cdn.jsdelivr.net` if you hot-link kit assets
 - `connect-src`: add `https://cdn.jsdelivr.net` for `mco-places.js`, which
   fetches its gazetteer and the reservation boundaries from the pinned tag
+- `connect-src`: add `https://mesonet2.climate.umt.edu https://api.weather.gov`
+  if you call `MCO.summary.load()` / `forStation()`. The pure functions fetch
+  nothing. A forecast URL that NWS hands back on any other host is never
+  fetched, so no further origin is needed.
 - **map apps** (MapLibre 6, since kit 0.8.0):
   - `script-src`: `https://unpkg.com` and the MapLibre import map's hash,
     `'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI='`. An import map is

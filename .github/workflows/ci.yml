@@ -26,6 +26,7 @@ jobs:
           node --check palette/mco-palette.js
           node --check photos/mco-photos.js
           node --check places/mco-places.js
+          node --check summary/mco-summary.js
           node --check exemplar/app.js
           for f in tools/*.mjs tools/verify/*.mjs; do node --check "$f"; done
 
@@ -52,6 +53,14 @@ jobs:
       # The verify harness's one-retry rule, with fake scenarios (no browser).
       - name: Verify harness retry tests
         run: node tools/check-verify.mjs
+
+      # The conditions sentence. Rows in epoch ms are read as Mountain wall
+      # clock, so the result must not depend on the runner's zone either.
+      - name: MCO.summary unit tests (three zones)
+        run: |
+          TZ=America/Denver node tools/check-summary.mjs
+          TZ=Pacific/Kiritimati node tools/check-summary.mjs
+          TZ=Etc/GMT+12 node tools/check-summary.mjs
 
       - name: SRI hash freshness
         run: node tools/check-sri.mjs
