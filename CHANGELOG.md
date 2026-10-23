@@ -8,6 +8,21 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.15.1] — 2026-10-22
+
+PATCH: one fix in `map/mco-map.js`. Theme, core, cog, palette and photos
+are byte-identical to 0.15.0, so their SRI hashes are unchanged.
+
+### Fixed
+- **Tribal-label font stack.** `MCO.map.TRIBAL_LABEL_LAYOUT` asked CARTO's
+  glyph endpoint for `Open Sans Semibold, Arial Unicode MS Bold`, which CARTO
+  no longer serves (404, alone or in that stack). Every map drawing tribal
+  labels logged a 404 per page, and the label face was not the one
+  specified. The stack is now `Montserrat SemiBold, Open Sans Bold`, the bold
+  label face CARTO's own dark-matter, positron and voyager styles use; the
+  stack URL MapLibre requests returns 200. Owner decision. No selector,
+  token, signature or default changes.
+
 ## [0.15.0] — 2026-10-22
 
 MINOR: one additive option in `photos/mco-photos.js`. Theme, core, map,
