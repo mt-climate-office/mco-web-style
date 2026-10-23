@@ -37,7 +37,11 @@ runs:
         npm install --no-save --save-exact playwright@1.64.0 $PACKAGES
         echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
         echo "engines=$(echo "$ENGINES" | tr ',' ' ' | xargs)" >> "$GITHUB_OUTPUT"
+        # Commas are not allowed in cache keys: "chromium,webkit" → "chromium-webkit".
         echo "slug=$(echo "$ENGINES" | tr ', ' '--' | tr -s '-' | sed 's/^-//;s/-$//')" >> "$GITHUB_OUTPUT"
+        # Runner-image env vars, not in the `env` context: read them here.
+        echo "image=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
+        echo "image_version=${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
     - name: Point apt's archive cache at a cacheable directory
       shell: bash
       run: |
@@ -50,10 +54,10 @@ runs:
         path: |
           ~/.cache/ms-playwright
           ~/.cache/apt-archives
-        key: pw-${{ runner.os }}-${{ env.ImageOS }}-${{ steps.npm.outputs.slug }}-${{ steps.npm.outputs.version }}-${{ env.ImageVersion }}
+        key: pw-${{ runner.os }}-${{ steps.npm.outputs.image }}-${{ steps.npm.outputs.slug }}-${{ steps.npm.outputs.version }}-${{ steps.npm.outputs.image_version }}
         restore-keys: |
-          pw-${{ runner.os }}-${{ env.ImageOS }}-${{ steps.npm.outputs.slug }}-${{ steps.npm.outputs.version }}-
-          pw-${{ runner.os }}-${{ env.ImageOS }}-${{ steps.npm.outputs.slug }}-
+          pw-${{ runner.os }}-${{ steps.npm.outputs.image }}-${{ steps.npm.outputs.slug }}-${{ steps.npm.outputs.version }}-
+          pw-${{ runner.os }}-${{ steps.npm.outputs.image }}-${{ steps.npm.outputs.slug }}-
     - name: Install ${{ steps.npm.outputs.engines }} + system deps
       shell: bash
       env:
