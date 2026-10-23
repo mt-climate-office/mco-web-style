@@ -1,0 +1,72 @@
+# Ephemeral Playwright tooling for the canary and a11y workflows (AGENTS
+# rule 1: nothing here becomes a kit dependency).
+#
+# Installs only the engines the job runs, and caches both halves of a
+# browser install: ~/.cache/ms-playwright (the browser builds) and the
+# apt .debs `--with-deps` pulls. The .debs are the slow half: on
+# 2026-10-23 a WebKit job spent 18 min 45 s fetching 117 MB of them at
+# 104 kB/s, against 8 s for the browser download itself. Pointing apt's
+# archive directory into the cache lets a warm job skip the mirror.
+#
+# The caller sets `timeout-minutes` on the step that uses this action, so a
+# hung mirror fails fast under a step named for it.
+name: Playwright (cached)
+description: npm-install the test tooling, then restore/install/save Playwright browsers and their apt deps.
+inputs:
+  engines:
+    description: Space- or comma-separated Playwright engines (chromium, webkit).
+    required: true
+  packages:
+    description: Extra npm packages installed beside playwright (--no-save).
+    required: false
+    default: '@axe-core/playwright'
+runs:
+  using: composite
+  steps:
+    - name: npm install (ephemeral)
+      id: npm
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        ENGINES: ${{ inputs.engines }}
+      run: |
+        npm init -y > /dev/null
+        # shellcheck disable=SC2086 # PACKAGES is a word list
+        npm install --no-save playwright $PACKAGES
+        echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+        echo "engines=$(echo "$ENGINES" | tr ',' ' ' | xargs)" >> "$GITHUB_OUTPUT"
+        echo "slug=$(echo "$ENGINES" | tr ', ' '--' | tr -s '-' | sed 's/^-//;s/-$//')" >> "$GITHUB_OUTPUT"
+    - name: Point apt's archive cache at a cacheable directory
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.cache/apt-archives/partial"
+        echo "Dir::Cache::Archives \"$HOME/.cache/apt-archives/\";" | sudo tee /etc/apt/apt.conf.d/99-playwright-cache > /dev/null
+    - name: Restore browser + apt cache
+      id: cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ~/.cache/apt-archives
+        key: pw-${{ runner.os }}-${{ env.ImageOS }}-${{ steps.npm.outputs.slug }}-${{ steps.npm.outputs.version }}-${{ env.ImageVersion }}
+        restore-keys: |
+          pw-${{ runner.os }}-${{ env.ImageOS }}-${{ steps.npm.outputs.slug }}-${{ steps.npm.outputs.version }}-
+          pw-${{ runner.os }}-${{ env.ImageOS }}-${{ steps.npm.outputs.slug }}-
+    - name: Install ${{ steps.npm.outputs.engines }} + system deps
+      shell: bash
+      env:
+        ENGINES: ${{ steps.npm.outputs.engines }}
+      run: |
+        # shellcheck disable=SC2086 # ENGINES is a word list
+        npx playwright install --with-deps $ENGINES
+        sudo chmod -R a+rX "$HOME/.cache/apt-archives"
+    # Saved right after the install, not in a post step, so a canary or axe
+    # failure later in the job still leaves a warm cache for the rerun.
+    - name: Save browser + apt cache
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ~/.cache/apt-archives
+        key: ${{ steps.cache.outputs.cache-primary-key }}

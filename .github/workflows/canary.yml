@@ -1,26 +1,75 @@
 # Downstream canary: load every consumer as it is committed, then again with
-# its kit tags served from THIS checkout, in Chromium and WebKit, and diff
-# (tools/verify/canary.mjs). Answers "what does this kit change do to the
-# apps that pin it?" before a tag exists. Consumers are public repos, checked
-# out read-only. Tooling installs ephemerally (AGENTS rule 1).
+# its kit tags served from THIS checkout, and diff (tools/verify/canary.mjs).
+# Answers "what does this kit change do to the apps that pin it?" before a
+# tag exists. Consumers are public repos, checked out read-only. Tooling
+# installs ephemerally (AGENTS rule 1).
+#
+# Tiered (2026-10-22, owner decision: keep the protection, run the expensive
+# parts only when they matter). `plan` decides, via .github/scripts/plan.sh:
+#   - a PR runs only when it changes bytes a consumer can load (the paths in
+#     PATHS_RE) or the canary itself; docs-only PRs skip it;
+#   - PRs run Chromium; release candidates (title "vX.Y.Z: …" or the
+#     `release` label) and manual dispatches run Chromium and WebKit.
+# AGENTS.md § Releasing: the full two-engine canary is green before a tag.
 name: canary
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
+    inputs:
+      engines:
+        description: Engines to run
+        type: choice
+        options: ['chromium,webkit', chromium, webkit]
+        default: 'chromium,webkit'
+
+concurrency:
+  group: canary-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+      browsers: ${{ steps.plan.outputs.browsers }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          # Everything a consumer can load from the jsDelivr tag, plus the
+          # canary's own harness. demo/ and exemplar/ are not loaded by any
+          # consumer (checked 2026-10-22), so they are a11y's concern only.
+          PATHS_RE: '^(theme|core|map|palette|photos|fonts|tokens|assets|snippets)/|^tools/verify/(canary\.mjs|lib\.mjs|canary-accept\.json)$|^\.github/(workflows/canary\.yml|actions/playwright/|scripts/plan\.sh$)'
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          INPUT_ENGINES: ${{ inputs.engines }}
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/plan.sh
+
   consumer:
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     # One job per consumer × browser (0.11.1): the two engines run side by
     # side instead of one after the other, which halves the wall clock.
+    # WebKit joins the matrix only for release candidates (see `plan`).
     name: ${{ matrix.repo }} · ${{ matrix.browser }}
     strategy:
       fail-fast: false
       matrix:
         repo: [mesonet-status, mesonet-explorer, mesonet-maintenance, mesonet-umrb-build, mco-snowpack-explorer, mesonet-photo-explorer, mesonet-dashboard]
-        browser: [chromium, webkit]
+        browser: ${{ fromJSON(needs.plan.outputs.browsers) }}
         include:
           - { page: index.html }
           - { repo: mesonet-photo-explorer, page: docs/index.html }
@@ -41,11 +90,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install tooling (ephemeral)
-        run: |
-          npm init -y > /dev/null
-          npm install --no-save playwright @axe-core/playwright pngjs pixelmatch
-          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Install Playwright ${{ matrix.browser }} (cached)
+        timeout-minutes: 8
+        uses: ./.github/actions/playwright
+        with:
+          engines: ${{ matrix.browser }}
+          packages: '@axe-core/playwright pngjs pixelmatch'
       - name: Build (bundled consumers)
         if: matrix.build
         run: |
