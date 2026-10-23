@@ -509,6 +509,25 @@ schedule and manifests on data2. Rules every app inherits from it:
   the pinned tag, never typed into an app. Station counts in a list are
   data, like every count (website VOICE).
 
+**The conditions line** (0.17.0) is `MCO.summary`, one sentence from the
+NWS period, the latest wind, the 24 h peak gust and the precipitation
+record ("Partly cloudy tonight, calm, no precipitation in 3 days."):
+- **The words are the kit's.** An app never writes its own sky, wind or
+  dry-spell phrases, and never edits the sentence after the kit returns
+  it. The phrase rules follow the website's VOICE.md (lead with the
+  measurement, plain verbs, no em-dash asides); a change to them is a kit
+  change.
+- **Leave out what is not known.** A part with no data drops out of the
+  sentence; nothing known is `''`, and the app shows no line rather than a
+  placeholder or an error string. No observation, no sentence.
+- **Thresholds are US, display is the visitor's.** Calm is under 1 mph,
+  "calm after gusts" needs 25 mph, a wet day 0.01 in, in either unit
+  system; only the amounts print in mm or m/s.
+- **Mountain time.** "Tonight" (18:00 to 05:59) and the precipitation day
+  are Mountain wall clock, never the viewer's zone.
+- **Announce it with the card, once.** The line is part of the station's
+  readings, not a live region of its own.
+
 ---
 
 ## 5. Accessibility standards

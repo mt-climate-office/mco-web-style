@@ -14,6 +14,11 @@ different states, and the first one silently forks the tokens.
 
 ## Pick up here (state as of 2026-10-10)
 
+**2026-10-23:** `MCO.summary` (the conditions line, D9 extraction #3)
+shipped in 0.17.0. mesonet-dashboard's Now hero is the first consumer and
+climate.umt.edu's homepage conditions card the second (both PRs open, not
+merged).
+
 **2026-10-22:** `MCO.places` (place search, D9 extraction #2) shipped in
 0.16.0. mesonet-dashboard's retrofit is the first consumer (PR open, not
 merged); climate.umt.edu's station search is the second.

@@ -8,6 +8,53 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.17.0] — 2026-10-23
+
+MINOR: one new published file. Theme, core, map, cog, palette, photos and
+places are byte-identical to 0.16.2, so their SRI hashes are unchanged.
+Owner decision: website DECISIONS D9, extraction #3 (the plain-language
+conditions summary). Two consumers: the Station Dashboard's Now hero, which
+this replaces, and climate.umt.edu's homepage conditions card.
+
+### Added
+- **`summary/mco-summary.js` → `MCO.summary`.** One sentence for a
+  station's current conditions: "Partly cloudy tonight, calm, no
+  precipitation in 3 days." A port of mesonet-dashboard's tested
+  `web/src/core/overview/summary.ts`, with the pieces of `hero.ts`
+  (`currentPeriod`), `series.ts` (`peakGust`, `hourlyPrecip`), `precip.ts`
+  and `conditions.ts` that feed it. The same sentence, word for word, for
+  the same inputs: every dashboard case is ported, and 40,000 random inputs
+  (US and metric) plus 5,000 random hourly row sets matched the TypeScript
+  on every one.
+  - **Pure core**, needing nothing from core: `summarize(input)` and its
+    rules (`skyPhrase`, `windClass`, `windPhrase`, `compassWord`,
+    `daysSincePrecip`, `precipPhrase`, `isEvening`), with the thresholds as
+    constants (`CALM_MPH` 1, `NOTABLE_GUST_MPH` 25, `PRECIP_MIN_IN` 0.01,
+    `DRY_CAP_DAYS` 7). The time of day comes in as Mountain wall-clock ms,
+    never from the system clock. Data and thresholds are US; `units: 'si'`
+    prints the two amounts in mm and m/s.
+  - **Rows:** `inputFrom({latest, hourly, ppt, periods, units})` builds the
+    input from API rows; `peakGust()`, `hourlyPrecip()`, `precipTotals()`,
+    `readWind()`, `currentPeriod()`. A row's `datetime` may be a Mountain
+    wall-clock string (the API's CSV, as the dashboard reads it) or epoch ms
+    (the API's JSON), converted with Intl in America/Denver, never the
+    viewer's zone. No `/latest/` row, no sentence (as on the dashboard).
+  - **Optional fetcher:** `load()` / `forStation({station, lat, lon,
+    derivedPpt, latest, units})` reads mesonet2 `/latest/`,
+    `/observations/hourly/` (ppt and windgust from Mountain midnight two days
+    back, level 2) and `/derived/ppt/`, and the NWS forecast for the point.
+    Each part that fails is null and left out of the sentence; it never
+    rejects and never returns an error string. A forecast URL off
+    api.weather.gov is never fetched. CSP `connect-src`:
+    `https://mesonet2.climate.umt.edu https://api.weather.gov`.
+- `tools/check-summary.mjs` (node:test, vm; run in CI under three time
+  zones), a demo Summary card and two a11y probes, a `cdn.html` row, CI
+  wiring, and README / HOUSE-STYLE §4 notes.
+
+### Changed
+- `tools/a11y-audit.mjs`: the places ZIP-code probe waits for the
+  announcement instead of a fixed 150 ms, which raced under load.
+
 ## [0.16.2] — 2026-10-23
 
 PATCH: tooling only. Every published file (theme, core, map, cog, palette,

@@ -20,6 +20,7 @@ const FILES = [
   'palette/mco-palette.js',
   'photos/mco-photos.js',
   'places/mco-places.js',
+  'summary/mco-summary.js',
 ];
 const DOCS = ['README.md', 'snippets/head.html', 'demo/cdn.html'];
 
