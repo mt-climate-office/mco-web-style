@@ -227,8 +227,8 @@ for kit calls:
 
 The consumer repo has **no CI** — every gate here is manual. Install the
 tooling ephemerally and keep it out of git (most MCO app repos do NOT ignore
-`node_modules/`): `npm init -y && npm i --no-save playwright
-@axe-core/playwright && npx playwright install chromium`, and add
+`node_modules/`): `npm init -y && npm i --no-save playwright@1.64.0
+@axe-core/playwright@4.13.0 && npx playwright install chromium`, and add
 `node_modules/`, `package.json`, `package-lock.json` to the app's
 `.gitignore` if absent.
 

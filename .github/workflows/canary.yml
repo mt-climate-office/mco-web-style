@@ -95,7 +95,7 @@ jobs:
         uses: ./.github/actions/playwright
         with:
           engines: ${{ matrix.browser }}
-          packages: '@axe-core/playwright pngjs pixelmatch'
+          packages: '@axe-core/playwright@4.13.0 pngjs@7.0.0 pixelmatch@8.0.0'
       - name: Build (bundled consumers)
         if: matrix.build
         run: |

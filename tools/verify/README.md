@@ -28,7 +28,7 @@ node tools/verify/lint-css.mjs --root ../mesonet-status --verbose
 # never a committed package.json):
 # Install EVERYTHING in one command: each `npm i --no-save` prunes packages
 # that an earlier --no-save install added.
-npm init -y >/dev/null && npm i --no-save playwright @axe-core/playwright pngjs pixelmatch
+npm init -y >/dev/null && npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0 pngjs@7.0.0 pixelmatch@8.0.0
 npx playwright install chromium webkit
 node tools/verify/axe-matrix.mjs --root ../mesonet-status
 node tools/verify/keyboard.mjs   --root ../mesonet-status

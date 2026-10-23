@@ -207,7 +207,7 @@ No install. Edit, then serve the repo root (`python3 -m http.server 8000`) and
 open `/demo/`. The a11y audit runs in CI; to run it locally:
 
 ```sh
-npm init -y && npm i --no-save playwright @axe-core/playwright
+npm init -y && npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0
 npx playwright install chromium
 node tools/a11y-audit.mjs   # package.json / node_modules are gitignored
 ```

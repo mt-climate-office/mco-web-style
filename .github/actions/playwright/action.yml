@@ -17,9 +17,9 @@ inputs:
     description: Space- or comma-separated Playwright engines (chromium, webkit).
     required: true
   packages:
-    description: Extra npm packages installed beside playwright (--no-save).
+    description: Extra npm packages installed beside playwright (--no-save), each pinned as name@x.y.z.
     required: false
-    default: '@axe-core/playwright'
+    default: '@axe-core/playwright@4.13.0'
 runs:
   using: composite
   steps:
@@ -31,8 +31,10 @@ runs:
         ENGINES: ${{ inputs.engines }}
       run: |
         npm init -y > /dev/null
+        # Exact versions only (never unpinned). Playwright matches
+        # mco-website-next; bump it there and here together.
         # shellcheck disable=SC2086 # PACKAGES is a word list
-        npm install --no-save playwright $PACKAGES
+        npm install --no-save --save-exact playwright@1.64.0 $PACKAGES
         echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
         echo "engines=$(echo "$ENGINES" | tr ',' ' ' | xargs)" >> "$GITHUB_OUTPUT"
         echo "slug=$(echo "$ENGINES" | tr ', ' '--' | tr -s '-' | sed 's/^-//;s/-$//')" >> "$GITHUB_OUTPUT"
