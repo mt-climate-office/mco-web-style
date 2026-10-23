@@ -26,7 +26,7 @@ export async function load(name) {
     // require.resolve finds the CommonJS entry, whose exports land on default.
     return { ...(mod.default || {}), ...mod };
   }
-  throw new Error(`cannot find '${name}': npm i --no-save playwright @axe-core/playwright ` +
+  throw new Error(`cannot find '${name}': npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0 ` +
     '(see tools/verify/README.md), or set VERIFY_MODULES to a node_modules directory');
 }
 

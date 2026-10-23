@@ -28,7 +28,7 @@ node tools/verify/lint-css.mjs --root ../mesonet-status --verbose
 # never a committed package.json):
 # Install EVERYTHING in one command: each `npm i --no-save` prunes packages
 # that an earlier --no-save install added.
-npm init -y >/dev/null && npm i --no-save playwright @axe-core/playwright pngjs pixelmatch
+npm init -y >/dev/null && npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0 pngjs@7.0.0 pixelmatch@8.0.0
 npx playwright install chromium webkit
 node tools/verify/axe-matrix.mjs --root ../mesonet-status
 node tools/verify/keyboard.mjs   --root ../mesonet-status
@@ -126,14 +126,20 @@ harness that loads a map.
   pixel diff up to that size, and only when nothing unaccepted moved: the
   0.10.0 lockup shifts the whole bar, about 0.6% of a 1440 frame. Anything else that
   moved is a regression until someone explains it.
-- **CI:** `.github/workflows/canary.yml` runs it on every PR as 14 jobs, one
-  per consumer × browser, so the engines run side by side. mesonet-dashboard's
-  web-next is the one bundled consumer: the job builds it (`npm ci && npm run
+- **CI:** `.github/workflows/canary.yml` runs it as one job per consumer ×
+  browser, so the engines run side by side. It is tiered (2026-10-22): a PR
+  runs it only when it changes something a consumer loads (theme, core, map,
+  palette, photos, fonts, tokens, assets, snippets) or the canary itself, and
+  in Chromium only; release candidates (PR title `vX.Y.Z…` or the `release`
+  label) and `workflow_dispatch` add WebKit. `.github/scripts/plan.sh` makes
+  the call and prints its reason in the `plan` job summary. Browsers and their
+  apt packages are cached by `.github/actions/playwright`. mesonet-dashboard's
+  `web/` is the one bundled consumer: the job builds it (`npm ci && npm run
   build`) and serves `dist/` under its Pages base path
-  (`mesonet-dashboard/next/`), since its asset URLs are absolute to that
-  path. The rewrite still applies, because web-next loads the kit from
-  `<link>`/`<script>` tags in its HTML, not through the bundle. Each job's report
-  lands in the job summary and its images in an artifact.
+  (`mesonet-dashboard/`), since its asset URLs are absolute to that path. The
+  rewrite still applies, because the dashboard loads the kit from
+  `<link>`/`<script>` tags in its HTML, not through the bundle. Each job's
+  report lands in the job summary and its images in an artifact.
 - **Calibrated 2026-10-08:** three reruns with no kit change agree; a planted
   navbar regression (52→80px) is caught in WebKit with 3.87% pixels against a
   0.38% noise floor.

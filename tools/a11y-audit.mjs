@@ -10,7 +10,7 @@
    mesonet-photos (fixed in v0.5.1).
 
    Requires (installed ephemerally — NOT kit dependencies; see .gitignore):
-     npm init -y && npm i --no-save playwright @axe-core/playwright
+     npm init -y && npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0
      npx playwright install --with-deps chromium webkit
    Then: node tools/a11y-audit.mjs */
 import { createServer } from 'node:http';

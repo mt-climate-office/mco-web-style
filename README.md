@@ -149,7 +149,9 @@ Rules that keep consumers safe:
    `snippets/head.html`, `demo/cdn.html`, and this README.
 5. `tools/sri.sh` → paste the hashes into the same three files.
    `node tools/check-sri.mjs` must pass. Any byte change after this restarts at 4.
-6. Update `CHANGELOG.md`. Commit. Push. Confirm both Actions workflows are green.
+6. Update `CHANGELOG.md`. Commit. Push, with the PR titled `vX.Y.Z: …`.
+   Confirm ci, a11y and canary are green, with the canary and axe in **both**
+   Chromium and WebKit (AGENTS.md § Releasing says how they are triggered).
 7. `git tag vX.Y.Z && git push origin vX.Y.Z`.
 8. After a few minutes (tag propagation), open `demo/cdn.html` locally — every
    row must be green; the browser's SRI enforcement is the definitive test.
@@ -205,7 +207,7 @@ No install. Edit, then serve the repo root (`python3 -m http.server 8000`) and
 open `/demo/`. The a11y audit runs in CI; to run it locally:
 
 ```sh
-npm init -y && npm i --no-save playwright @axe-core/playwright
+npm init -y && npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0
 npx playwright install chromium
 node tools/a11y-audit.mjs   # package.json / node_modules are gitignored
 ```
