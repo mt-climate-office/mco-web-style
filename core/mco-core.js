@@ -2071,7 +2071,14 @@
             var m = document.createElement('span');
             m.className = 'mco-search-meta';
             m.textContent = item.meta != null ? item.meta : item.id;
-            el.append(l, m);
+            // A separator for the accessible name only (0.16.1): without it
+            // the name and textContent run together ("Bozeman" + "HydroMet").
+            // sr-only is absolutely positioned, so it is not a flex item and
+            // the row's layout is unchanged.
+            var sep = document.createElement('span');
+            sep.className = 'sr-only';
+            sep.textContent = ', ';
+            el.append(l, sep, m);
           }
           host.appendChild(el);
           idx++;

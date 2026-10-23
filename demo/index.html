@@ -593,7 +593,10 @@
       const dist = document.createElement('span');
       dist.className = 'mco-search-meta';
       dist.textContent = MCO.places.formatMiles(r.miles);
-      li.append(name, dist);
+      const sep = document.createElement('span');
+      sep.className = 'sr-only';
+      sep.textContent = ', ';
+      li.append(name, sep, dist);
       return li;
     }));
   }
