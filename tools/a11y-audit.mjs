@@ -162,6 +162,45 @@ for (const engine of BROWSERS) {
     const announcedLater = await page.evaluate(() => document.querySelector('.sr-only[aria-live="polite"]').textContent);
     probe('Enter selects: list closes, onSelect ran', s6.expanded === 'false' && /selected/.test(announced + announcedLater), JSON.stringify(s6));
 
+    /* 0.16.0: MCO.places.initPlaceSearch. Stations first, places under
+       them while typing, each section headed; a picked place lists its
+       stations and says how many. */
+    await page.keyboard.press('Escape');
+    const pl = () => page.evaluate(() => {
+      const i = document.getElementById('place-search');
+      const ad = i.getAttribute('aria-activedescendant');
+      const a = ad && document.getElementById(ad);
+      return {
+        expanded: i.getAttribute('aria-expanded'), active: a ? a.textContent : null,
+        heads: [...document.querySelectorAll('#place-search-list .mco-search-group')].map((g) => g.textContent),
+        title: document.getElementById('place-results-title').textContent,
+        rows: document.querySelectorAll('#place-list li').length,
+        live: document.querySelector('.sr-only[aria-live="polite"]').textContent,
+      };
+    });
+    await page.focus('#place-search');
+    await page.keyboard.type('bozeman');
+    await page.waitForFunction(() => [...document.querySelectorAll('#place-search-list .mco-search-group')].length === 2, null, { timeout: 10000 }).catch(() => {});
+    const p1 = await pl();
+    probe('places: "bozeman" heads Stations then Places, the station active',
+      p1.expanded === 'true' && p1.heads.join('|') === 'Stations|Places' && /^Bozeman(?!.*City)/.test(p1.active || ''), JSON.stringify(p1));
+    const pbad = (await new AxeBuilder({ page }).include('.demo-place-search').analyze()).violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    probe('axe: open place list (two headed groups) has no serious/critical violations', pbad.length === 0, pbad.map((v) => v.id).join(', '));
+    await page.keyboard.press('Escape');
+    await page.keyboard.type('59715');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(150);
+    const p2 = await pl();
+    probe('places: a ZIP code lists the 5 nearest stations and says so',
+      p2.expanded === 'false' && p2.title === 'Near 59715' && p2.rows === 5 && /5 stations near 59715/.test(p2.live), JSON.stringify(p2));
+    await page.keyboard.type('salish');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelectorAll('#place-list li').length > 0, null, { timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(150);   // MCO.announce writes on the next tick
+    const p3 = await pl();
+    probe('places: a reservation lists the stations inside its boundary (loaded on the pick)',
+      p3.title === 'Flathead Reservation' && p3.rows >= 1 && /on the Flathead Reservation/.test(p3.live), JSON.stringify(p3));
+
     /* 0.9.0: drawer, sheet, stepper, radio segmented. */
     await page.keyboard.press('Escape');
     await page.focus('#btn-drawer');

@@ -25,6 +25,7 @@ jobs:
           node --check map/cog-protocol.js
           node --check palette/mco-palette.js
           node --check photos/mco-photos.js
+          node --check places/mco-places.js
           node --check exemplar/app.js
           for f in tools/*.mjs tools/verify/*.mjs; do node --check "$f"; done
 
@@ -42,6 +43,11 @@ jobs:
           TZ=America/Denver node tools/check-photos.mjs
           TZ=Pacific/Kiritimati node tools/check-photos.mjs
           TZ=Etc/GMT+12 node tools/check-photos.mjs
+
+      # Place search, the searchModel sections it rides on, and the hashes
+      # the module carries for its two data files.
+      - name: MCO.places unit tests
+        run: node tools/check-places.mjs
 
       - name: SRI hash freshness
         run: node tools/check-sri.mjs

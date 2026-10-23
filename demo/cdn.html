@@ -30,12 +30,12 @@
        byte on the CDN differs from the hash below, the browser refuses the
        file and the matching row goes red. This is the definitive end-to-end
        release check (README § Releasing). -->
-  <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/fonts/outfit-latin.woff2"
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/fonts/outfit-latin.woff2"
         as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/fonts/space-mono-latin.woff2"
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/fonts/space-mono-latin.woff2"
         as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/theme/mco-theme.css"
+        href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/theme/mco-theme.css"
         integrity="sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu"
         crossorigin="anonymous">
 
@@ -66,24 +66,29 @@
     <li id="r-cog"><span>map/cog-protocol.js</span><span class="status">…</span></li>
     <li id="r-palette"><span>palette/mco-palette.js</span><span class="status">…</span></li>
     <li id="r-photos"><span>photos/mco-photos.js</span><span class="status">…</span></li>
+    <li id="r-places"><span>places/mco-places.js</span><span class="status">…</span></li>
+    <li id="r-places-data"><span>places/ gazetteer + map/data/ boundaries (fetched with integrity)</span><span class="status">…</span></li>
     <li id="r-fonts"><span>fonts/ (Outfit + Space Mono)</span><span class="status">…</span></li>
     <li id="r-brand"><span>assets/ brand SVGs (CORS, for exports)</span><span class="status">…</span></li>
   </ul>
 </main>
 
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/core/mco-core.js"
-        integrity="sha384-0SiGncfP37X1rYs83vpTsUgtsQMruIVGkbWHdrWeF8fIr7IWYHM/+NSR/PDLIDhJ"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/core/mco-core.js"
+        integrity="sha384-e/w/XoE6ST74jVtXv8UqMUoZ6rNWZn3XW9eAk4j2zWzuFOO2HYlsNV6uwK28/FrE"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/palette/mco-palette.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/palette/mco-palette.js"
         integrity="sha384-nmQlqM0DO86ApUoiACDt0cl/bUjemVhSUytRow9vdP1ydxnXGamD81mumft3n41L"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/photos/mco-photos.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/photos/mco-photos.js"
         integrity="sha384-VepbbKE6CKKljLPjOlw1TATvqOZH73WIWtFXmpSR5RAgYVEphm1rE2fkGa+vK17C"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/map/mco-map.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/places/mco-places.js"
+        integrity="sha384-4Amo71pLoRONH4SjB2I+Ai9FpSNqDDGGqQVxq4z0Yu/0c7GtGgLUYtNX/wQDUHVg"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/map/mco-map.js"
         integrity="sha384-BmAbWT508YkXfTenCpVne4+ONoA0HyPeR6qLIt1KxVFXTD+jWtHSWnysuInSQx8t"
         crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/map/cog-protocol.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/map/cog-protocol.js"
         integrity="sha384-8KfmwSk9894unD1VJPQLo2DlTUp7+wLpl0ViJpo2LYG1J61nyqQ4twyvubpHLaeY"
         crossorigin="anonymous"></script>
 <script>
@@ -101,6 +106,16 @@
   mark('r-cog', typeof window.CogProtocol !== 'undefined');
   mark('r-palette', !!(window.MCO && MCO.palette && MCO.versions && MCO.versions.palette));
   mark('r-photos', !!(window.MCO && MCO.photos && MCO.versions && MCO.versions.photos));
+  mark('r-places', !!(window.MCO && MCO.places && MCO.versions && MCO.versions.places));
+  // The module fetches its data from its own tag with the hashes it carries:
+  // a red row here is a data file that drifted from mco-places.js.
+  if (window.MCO && MCO.places) {
+    Promise.all([MCO.places.load(), MCO.places.loadAreas()]).then(function (r) {
+      mark('r-places-data', r[0].length > 900 && r[1].size === 7);
+    }, function () { mark('r-places-data', false); });
+  } else {
+    mark('r-places-data', false);
+  }
   // Fonts: the @font-face rules in the CDN theme must resolve ../fonts/ on the
   // same tag. document.fonts.load() resolves with the faces it loaded (empty
   // when nothing matched); a 404 or CSP block leaves a face in "error".
