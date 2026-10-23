@@ -68,11 +68,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repo: [mesonet-status, mesonet-explorer, mesonet-maintenance, mesonet-umrb-build, mco-snowpack-explorer, mesonet-photo-explorer, mesonet-dashboard]
+        repo: [mesonet-status, mesonet-explorer, mesonet-maintenance, mesonet-umrb-build, mco-snowpack-explorer, mesonet-photo-explorer, mesonet-dashboard, mesonet-aq]
         browser: ${{ fromJSON(needs.plan.outputs.browsers) }}
         include:
           - { page: index.html }
           - { repo: mesonet-photo-explorer, page: docs/index.html }
+          # Eighth consumer (D3: join the canary): Pages from main /docs.
+          - { repo: mesonet-aq, page: docs/index.html }
           # Its live AirTable feed can outlast the canary's network-quiet cap:
           # wait for the stamp to leave "loading…" (canary.mjs --ready).
           - { repo: mesonet-maintenance, ready: "#refresh-stamp::loaded " }
