@@ -8,6 +8,66 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.16.0] — 2026-10-22
+
+MINOR: one new published file, and two additive options in core. Theme,
+map, cog, palette and photos are byte-identical to 0.15.1, so their SRI
+hashes are unchanged; core's hash changes. Owner decision: website
+DECISIONS D9, extraction #2 (place search). Two consumers: the Station
+Dashboard, which this replaces, and climate.umt.edu's station search.
+
+### Added
+- **`places/mco-places.js` → `MCO.places`.** A typed county, reservation,
+  tribe, town or ZIP code resolves to a point, and a point to the nearest
+  stations with great-circle distances. A port of mesonet-dashboard's
+  tested `web/src/core/places` and `web/src/core/stations/nearest.ts`.
+  Loads after `core/mco-core.js`.
+  - **Gazetteer:** `places/mt-places.json`, the US Census 2026 Gazetteer
+    Files for Montana (public domain): 56 counties, 7 reservations, 497
+    towns and CDPs, 369 ZIP codes, and the Little Shell Tribe at Great
+    Falls; 930 places, 47 KB (15 KB gzipped). Byte-identical to the
+    dashboard's copy, and regenerated from Census by
+    `tools/vendor-places.mjs`. `load()` fetches it from the tag the script
+    came from with `integrity` set to a hash the module carries, so the
+    data is pinned by the script's own SRI. `{url}` loads a vendored copy.
+  - **Stations for a place:** `stationsFor()` lists a county's stations
+    (by the catalog's `county`), a reservation's (inside its boundary,
+    `pointInGeometry()`, from the kit's `map/data` file via `loadAreas()`),
+    else the five nearest; `announcement()` says it ("5 stations near
+    Bozeman"). `nearest({lat, lon}, stations, n)`, `haversineKm()`,
+    `formatMiles()`.
+  - **Search:** `items()` makes places into search items (query-only, in a
+    "Places" section, the kind as meta). **`initPlaceSearch()`** is
+    `MCO.initSearchBox` over the app's stations with the places added: they
+    load on first focus, a station pick goes to `onSelect`, a place pick is
+    resolved and goes to `onPlace` (reservations load their boundary on the
+    first pick), and the count is announced. Not a second combobox.
+  - **Near me:** `locate()` / `nearMe()`, for a button press only. A
+    failure rejects with a `reason`: `denied`, `unavailable`, `timeout` or
+    `unsupported`. Nothing asks for a position on its own.
+- **`MCO.searchModel` sections** (core): items may carry `section` and
+  `queryOnly`, and `filter(items, q, limit, sectionLimits)` takes a fourth
+  argument. With a query, matches sort by section before rank, each
+  section is headed when more than one matches, and `sectionLimits` caps
+  one; queryOnly items stay out of the no-query list. The dashboard's model,
+  where it was tested. **`MCO.initSearchBox({sectionLimits})`** passes it
+  through. Items with neither field filter exactly as in 0.15.1
+  (`tools/check-places.mjs` compares the two cores on the station catalog).
+- `tools/check-places.mjs`: the dashboard's place, nearest and section tests
+  ported to `node:test`, the data hashes, `KIT_BASE`, the loaders and
+  geolocation failure reasons; `--live` checks the mesonet2 station catalog
+  against the gazetteer, and with `KIT_TAG` the files jsDelivr serves.
+- Demo: a Places card (`initPlaceSearch` over a fixture of 24 stations, and
+  Near me). The a11y audit probes it in both engines: sections headed,
+  the station active, axe on the open list, a ZIP and a reservation pick.
+  `demo/cdn.html` loads the published file and its data with integrity.
+- HOUSE-STYLE §4: place search conventions. README: usage, CSP
+  (`connect-src https://cdn.jsdelivr.net`).
+
+### Notes
+- `MCO.versions.places` reports `'0.1.0'`, like its siblings. Not a version
+  check.
+
 ## [0.15.1] — 2026-10-22
 
 PATCH: one fix in `map/mco-map.js`. Theme, core, cog, palette and photos

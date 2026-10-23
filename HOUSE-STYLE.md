@@ -339,7 +339,9 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   through (stopping propagation, so the next layer out only closes on a later
   press). Ranking is the dashboard's model (`MCO.searchModel`). Accent- and
   typo-tolerant, so “bozman” finds Bozeman. Five hand-rolled copies retire
-  with it.
+  with it. Items may carry a `section` and `queryOnly` (0.16.0): with more
+  than one section matching, each is headed, and `sectionLimits` caps one.
+  `MCO.places.initPlaceSearch` is this box with places added (§4).
 - A navbar **search field collapses to a disclosure** at compact widths (≤640 px)
   rather than being hidden: `MCO.initSearchCollapse` moves focus into the field on open and
   back to the button on close, and the app keeps control of Esc precedence and
@@ -486,6 +488,22 @@ schedule and manifests on data2. Rules every app inherits from it:
 - Times are Mountain wall-clock times everywhere a person reads them;
   archive keys are UTC. Convert with `MCO.photos.toUtcMs` / `toWallClock`,
   never with the viewer's zone.
+
+**Place search** (0.16.0) is `MCO.places`, on the kit's search box:
+- **One field finds stations and places.** Stations list first; places
+  (county, reservation, tribe, town, ZIP code) list under them only while
+  typing, headed "Places", at most eight, so a station name still wins its
+  own search and Enter never jumps to a town.
+- **A place answers with stations.** A county lists the stations in it, a
+  reservation the stations inside its boundary, anything else the five
+  nearest. Every row shows its distance (`formatMiles`), and the count is
+  announced in words ("5 stations near Bozeman").
+- **Near me asks once, on a press.** Never request a position on load, on
+  focus, or in a retry loop. A refusal or a failure is said in words beside
+  the button, with a way forward (search by name); the button stays.
+- **The gazetteer is the kit's.** Place names come from the Census file at
+  the pinned tag, never typed into an app. Station counts in a list are
+  data, like every count (website VOICE).
 
 ---
 

@@ -14,6 +14,10 @@ different states, and the first one silently forks the tokens.
 
 ## Pick up here (state as of 2026-10-10)
 
+**2026-10-22:** `MCO.places` (place search, D9 extraction #2) shipped in
+0.16.0. mesonet-dashboard's retrofit is the first consumer (PR open, not
+merged); climate.umt.edu's station search is the second.
+
 **2026-10-22:** `MCO.photos` shipped in 0.14.0 and gained the `fullHistory`
 opt-in in 0.15.0 (website DECISIONS D16). **mesonet-photo-explorer** (PR #9)
 and **mesonet-dashboard** (PR #113) are on @0.15.0 and pass

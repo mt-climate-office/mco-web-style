@@ -25,10 +25,10 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/theme/mco-theme.css"
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/theme/mco-theme.css"
       integrity="sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/core/mco-core.js"
-        integrity="sha384-0SiGncfP37X1rYs83vpTsUgtsQMruIVGkbWHdrWeF8fIr7IWYHM/+NSR/PDLIDhJ" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/core/mco-core.js"
+        integrity="sha384-e/w/XoE6ST74jVtXv8UqMUoZ6rNWZn3XW9eAk4j2zWzuFOO2HYlsNV6uwK28/FrE" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -47,7 +47,35 @@ schedule (slots, frames, `initPhotoControls`) follows it:
 An explicit `since` (a date, an instant, ms, or `null`) sets the first date
 under any of them. Only `fullHistory` and `internal` lift the block on
 pre-cutover N and S (`REAIMED`); `since` alone never does. `fullHistory` with
-`internal` is the same as `internal`. Map apps add `map/mco-map.js` (targets MapLibre GL 6.x, which it imports for
+`internal` is the same as `internal`.
+
+Apps with a station search that should also find a town, county,
+reservation or ZIP code add `places/mco-places.js` after the core
+(`MCO.places`, 0.16.0). It fetches its Census gazetteer
+(`places/mt-places.json`) from the same pinned tag, checked against a hash
+the module carries, so CSP `connect-src` needs `https://cdn.jsdelivr.net`:
+
+```js
+const ps = MCO.places.initPlaceSearch({
+  input, listbox,                                   // the kit's .mco-search markup
+  items: () => stations.map((s) => ({ id: s.station, label: s.name, group: s.sub_network })),
+  stations: () => stations,                         // /stations/ rows, for distances
+  onSelect: (id) => openStation(id),                // a station was picked
+  onPlace: (place, r) => r && showList(r.title, r.rows),   // r null: boundary still loading
+});
+nearMeButton.onclick = () => MCO.places.nearMe(stations).then(showNear, (e) => sayWhy(e.reason));
+```
+
+Stations list first; places list under them while typing, headed, at most
+eight. A county lists its stations, a reservation the stations inside its
+boundary (loaded on the first reservation pick), anything else the five
+nearest, each with a great-circle distance. `MCO.places.nearest({lat, lon},
+stations, n)`, `stationsFor()`, `announcement()` and `formatMiles()` are the
+pieces, for an app that draws its own field. Location is asked for only by
+`locate()` / `nearMe()`, which an app calls from a button press; a refusal
+rejects with a `reason` (`denied`, `unavailable`, `timeout`, `unsupported`).
+
+Map apps add `map/mco-map.js` (targets MapLibre GL 6.x, which it imports for
 you — `MCO.map.loadMapLibre()`; the import map in `snippets/head.html` carries
 MapLibre's SRI hashes) and, for COG rasters,
 `map/cog-protocol.js` (exposes `window.CogProtocol`). The API surface is
@@ -61,13 +89,16 @@ A consumer's unit tests (vitest, `node:test`) use the same pinned bytes the
 page loads, not a copy. The kit has no package, so:
 
 1. Fetch the pinned files once, for example
-   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.15.1/core/mco-core.js`
-   and `…@0.15.1/photos/mco-photos.js`, into a cache directory, and check
+   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.16.0/core/mco-core.js`
+   and `…@0.16.0/photos/mco-photos.js`, into a cache directory, and check
    each against the `integrity` hash your `index.html` pins (sha384, base64)
    before using it. A mismatch fails the run.
 2. Evaluate them **in order, core first**, as classic scripts with
    `vm.runInContext`, in a context whose `window` is the context itself.
-   `mco-photos.js` touches nothing at load but `window.MCO`; `mco-core.js`
+   `mco-photos.js` touches nothing at load but `window.MCO`;
+   `mco-places.js` also reads `document.currentScript` (absent in `vm`, so
+   pass `{url}` to `MCO.places.load()` there, or test the pure helpers);
+   `mco-core.js`
    reads `matchMedia`, `document`, `location` and `history` when it loads, so
    the context needs stubs for those (jsdom provides all but `matchMedia`).
 3. Read the API off `context.MCO`. Values cross a realm boundary, so compare
@@ -96,6 +127,8 @@ CSS custom properties, kept in lockstep by CI.
 | `map/mco-map.js` | `window.MCO.map`: MapLibre 6 loader, Montana bounds, basemap URLs + failure watch, controls, zoom floor, DOM popups, cursor tooltip, hillshade, overlay paints | MapLibre apps |
 | `map/cog-protocol.js` | `cog://` raster protocol (`window.CogProtocol`) | COG raster apps |
 | `palette/mco-palette.js` | `window.MCO.palette`: approved data ramps (OKLab sampling, per-theme 3:1 spans), Tol categoricals, the station-network registry | apps that color data |
+| `places/mco-places.js` | `window.MCO.places`: place search. A typed county, reservation, tribe, town or ZIP code → its point → the nearest stations with distances (haversine); `initPlaceSearch` on `MCO.initSearchBox`; Near me on an explicit press. Load after `mco-core.js` | apps with a station search |
+| `places/mt-places.json` | The Montana gazetteer (US Census 2026 Gazetteer Files, public domain; 930 places). Fetched by `mco-places.js` from its own tag; `tools/vendor-places.mjs` regenerates it | — (data) |
 | `photos/mco-photos.js` | `window.MCO.photos`: Mesonet station photos from data2. Camera schedule, capture slots, Mountain wall clock ↔ UTC, frame and manifest URLs, the manifest reader, the public / staff view rules, and `initPhotoControls` (date, time, direction). Load after `mco-core.js` | apps that show station photos |
 | `map/data/*.geojson` | Montana state / county / tribal boundaries (+ `data.R` provenance) — **vendor these into the app repo** (both migrated consumers do); cross-origin fetching just adds `cdn.jsdelivr.net` to `connect-src` for no benefit | map apps |
 | `tokens/tokens.json` | Design tokens as JSON | non-vanilla consumers |
@@ -105,15 +138,16 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.15.1
+## SRI hashes — v0.16.0
 
 ```
 theme/mco-theme.css      sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu
-core/mco-core.js         sha384-0SiGncfP37X1rYs83vpTsUgtsQMruIVGkbWHdrWeF8fIr7IWYHM/+NSR/PDLIDhJ
+core/mco-core.js         sha384-e/w/XoE6ST74jVtXv8UqMUoZ6rNWZn3XW9eAk4j2zWzuFOO2HYlsNV6uwK28/FrE
 map/mco-map.js           sha384-BmAbWT508YkXfTenCpVne4+ONoA0HyPeR6qLIt1KxVFXTD+jWtHSWnysuInSQx8t
 map/cog-protocol.js      sha384-8KfmwSk9894unD1VJPQLo2DlTUp7+wLpl0ViJpo2LYG1J61nyqQ4twyvubpHLaeY
 palette/mco-palette.js   sha384-nmQlqM0DO86ApUoiACDt0cl/bUjemVhSUytRow9vdP1ydxnXGamD81mumft3n41L
 photos/mco-photos.js     sha384-VepbbKE6CKKljLPjOlw1TATvqOZH73WIWtFXmpSR5RAgYVEphm1rE2fkGa+vK17C
+places/mco-places.js     sha384-4Amo71pLoRONH4SjB2I+Ai9FpSNqDDGGqQVxq4z0Yu/0c7GtGgLUYtNX/wQDUHVg
 ```
 
 Recompute with `tools/sri.sh`. CI (`tools/check-sri.mjs`) fails if this table,
@@ -141,8 +175,9 @@ Rules that keep consumers safe:
 
 1. Make changes; keep `tokens/tokens.json` in sync with the CSS.
 2. Run the gates locally:
-   `node --check core/mco-core.js map/mco-map.js map/cog-protocol.js palette/mco-palette.js photos/mco-photos.js` ·
-   `node tools/check-tokens.mjs` · `node tools/check-contrast.mjs` · `node tools/check-photos.mjs`
+   `node --check core/mco-core.js map/mco-map.js map/cog-protocol.js palette/mco-palette.js photos/mco-photos.js places/mco-places.js` ·
+   `node tools/check-tokens.mjs` · `node tools/check-contrast.mjs` · `node tools/check-photos.mjs` ·
+   `node tools/check-places.mjs`
 3. Eyeball `demo/` in all three themes: `python3 -m http.server 8000` from the
    repo root → `http://localhost:8000/demo/`.
 4. **Freeze** the published css/js files (`tools/sri.sh` lists them). Bump the `@version` in
@@ -167,6 +202,8 @@ GitHub-Pages meta-tag pattern) need:
   `https://fonts.googleapis.com` from `style-src` and
   `https://fonts.gstatic.com` from `font-src`.
 - `img-src`: add `https://cdn.jsdelivr.net` if you hot-link kit assets
+- `connect-src`: add `https://cdn.jsdelivr.net` for `mco-places.js`, which
+  fetches its gazetteer and the reservation boundaries from the pinned tag
 - **map apps** (MapLibre 6, since kit 0.8.0):
   - `script-src`: `https://unpkg.com` and the MapLibre import map's hash,
     `'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI='`. An import map is

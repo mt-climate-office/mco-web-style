@@ -103,6 +103,14 @@
       height: 32px; padding: 0 0.5rem; font: inherit; font-size: 0.78rem;
     }
     @media (hover: none) { .demo-select { height: 40px; } }
+    .demo-place-search { display: flex; width: 100%; }
+    .demo-place-search .mco-search-input { flex: 1; min-width: 0; }
+    .demo-place-title { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+    .demo-place-note { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+    .demo-place-list { margin: 0; padding: 0; list-style: none; font-size: var(--fs-md); }
+    .demo-place-list li { display: flex; justify-content: space-between; gap: var(--space-3); padding: 2px 0; }
+    .demo-place-list .mco-search-meta { align-self: center; }
+    #btn-near-me { align-self: flex-start; }
     /* The "/" hint is app-owned; field, icon and list are the kit's .mco-search. */
     .mco-search .mco-search-input { padding-right: 30px; }
     .search-kbd {
@@ -289,7 +297,9 @@
     <p>An in-flow <code>.mco-card</code> holding the 0.9.0 controls: <code>.mco-chips</code> (pressed ✓),
        <code>MCO.initStepper</code> with a live readout, and a radio <code>.seg-btns.is-radio</code> that
        becomes a <code>&lt;select&gt;</code> below 1060px (<code>MCO.initSegmentedFallback</code>).
-       The Photos card is <code>MCO.photos.initPhotoControls</code> (0.14.0) over a fixture schedule.</p>
+       The Photos card is <code>MCO.photos.initPhotoControls</code> (0.14.0) over a fixture schedule.
+       The Places card is <code>MCO.places.initPlaceSearch</code> (0.16.0): a station, county,
+       reservation, town or ZIP code, over the kit's gazetteer and a fixture of 24 stations.</p>
     <div class="demo-cards">
       <section class="mco-card" aria-labelledby="card-controls-title">
         <div class="mco-card-head"><h3 class="mco-card-title" id="card-controls-title">Filters</h3></div>
@@ -376,6 +386,26 @@
           <label class="sr-only" for="photo-view-select">Direction</label>
           <select id="photo-view-select" class="demo-select" hidden></select>
           <span class="demo-peek" id="photo-readout" role="status"></span>
+        </div>
+      </section>
+      <!-- MCO.places.initPlaceSearch (0.16.0): MCO.initSearchBox over stations,
+           with places listed under them while typing. A picked place lists its
+           stations below; Near me asks for a position only on its press. -->
+      <section class="mco-card" aria-labelledby="card-places-title">
+        <div class="mco-card-head"><h3 class="mco-card-title" id="card-places-title">Places</h3></div>
+        <div class="mco-card-body demo-stack">
+          <div class="mco-search demo-place-search">
+            <span class="mco-search-icon" aria-hidden="true"></span>
+            <label for="place-search" class="sr-only">Search stations and places</label>
+            <input type="search" id="place-search" class="mco-search-input" placeholder="Station, town, county or ZIP">
+            <div class="mco-search-list" id="place-search-list" hidden></div>
+          </div>
+          <button type="button" class="nav-btn" id="btn-near-me">Near me</button>
+          <div class="demo-place-results" id="place-results" hidden>
+            <h4 class="demo-place-title" id="place-results-title">Stations</h4>
+            <p class="demo-place-note" id="place-note"></p>
+            <ul class="demo-place-list" id="place-list" aria-labelledby="place-results-title"></ul>
+          </div>
         </div>
       </section>
     </div>
@@ -485,6 +515,7 @@
 <script src="../core/mco-core.js"></script>
 <script src="../palette/mco-palette.js"></script>
 <script src="../photos/mco-photos.js"></script>
+<script src="../places/mco-places.js"></script>
 <script src="../map/mco-map.js"></script>
 <script>
   'use strict';
@@ -541,6 +572,66 @@
         : `${MCO.photos.stampLabel(st.ms)} · ${MCO.photos.label(st.view)}`;
     },
   });
+  /* ── Places (0.16.0) ─────────────────────────────────────────────────── */
+  // Stations shaped like the API's /stations/ rows. Real apps pass the
+  // catalog; the gazetteer and boundaries load from the kit itself.
+  const demoStations = [["aceabsar","Absarokee","HydroMet",45.56,-109.61,"Stillwater"],["aceashla","Ashland","HydroMet",45.57,-106.14,"Powder River"],["aceaugus","Augusta N","HydroMet",47.59,-112.36,"Teton"],["acebozem","Bozeman","HydroMet",45.66,-111.07,"Gallatin"],["acebrady","Brady NE","HydroMet",48.1,-111.66,"Pondera"],["acecrowa","Crow Agency","HydroMet",45.59,-107.44,"Big Horn"],["aceingom","Ingomar","HydroMet",46.66,-107.22,"Rosebud"],["aceround","Roundup","HydroMet",46.58,-108.42,"Musselshell"],["acesidne","Sidney","HydroMet",47.78,-104.25,"Richland"],["arskeogh","Fort Keogh N","AgriMet",46.41,-105.95,"Custer"],["bozmtest","Bozeman Test","AgriMet",45.66,-111.07,"Gallatin"],["csktbira","CSKT Bison Range","HydroMet",47.37,-114.26,"Lake"],["ebarllob","Clearwater SW","AgriMet",46.96,-113.37,"Missoula"],["acebowma","Bowmans Corner NW","HydroMet",47.31,-112.17,"Lewis and Clark"],["acebeltn","Belt NW","HydroMet",47.43,-111.02,"Cascade"],["acebilli","Billings S","HydroMet",45.63,-108.49,"Yellowstone"],["acebusby","Busby S","HydroMet",45.52,-106.93,"Big Horn"],["kalispel","Kalispell E","AgriMet",48.19,-114.14,"Flathead"],["pvbrisbi","Brisbin","AgriMet",45.53,-110.61,"Park"],["acefoxcr","Fox Crossing SW","HydroMet",48.9,-110.75,"Hill"],["acebarth","Barth Spring","HydroMet",47.82,-107.24,"Valley"],["acemiles","Miles City","HydroMet",46.41,-105.95,"Custer"],["acedillo","Dillon","HydroMet",45.27,-112.51,"Beaverhead"],["corvalli","Corvallis","AgriMet",46.33,-114.09,"Ravalli"]]
+    .map(([station, name, sub_network, latitude, longitude, county]) => ({ station, name, sub_network, latitude, longitude, county }));
+  const placeResults = document.getElementById('place-results');
+  const placeNote = document.getElementById('place-note');
+  const placeList = document.getElementById('place-list');
+  let demoStation = null;
+  function showPlaceList(title, note, rows) {
+    placeResults.hidden = false;
+    document.getElementById('place-results-title').textContent = title;
+    placeNote.textContent = note;
+    placeNote.hidden = !note;
+    placeList.replaceChildren(...rows.map((r) => {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.textContent = r.name;
+      const dist = document.createElement('span');
+      dist.className = 'mco-search-meta';
+      dist.textContent = MCO.places.formatMiles(r.miles);
+      li.append(name, dist);
+      return li;
+    }));
+  }
+  const placeSearch = MCO.places.initPlaceSearch({
+    input: document.getElementById('place-search'),
+    listbox: document.getElementById('place-search-list'),
+    label: 'Stations and places',
+    items: () => demoStations.map((s) => ({ id: s.station, label: s.name, group: s.sub_network })),
+    stations: () => demoStations,
+    value: () => demoStation,
+    onSelect: (id) => {
+      demoStation = id;
+      MCO.announce(`${demoStations.find((s) => s.station === id).name} selected.`);
+    },
+    onPlace: (place, r) => {
+      if (!r) showPlaceList(place.name, 'Finding stations…', []);
+      else showPlaceList(r.title, '', r.rows);
+    },
+    onError: () => MCO.announce('Places could not load. Stations can still be searched.'),
+  });
+  // Near me: the position is asked for on this press only. A refusal is said
+  // in words; there is no retry loop.
+  const nearMeButton = document.getElementById('btn-near-me');
+  nearMeButton.hidden = !MCO.places.canLocate();
+  nearMeButton.addEventListener('click', () => {
+    placeSearch.cancel();
+    showPlaceList('Near me', 'Finding your location…', []);
+    MCO.places.nearMe(demoStations).then((r) => {
+      showPlaceList(r.title, '', r.rows);
+      MCO.announce(MCO.places.announcement(null, r));
+    }, (e) => {
+      const note = e.reason === 'denied' ? 'Location access is off for this site. Search by name instead.'
+        : 'Your location could not be found. Search by name instead.';
+      showPlaceList('Near me', note, []);
+      MCO.announce(note);
+    });
+  });
+
   const load = MCO.loading(document.getElementById('load-box'), { label: 'Loading demo data' });
   document.getElementById('btn-load').addEventListener('click', () => { load.start(); setTimeout(load.done, 1500); });
   document.getElementById('btn-load-fail').addEventListener('click', () => {
