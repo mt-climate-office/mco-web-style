@@ -137,6 +137,18 @@ for (const engine of BROWSERS) {
     const s1 = await cb();
     probe('typing opens the list and makes the best match active (aria-activedescendant + aria-selected)',
       s1.expanded === 'true' && /^Gallatin/.test(s1.active || '') && s1.selected === 'true', JSON.stringify(s1));
+    // 0.16.1: the default row's name reads label, then meta, with a
+    // separator ("Gallatin, 30031", not "Gallatin30031"), and the separator
+    // is visually hidden. rowName is the option's name from Playwright's
+    // ARIA tree.
+    const rowName = (await page.locator('#demo-search-list [role="option"][aria-selected="true"]').ariaSnapshot().catch(() => '')).trim();
+    const sepHidden = await page.evaluate(() => {
+      const s = document.querySelector('#demo-search-list .mco-search-option .sr-only');
+      return !!s && s.getBoundingClientRect().width <= 1 && getComputedStyle(s).position === 'absolute';
+    });
+    probe('default search row: the name separates label and meta ("Gallatin, 30031"); the separator is sr-only',
+      /^Gallatin, 30031$/.test(s1.active || '') && /option "Gallatin\s*,\s*30031"/.test(rowName) && sepHidden,
+      JSON.stringify({ textContent: s1.active, rowName, sepHidden }));
     const results = await new AxeBuilder({ page }).include('#search-wrap').analyze();
     const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
     probe('axe: open listbox has no serious/critical violations', bad.length === 0, bad.map((v) => v.id).join(', '));

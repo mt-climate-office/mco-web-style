@@ -8,6 +8,31 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.16.1] — 2026-10-23
+
+PATCH: core only. Theme, map, cog, palette, photos and places are
+byte-identical to 0.16.0, so their SRI hashes are unchanged; core's hash
+changes.
+
+### Fixed
+- **Default search rows read "label, meta" to screen readers.**
+  `MCO.initSearchBox`'s default row put the label and the mono meta in two
+  adjacent spans with nothing between them, so the option's text ran
+  together ("Gallatin30031", "BozemanHydroMet"): axe's accessible-name
+  computation and `textContent` both read it that way, and Chromium's AX
+  tree read "Gallatin 30031" with no pause. A visually hidden `", "`
+  (`.sr-only`, absolutely positioned, so not a flex item) now sits between
+  them: the name is "Gallatin, 30031". The row looks the same (screenshots
+  of the open demo list are pixel-identical to 0.16.0 in all three themes,
+  Chromium and WebKit). Affected every `initSearchBox` consumer using the
+  default row since 0.8.0, including `MCO.places.initPlaceSearch`. Rows
+  drawn by an app's `renderRow`, group headings, and the "No matches" and
+  truncation notes are unchanged. An app that reads an option's
+  `textContent` now gets the separator in it.
+- Demo: the Places card's result list gets the same separator.
+- `tools/a11y-audit.mjs`: a keyboard probe asserts the default row's name
+  separates label and meta and that the separator is visually hidden.
+
 ## [0.16.0] — 2026-10-22
 
 MINOR: one new published file, and two additive options in core. Theme,
