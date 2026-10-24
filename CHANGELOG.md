@@ -8,6 +8,40 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.18.0] — 2026-10-24
+
+MINOR: theme only. Core, map, cog, palette, photos, places and summary are
+byte-identical to 0.17.0, so their SRI hashes are unchanged. Owner decision
+for climate.umt.edu, whose homepage photo hero stays dark (dark scrim, light
+text) when the page is light.
+
+### Added
+- **Theme islands.** `data-theme="dark"`, `"light"` or `"high-contrast"`
+  on any element below `<html>` gives its subtree that theme's tokens,
+  whatever the page theme; islands nest. Light and high-contrast islands
+  already resolved (their blocks were plain attribute selectors); dark did
+  not, because its values lived on `:root` alone. The dark block's selector
+  is now `:root, [data-theme="dark"]`. No token value changed.
+  - An island also takes its theme's `--text-primary` as `color` and a
+    matching `color-scheme`, from a zero-specificity rule that excludes the
+    root, so any app or kit rule that sets `color` still wins.
+  - Under `prefers-reduced-transparency`, `--glass` goes solid inside an
+    island too (`html [data-theme]` beside `html:root`).
+  - Still following the page theme, documented in HOUSE-STYLE §2: the
+    `.mco-wordmark` pair and any other descendant selector on the root
+    theme, `MCO.getTheme()` and `mco:themechange`.
+  - Demo: a dark and a light island, so axe audits both inside every page
+    theme. `tools/check-tokens.mjs` reads the new selector and fails if the
+    dark block loses it.
+
+### Changed
+- The theme-invariant tokens that shared the dark block (`--font-*`,
+  `--transition`, `--radius-*`) move to their own `:root` block, so a dark
+  island does not reset an app's override of them. Same values; `<html>`
+  resolves every custom property, `color`, `background-color` and
+  `font-family` exactly as 0.17.0 in every theme (178 computed values
+  compared in Chromium and WebKit, with and without reduced transparency).
+
 ## [0.17.0] — 2026-10-23
 
 MINOR: one new published file. Theme, core, map, cog, palette, photos and

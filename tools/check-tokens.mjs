@@ -8,6 +8,8 @@
      3. tokens/tokens.json mirrors theme/mco-theme.css exactly — same keys,
         same values (whitespace-normalized) — for all three themes + z-ladder.
      4. A required core-token list is present in all three themes.
+     5. The dark values sit on `:root, [data-theme="dark"]`, so a dark theme
+        island works like a light or high-contrast one (0.18.0).
    Zero dependencies. */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -28,7 +30,7 @@ function blocks(selector) {
   const re = /([^{}]+)\{([^{}]*)\}/g;
   let m;
   while ((m = re.exec(css)) !== null) {
-    if (m[1].trim() !== selector) continue;
+    if (m[1].replace(/\s+/g, ' ').trim() !== selector) continue;
     const body = m[2];
     const pre = /(--[\w-]+)\s*:\s*([^;]+);/g;
     let p;
@@ -37,7 +39,9 @@ function blocks(selector) {
   return out;
 }
 
-const rootProps = blocks(':root');
+const DARK_SELECTOR = ':root, [data-theme="dark"]';
+const darkBlock = blocks(DARK_SELECTOR);
+const rootProps = { ...blocks(':root'), ...darkBlock };
 const light = blocks('[data-theme="light"]');
 const hc = blocks('[data-theme="high-contrast"]');
 
@@ -62,6 +66,9 @@ const REQUIRED = [
 ];
 
 const errors = [];
+
+// 5: dark theme islands.
+if (!Object.keys(darkBlock).length) errors.push(`no '${DARK_SELECTOR}' block: dark theme islands would not resolve`);
 
 // 1 + 2: theme parity and containment.
 const lightKeys = Object.keys(light).sort();

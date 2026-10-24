@@ -38,7 +38,8 @@ kit asset backs the mark with white, as the PNG badge always has.
   `aria-label="Montana Climate Office"` on the link and empty `alt` on the
   image. It stays vendored, so it paints with no CDN hop.
 - **A footer** uses the `.mco-wordmark` pair (`is-on-dark` + `is-on-light`)
-  and lets the theme show one, or inlines `mco-wordmark.svg`.
+  and lets the theme show one, or inlines `mco-wordmark.svg`. Inside a theme
+  island (§2), inline it: the pair follows the page theme.
 - **Exports draw from the kit,** never from `climate.umt.edu`. Load the
   fixed-color twin from the pinned tag with `crossOrigin = 'anonymous'`.
   jsDelivr sends CORS, so the canvas stays exportable. `img-src` already
@@ -187,6 +188,20 @@ by `data-theme` on `<html>`. The high-contrast theme is a first-class citizen
 (promoted from the drought dashboard): pure-black surfaces, brightened accent,
 `--text-on-accent` flips to black. Any new token must be defined in **all
 three** blocks — CI enforces parity.
+
+**Theme islands** (0.18.0). `data-theme` on any element below `<html>` gives
+that subtree one theme's tokens, whatever the page theme, plus its
+`--text-primary` as `color` and a matching `color-scheme`. Use one only for a
+surface that has to keep one theme: a photo hero under a dark scrim, a map
+or an export preview. It is not a second theme switch, and nothing writes it
+but the app's markup. The island's contrast is its own theme's against its
+own surfaces, so it paints its own background (`--bg-deep`, a scrim from it,
+or a photo under a scrim that clears 4.5:1). Three things still follow the
+page, not the island: descendant selectors written against the root
+(`[data-theme="light"] .x`, including the `.mco-wordmark` pair — inline
+`mco-wordmark.svg` inside an island), `MCO.getTheme()` and
+`mco:themechange`, and so the basemap style and palette spans an app picks
+from them.
 
 ---
 

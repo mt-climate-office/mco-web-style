@@ -25,9 +25,9 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.17.0/theme/mco-theme.css"
-      integrity="sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.17.0/core/mco-core.js"
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.18.0/theme/mco-theme.css"
+      integrity="sha384-Y3Af72mJzyNFhgHqTGuOp4ffmybfrGcCxc34ayOgf/rU7jepus1xCI2n8V2wIBgK" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.18.0/core/mco-core.js"
         integrity="sha384-5LuIiruVjXsc4aJP9psEF1MLhfwow4XrNztT4Sn1OSCbbY7wkqTpgWbX+ucBlUlC" crossorigin="anonymous"></script>
 ```
 
@@ -108,14 +108,26 @@ documented in the source headers and JSDoc-style comments of
 `core/mco-core.js` and `map/mco-map.js` — read them for argument shapes
 rather than guessing.
 
+A surface that must keep one theme whatever the page theme, such as a photo
+hero under a dark scrim, takes `data-theme` itself (a theme island, 0.18.0):
+
+```html
+<section class="hero" data-theme="dark">…</section>  <!-- dark tokens, text and color-scheme inside -->
+```
+
+Every theme token resolves to that theme inside it. The island paints no
+background of its own; give it one. Descendant selectors on the root theme
+(the `.mco-wordmark` pair among them), `MCO.getTheme()` and
+`mco:themechange` still follow the page (HOUSE-STYLE §2).
+
 ### Testing against the kit in Node
 
 A consumer's unit tests (vitest, `node:test`) use the same pinned bytes the
 page loads, not a copy. The kit has no package, so:
 
 1. Fetch the pinned files once, for example
-   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.17.0/core/mco-core.js`
-   and `…@0.17.0/photos/mco-photos.js`, into a cache directory, and check
+   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.18.0/core/mco-core.js`
+   and `…@0.18.0/photos/mco-photos.js`, into a cache directory, and check
    each against the `integrity` hash your `index.html` pins (sha384, base64)
    before using it. A mismatch fails the run.
 2. Evaluate them **in order, core first**, as classic scripts with
@@ -167,10 +179,10 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.17.0
+## SRI hashes — v0.18.0
 
 ```
-theme/mco-theme.css      sha384-s6MS3mtowaDBNrYl8BzVKW+tkporVrIEixS7kjvHZ67k4syUXk0rKKMCHO2pNjNu
+theme/mco-theme.css      sha384-Y3Af72mJzyNFhgHqTGuOp4ffmybfrGcCxc34ayOgf/rU7jepus1xCI2n8V2wIBgK
 core/mco-core.js         sha384-5LuIiruVjXsc4aJP9psEF1MLhfwow4XrNztT4Sn1OSCbbY7wkqTpgWbX+ucBlUlC
 map/mco-map.js           sha384-BmAbWT508YkXfTenCpVne4+ONoA0HyPeR6qLIt1KxVFXTD+jWtHSWnysuInSQx8t
 map/cog-protocol.js      sha384-8KfmwSk9894unD1VJPQLo2DlTUp7+wLpl0ViJpo2LYG1J61nyqQ4twyvubpHLaeY
