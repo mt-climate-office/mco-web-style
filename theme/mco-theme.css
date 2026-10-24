@@ -114,7 +114,8 @@
 
 /* ── 1. Design tokens ─────────────────────────────────────────────────────
    Dark is the default theme. `data-theme` on <html> switches; the anti-flash
-   snippet (snippets/anti-flash.html) sets it before first paint.
+   snippet (snippets/anti-flash.html) sets it before first paint. On any
+   other element it makes a theme island (0.18.0, below the theme blocks).
 
    Contrast contract (enforced by tools/check-contrast.mjs in CI):
      --text-primary, --text-secondary  ≥ 4.5:1 on deep, surface, AND raised
@@ -136,7 +137,23 @@
      with tabular figures from .mco-num-display. Space Mono stays for every
      other numeral (tables, IDs, timestamps, axes, scale labels, <kbd>). */
   --font-display-num: 'Outfit', 'Outfit Fallback', system-ui, -apple-system, sans-serif;
+  --transition:     0.2s cubic-bezier(0.4,0,0.2,1);
+  --radius-sm:      4px;
+  --radius-md:      8px;
+  --radius-lg:      12px;
+}
 
+/* Dark values, on the root and on any element marked data-theme="dark"
+   (0.18.0). Every theme block is a plain attribute selector, so a
+   data-theme on ANY element re-declares that theme's tokens there and its
+   subtree inherits them: a "theme island" (HOUSE-STYLE §4). On <html> this
+   is the same cascade as before: :root, [data-theme="dark"], light and
+   high-contrast are all (0,1,0), so the later light/high-contrast block
+   still wins on the root by source order. Theme-invariant tokens (fonts,
+   radii, transition) stay in the :root block above, so an island never
+   resets an app's override of them. */
+:root,
+[data-theme="dark"] {
   --bg-deep:        #161b22;
   --bg-surface:     #1e2530;
   --bg-raised:      #2c3545;
@@ -158,10 +175,6 @@
   --brand-gradient: linear-gradient(90deg, var(--accent-dk), var(--accent), var(--accent-light), var(--accent));
   --glass:          rgba(30,37,48,0.92);   /* legible WITHOUT the blur (0.10.0) */
   --shadow:         0 4px 24px rgba(0,0,0,0.4);
-  --transition:     0.2s cubic-bezier(0.4,0,0.2,1);
-  --radius-sm:      4px;
-  --radius-md:      8px;
-  --radius-lg:      12px;
   --dot-stroke:     #ffffff;
   --input-bg:       #232a35;
   --scrim:          rgba(0,0,0,0.55);
@@ -258,6 +271,21 @@
   --success:        #26b562;
   --success-fill:   #05160c;
   --text-on-success: #ffffff;
+}
+
+/* Theme islands (0.18.0). Tokens alone don't re-colour an island's text:
+   `color` inherits as a computed value from body, so it would keep the
+   page theme's --text-primary. An island takes its own, and tells the UA
+   which native controls and scrollbars to draw. The root is excluded
+   (<html> behaves exactly as before), and :where() keeps this at zero
+   specificity, so any app or kit rule that sets color wins. An island
+   paints no background of its own: give it one (or a photo, or a map),
+   because its contrast is its theme's contrast against its own surfaces. */
+:where([data-theme="dark"], [data-theme="high-contrast"]):where(:not(:root)) {
+  color: var(--text-primary); color-scheme: dark;
+}
+:where([data-theme="light"]):where(:not(:root)) {
+  color: var(--text-primary); color-scheme: light;
 }
 
 /* ── 2. Stacking ladder ───────────────────────────────────────────────────
@@ -678,7 +706,10 @@ a.nav-btn { text-decoration: none; }
    the accessibility tree. Inline assets/mco-wordmark.svg instead to inherit
    currentColor. Keep it ≥ 40px tall.
      <img class="mco-wordmark is-on-dark"  src="…/assets/mco-wordmark-on-dark.svg"  alt="Montana Climate Office" height="48">
-     <img class="mco-wordmark is-on-light" src="…/assets/mco-wordmark-on-light.svg" alt="Montana Climate Office" height="48"> */
+     <img class="mco-wordmark is-on-light" src="…/assets/mco-wordmark-on-light.svg" alt="Montana Climate Office" height="48">
+   The pair follows the PAGE theme, not a theme island (0.18.0): these are
+   descendant selectors, so <html data-theme="light"> matches through an
+   island. Inside an island, inline assets/mco-wordmark.svg (currentColor). */
 .mco-wordmark { display: block; width: auto; }
 .mco-footer .mco-wordmark { margin: 0 auto var(--space-3); }
 :root:not([data-theme="light"]) .mco-wordmark.is-on-light,
@@ -1394,9 +1425,11 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
    (headless WebKit, low-power modes) or a visitor who asks for Reduce
    Transparency gets the bare fill. Under that preference every glass surface
    goes solid: --glass becomes --bg-surface, and the blur is dropped.
-   html:root outranks the [data-theme] blocks without matching their selector. */
+   html:root outranks the [data-theme] blocks without matching their selector;
+   `html [data-theme]` (0,1,1) does the same inside a theme island (0.18.0),
+   which re-declares --glass and would otherwise keep its translucent one. */
 @media (prefers-reduced-transparency: reduce) {
-  html:root { --glass: var(--bg-surface); }
+  html:root, html [data-theme] { --glass: var(--bg-surface); }
   .mco-navbar, .mco-panel, .mco-card.is-glass, .mco-tooltip, .maplibregl-ctrl-group,
   .mco-navbar .mco-search-collapse.is-open, .mco-modal::backdrop {
     backdrop-filter: none; -webkit-backdrop-filter: none;
