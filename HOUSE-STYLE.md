@@ -58,7 +58,9 @@ beneath it the subtitle line, italic, `--text-dim`:
 
 **The website is the exception** (decided 2026-10-22). On `climate.umt.edu`
 itself the navbar carries no subtitle, because the site is the office, and the
-badge links to the site's own home in the same tab.
+badge links to the site's own home in the same tab. The website
+(`mt-climate-office/mco-website-next`) owns this exception and its second
+one, the section links (§3).
 
 **Page title.** `<Short name> · <Family>` — one middot, spaces either side.
 Decided 2026-08 across a family that had drifted to four separators (`·`, `—`,
@@ -214,6 +216,16 @@ variant), segmented groups `.seg-btns > .seg-btn`, info button `.mco-btn-info`.
 **One primary action per view** is `.nav-btn.is-primary` (0.8.0): a filled
 `--accent` with `--text-on-accent`. Never hand-roll `color: #fff` on the
 accent, which is 2.2:1 in high contrast.
+
+**The website's section links are the second exception** (decided
+2026-10-24, website decision D21). `climate.umt.edu` is a long-form public
+site that sits above the kit (its `docs/VISUAL-SYSTEM.md`), not an
+instrument tool, so its header section links are plain 15 px text, not
+`.nav-btn` pills: no border, background or radius. The current page is
+marked by a 2 px `--accent-line` bottom border plus `aria-current="page"`,
+and a link underlines on hover. Search, theme and menu stay kit buttons.
+It lives in the website as a `kit-override`, not in the kit. The tools keep
+`.nav-btn`.
 
 **Long-scrolling pages** add `.is-sticky` (0.10.0): the bar sticks at the
 top on `--z-chrome-top`, clears the notch, and the kit publishes its height
