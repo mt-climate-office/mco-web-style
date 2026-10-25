@@ -14,6 +14,13 @@ different states, and the first one silently forks the tokens.
 
 ## Pick up here (state as of 2026-10-10)
 
+**2026-10-25:** **climate.umt.edu (`mco-website-next`) is in the canary**,
+the ninth consumer: its repo went public (website DECISIONS D20), which is what
+D3 was waiting for. The canary builds it (Astro, Node 24) and loads the
+homepage. It pins **@0.18.0**, the first release with theme islands (#73),
+which its photo hero uses. The navbar exceptions it takes are in HOUSE-STYLE
+(#74).
+
 **2026-10-23:** every consumer above is on **@0.16.2** (website DECISIONS D19):
 tribal labels use a font stack CARTO still serves (0.15.1), search rows read
 "label, meta" to screen readers (0.16.1), and the verify harness retries a
@@ -24,20 +31,20 @@ has no SRI; Snowpack errors on a day whose SNODAS file isn't published yet.
 
 **2026-10-23:** `MCO.summary` (the conditions line, D9 extraction #3)
 shipped in 0.17.0. mesonet-dashboard's Now hero is the first consumer and
-climate.umt.edu's homepage conditions card the second (both PRs open, not
-merged).
+climate.umt.edu's homepage conditions card the second (mesonet-dashboard
+#116, mco-website-next #25; both merged).
 
 **2026-10-22:** `MCO.places` (place search, D9 extraction #2) shipped in
-0.16.0. mesonet-dashboard's retrofit is the first consumer (PR open, not
-merged); climate.umt.edu's station search is the second.
+0.16.0. mesonet-dashboard's retrofit is the first consumer (#114, merged);
+climate.umt.edu's conditions card is the second (mco-website-next #17).
 
 **2026-10-22:** `MCO.photos` shipped in 0.14.0 and gained the `fullHistory`
 opt-in in 0.15.0 (website DECISIONS D16). **mesonet-photo-explorer** (PR #9)
 and **mesonet-dashboard** (PR #113) are on @0.15.0 and pass
 `fullHistory: true`, so their public photo history is unchanged; the
 climate.umt.edu hero will use the clamped default. The canary builds the
-dashboard from `web/` (PR #62). Still missing from the canary: mesonet-aq
-(D3) and the website (private repo).
+dashboard from `web/` (PR #62). mesonet-aq (2026-10-23) and the website (2026-10-25) have
+since joined the canary.
 
 **All six consumers are on MapLibre 6.11.2, deployed and verified live
 2026-10-10** (Chromium and WebKit, every production URL: the map paints,
@@ -235,6 +242,7 @@ watch, DOM popups, clean URLs, MapLibre 6). Re-measure after each pass.
 | **mco-snowpack-explorer** | **@0.16.2** (2026-10-23, D19 sweep, from @0.13.1, which this row had missed; @0.11.3 2026-10-10; @0.11.2 2026-10-09; @0.7.1 2026-09-30; @0.6.0 2026-08-16) | 10 → 15/29 → 21/29 | Sixth consumer and the least-migrated starting point: no CSP, SRI, favicon, skip link, `<main>`, `.sr-only`, reduced-motion gate or high-contrast, and 894 lines of app JS inline. index.html 1536 → ~460; the JS is now `app.js` (kept an ES module — it imports hyparquet from esm.sh at runtime). Its local `cog-protocol.js` was **byte-identical** to the kit's and is deleted in favour of it. 🔑 **Both API keys are gone**: moving to keyless CARTO and the kit's terrarium hillshade retired `STADIA_API_KEY` and `MAPTILER_KEY`, so this static site ships no credential. ⚠️ **They remain in git history on a public repo and must be revoked at both vendors** — removing them from HEAD does not retire them. **Fixed in flight:** `--text-dim` #6b7a90/#7a8190 (the fourth app carrying that AA failure); the gridded raster was reachable by **hover only** — no touch path and nothing for AT — so a click/tap now pins a reading and announces it through a live region; `role="tooltip"` on a permanently-nameless element (it was *hurting*, promising a name and trigger that do not exist); the SNODAS ramp is hue-only, so **USDM category names are now printed in the legend** as the WCAG 1.4.1 redundant channel — they had lived only in code comments; a hard-coded `animate: true`; and no touch targets. `flatgeobuf@3` was a **floating major** — SRI against a floating version hard-fails the day the CDN moves — pinned to 3.38.0. **Migration defect worth recording:** deleting the navbar CSS section wholesale took four app-owned rules with it (`.control-group`, `.date-stepper`, `.nav-actions`, `.nav-btn.date-step`), which let the kit's 34px `.nav-btn` minimum apply to the date steppers and inflated the navbar 52px → 150px. An orphan-class scan caught only four of six; the computed-layout dump found the rest. Restoring `.nav-btn.date-step` verbatim would have restored a 15px touch target, so the mesonet-photos precedent applies (row of 40px targets on `hover: none`). Verified: 20 checks, axe clean at serious/critical in all three themes, COG raster confirmed painting on a winter date rather than trusted from a summer screenshot. ⚠️ Pages deploys from `main` root to **snow.climate.umt.edu** — a push IS the deploy. |
 | **mesonet-dashboard** (`web/`; renamed from `web-next/` 2026-10-12, b2a1cf9e) | **@0.16.2** (2026-10-23, D19 sweep; @0.15.0 2026-10-22, PR #113: adopts `MCO.photos` with `fullHistory: true`, tests load the pinned file; @0.11.3 2026-10-10; @0.11.2 earlier the same day) | 17/29 automatic, **not comparable** — `tools/conformance.mjs` reads only the page's local `<script src>`, and web-next's map, URL and selection code lives in TypeScript modules under `src/` (it does call `watchBasemap`, `addNavigation`, `--selection-ring`, `pushUrlState`) | Seventh consumer and the first that is not a hand-written vanilla page: a rebuild on the kit with Alpine.js, ECharts and TypeScript under Vite (started 2026-10-01), previewed at `/mesonet-dashboard/next/` and replacing `web/` at cutover. The earlier React 19 + Mantine plan (inject `tokens.json` into a Mantine theme) was dropped. MapLibre 6.11.2 from the import map in web-next and in the frozen `web/` (PR #101, GHSA-jrc7-96c5-q579). In the canary. Its own `npm run verify` covers kit-consumer checks, the axe matrix and keyboard walks. What it wants from the kit is in `web-next/KIT-PROPOSALS.md` and `KIT-NOTES.md`; its deliberate departures are in `DIVERGENCES.md`. |
 | **mesonet-aq** | **@0.16.2** (2026-10-23, D19 sweep; @0.13.1 2026-10-10, mesonet-aq#6) | 30/30 | Eighth consumer. Rebuilt from the exemplar rather than migrated: the old page read a bucket that went private and 403'd. MapLibre map plus an `MCO.initSheet` detail with an **ECharts 6** chart (lazy, SRI; dispose/re-init on `mco:themechange`, axes pre-shifted to Mountain Time under `useUTC`). It is the second ECharts consumer after the dashboard. **App-local role, kit-override:** EPA/AirNow AQI category colors (hue-coded), with the AQI number printed on every dot and category names in the legend, tooltip, sheet and sr-table (Kyle, 2026-10-10). Reads Parquet with a vendored hyparquet + fzstd bundle served from `'self'` (no `wasm-unsafe-eval`). The `MCO.srTable` chart twin is rebuilt when the columns change, because srTable columns are fixed at creation. **Found at go-live:** the pipeline's `latest/latest.json` carried bare `NaN` for stations with missing values (`np.float32` NaN slipped past a `float` check). `jq` tolerates `NaN`; `JSON.parse` rejects the whole file, so the map rendered nothing. The dry run had no gaps, so every check passed against it. Fixed at source (mesonet-aq#8, `allow_nan=False`). **Lesson: run the matrix against live data before calling a data-driven page done.** Verified against live data: conformance 30/30, head 15/15, axe-matrix 90/90 and keyboard 10/10 in Chromium **and** WebKit. ⚠️ Pages deploys from `main` `/docs`, so a push IS the deploy. It is proxied at `mesonet2.climate.umt.edu/air/` (mesonet-gateway#4). `mesonet.climate.umt.edu/air/` waits for the gateway cutover: on-prem Caddy has no `/air` route. |
+| **mco-website-next** (climate.umt.edu, before cutover) | **@0.18.0** (2026-10-24, mco-website-next #32; @0.13.1 first, 2026-10-22) | not measured (Astro; its own CI runs this kit's verify harness at the pinned tag, both engines, every page) | Ninth consumer, the flagship site's rebuild. Astro, static, GitHub Pages; the second bundled consumer after the dashboard, so the canary builds it. Pinned tag + SRI in `src/kit/kit.ts`; the build loads `core` and `photos` in `node:vm` after an SRI check to render the photo hero's build-time set. Uses `MCO.photos` (default, clamped audience), `MCO.places`, `MCO.summary`, `srTable`, search, drawer, theme toggle. **Theme island:** the homepage hero is `data-theme="dark"` (high-contrast on a high-contrast page) and the header follows it while over the hero (0.18.0). **Site layer above the kit:** `src/styles/site.css`, frameless, every override marked `kit-override:`. HOUSE-STYLE §1/§3 navbar exceptions recorded in #74. Repo public since 2026-10-23 (its D20). |
 
 ## House-styled, not kit-consuming
 
