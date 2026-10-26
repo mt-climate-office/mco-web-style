@@ -122,6 +122,12 @@
      --text-muted,  --text-dim         ≥ 4.5:1 on deep and surface ONLY —
                                          never use them on --bg-raised
      --accent-line                     ≥ 3:1 on all three surfaces (1.4.11)
+                                         and on every --band-* (0.19.0)
+     --text-* on --band-sky/-prairie/-sage ≥ 4.5:1 (0.19.0; muted/dim too)
+     --prairie-line, --sage-line,
+     --rust-line                       ≥ 4.5:1 on deep, surface, raised and
+                                         every band (0.19.0)
+     --text-on-prairie                 ≥ 4.5:1 on --prairie
      --text-on-accent                  ≥ 4.5:1 on --accent
      --danger, --warning, --success    ≥ 4.5:1 on deep, surface, raised, and
                                           on their own --*-fill
@@ -192,6 +198,21 @@
   --success:        #36ba6d;
   --success-fill:   #213737;
   --text-on-success: #e8ecf0;
+  /* Landscape tones (0.19.0): CHROME, not data (HOUSE-STYLE §2), sampled
+     from the station cameras. --band-* are section grounds that mark a
+     real boundary on a content page; --prairie is a fill behind
+     --text-on-prairie (a primary call to action); the -line tones are
+     eyebrows, ticks and icons. Never a legend: data takes MCO.palette.
+     Every text token and -line tone is ≥ 4.5:1 on deep, surface, raised
+     and every band (--text-muted/-dim: not raised); check-contrast. */
+  --band-sky:        #13263a;
+  --band-prairie:    #252117;
+  --band-sage:       #18231c;
+  --prairie:         #d9a43a;
+  --text-on-prairie: #161b22;
+  --prairie-line:    #e3b55a;
+  --sage-line:       #9cc08a;
+  --rust-line:       #ec9a74;
 }
 
 [data-theme="light"] {
@@ -229,6 +250,14 @@
   --success:        #217343;
   --success-fill:   #e4eee8;
   --text-on-success: #1a1a2e;
+  --band-sky:        #e5eff7;
+  --band-prairie:    #f6eedb;
+  --band-sage:       #e7ede3;
+  --prairie:         #d9a43a;
+  --text-on-prairie: #1a1a2e;
+  --prairie-line:    #85570a;
+  --sage-line:       #476a3c;
+  --rust-line:       #a3441d;
 }
 
 /* High-contrast: pure-black surfaces, brightened accent, near-white text.
@@ -271,6 +300,14 @@
   --success:        #26b562;
   --success-fill:   #05160c;
   --text-on-success: #ffffff;
+  --band-sky:        #000000;
+  --band-prairie:    #000000;
+  --band-sage:       #000000;
+  --prairie:         #ffc95c;
+  --text-on-prairie: #000000;
+  --prairie-line:    #ffc95c;
+  --sage-line:       #b5e0a0;
+  --rust-line:       #ffad85;
 }
 
 /* Theme islands (0.18.0). Tokens alone don't re-colour an island's text:

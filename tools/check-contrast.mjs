@@ -10,6 +10,10 @@
      --danger, --warning, --success    ≥ 4.5:1 on deep, surface, raised, and
                                           their own --*-fill (0.8.0)
      --text-on-danger/-warning/-success ≥ 4.5:1 on the matching --*-fill
+     --text-*, and --accent-line ≥ 3:1, on every --band-* (0.19.0)
+     --prairie-line, --sage-line, --rust-line ≥ 4.5:1 on deep, surface,
+                                          raised and every band (0.19.0)
+     --text-on-prairie                 ≥ 4.5:1 on --prairie (0.19.0)
 
    Only hex tokens participate; rgba()/gradients are out of scope here.
    Zero dependencies. */
@@ -46,6 +50,16 @@ const MATRIX = [
     [t, '--bg-deep', 4.5], [t, '--bg-surface', 4.5], [t, '--bg-raised', 4.5],
     [t, `${t}-fill`, 4.5], [`--text-on-${t.slice(2)}`, `${t}-fill`, 4.5],
   ]),
+  // Landscape tones (0.19.0): body text, muted text and --accent-line hold on
+  // every band; the -line tones read as text on every surface and band.
+  ...['--band-sky', '--band-prairie', '--band-sage'].flatMap((b) => [
+    ['--text-primary', b, 4.5], ['--text-secondary', b, 4.5],
+    ['--text-muted', b, 4.5], ['--text-dim', b, 4.5], ['--accent-line', b, 3.0],
+  ]),
+  ...['--prairie-line', '--sage-line', '--rust-line'].flatMap((t) =>
+    ['--bg-deep', '--bg-surface', '--bg-raised', '--band-sky', '--band-prairie', '--band-sage']
+      .map((b) => [t, b, 4.5])),
+  ['--text-on-prairie', '--prairie', 4.5],
 ];
 
 const errors = [];

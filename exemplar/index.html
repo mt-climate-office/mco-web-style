@@ -29,7 +29,7 @@
        Demonstrates: HOUSE-STYLE §8 / README CSP notes. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'none';
-    script-src 'self' 'sha256-v3il6Uh82ESNrvf3ERc536SXE1pi2Le5vlV0TpFWJyU=' 'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI=' https://unpkg.com;
+    script-src 'self' 'sha256-NaaGOmJAsf442PROwI0rZxSNQhZIjd9ctWHyVO6MWwI=' 'sha256-NgHBdw+Nl6S2kTHNyvv5uFwHfytmfDJR39Y9qVPt/UI=' https://unpkg.com;
     worker-src blob: https://unpkg.com;
     style-src 'self' 'unsafe-inline' https://unpkg.com;
     font-src 'self';
@@ -58,10 +58,14 @@
       try { saved = localStorage.getItem('mco-theme'); } catch (e) {}
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const valid = ['dark', 'light', 'high-contrast'];
+      const root = document.documentElement;
+      // A page may name the theme a visitor with no choice gets (0.19.0):
+      // <html data-theme-default="light">. Otherwise the OS preference.
+      const def = root.getAttribute('data-theme-default');
       const t = valid.includes(url) ? url
               : valid.includes(saved) ? saved
+              : valid.includes(def) ? def
               : (prefersDark ? 'dark' : 'light');
-      const root = document.documentElement;
       root.setAttribute('data-theme', t);
       root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
       root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
