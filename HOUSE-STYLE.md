@@ -154,6 +154,10 @@ The contrast contract, enforced by CI (`tools/check-contrast.mjs`):
 | `--text-on-accent` | `--accent` and `--accent-fill-hover` fills | ≥ 4.5:1 |
 | `--danger`, `--warning`, `--success` | deep, surface, raised, and their own `--*-fill` | ≥ 4.5:1 (so ≥ 3:1 as lines) |
 | `--text-on-danger`, `-warning`, `-success` | the matching `--*-fill` | ≥ 4.5:1 |
+| `--text-*` (muted and dim too) | `--band-sky`, `--band-prairie`, `--band-sage` | ≥ 4.5:1 |
+| `--accent-line` | every `--band-*` | ≥ 3:1 |
+| `--prairie-line`, `--sage-line`, `--rust-line` | deep, surface, raised, every band | ≥ 4.5:1 |
+| `--text-on-prairie` | `--prairie` | ≥ 4.5:1 |
 
 Hard-won rules encoded here:
 
@@ -176,6 +180,16 @@ Hard-won rules encoded here:
   `.scale-hint` hexes. A station's "dead" or "stale" **category is data**: it
   takes a data palette under §6, never a status token. Tone never stands
   alone. Always pair it with a word ("Error", "Warning") or an icon.
+- **Landscape tones are chrome, not data** (0.19.0). Sampled from the
+  station cameras for climate.umt.edu, admitted with one consumer by owner
+  decision (website D29). `--band-sky`, `--band-prairie` and `--band-sage`
+  are section grounds on content pages: a band marks a real boundary, and
+  two adjacent sections never share one. `--prairie` is a fill behind
+  `--text-on-prairie`, for a page's one primary call to action.
+  `--prairie-line`, `--sage-line` and `--rust-line` are for eyebrows, ticks
+  and icons. None is ever a legend or a category: anything with a legend
+  takes `MCO.palette` (§6). In high contrast every band is black, so a band
+  never carries meaning on its own.
 
 **Type & spacing scale** (0.9.0). Font sizes come from `--fs-2xs` … `--fs-2xl`
 (0.55 → 2rem: subtitle, meta, captions, buttons, prose, titles, stat readouts,
@@ -190,6 +204,14 @@ by `data-theme` on `<html>`. The high-contrast theme is a first-class citizen
 (promoted from the drought dashboard): pure-black surfaces, brightened accent,
 `--text-on-accent` flips to black. Any new token must be defined in **all
 three** blocks — CI enforces parity.
+
+A visitor with no `?theme=` and no saved choice gets the OS preference,
+unless the page sets **`data-theme-default`** on `<html>` (0.19.0), which
+the anti-flash snippet reads first. Use it for a site that should open in
+one theme whatever the OS says (climate.umt.edu's content pages open light,
+website D29); a map tool keeps the OS default. The toggle and `?theme=`
+still win, and `mco-theme` stays shared. Compare URL writes against
+`MCO.defaultTheme()`.
 
 **Theme islands** (0.18.0). `data-theme` on any element below `<html>` gives
 that subtree one theme's tokens, whatever the page theme, plus its
@@ -449,7 +471,8 @@ the URL must already be the complete view.
   `replaceUrlState` wrapper `pushState`, which is now a different thing.
 - **Clean URLs:** an all-defaults view has no query string. Write the camera
   with `MCO.map.cameraParamsIfDefault(map)` (it returns `{}` at the default
-  extent) and `theme` only when it differs from `MCO.osTheme()`.
+  extent) and `theme` only when it differs from `MCO.defaultTheme()` (0.19.0;
+  the same as `MCO.osTheme()` unless the page sets `data-theme-default`).
 - Write the URL at most once per task. A hash that carries state (a tab) needs
   `{keepHash: true}` on both writers until 1.0.0 makes it the default.
 - `?kbd=off` is re-emitted by both writers and stays out of share links

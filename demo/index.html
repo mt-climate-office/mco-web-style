@@ -20,10 +20,14 @@
       try { saved = localStorage.getItem('mco-theme'); } catch (e) {}
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const valid = ['dark', 'light', 'high-contrast'];
+      const root = document.documentElement;
+      // A page may name the theme a visitor with no choice gets (0.19.0):
+      // <html data-theme-default="light">. Otherwise the OS preference.
+      const def = root.getAttribute('data-theme-default');
       const t = valid.includes(url) ? url
               : valid.includes(saved) ? saved
+              : valid.includes(def) ? def
               : (prefersDark ? 'dark' : 'light');
-      const root = document.documentElement;
       root.setAttribute('data-theme', t);
       root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
       root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
@@ -90,6 +94,19 @@
     .demo-island-title { font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
     .demo-island-meta { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); }
     .demo-island a { color: var(--accent-line); }
+    .demo-bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); }
+    .demo-band { display: grid; gap: var(--space-2); justify-items: start; padding: var(--space-5); border-radius: var(--radius-lg); }
+    .demo-band.is-sky { background: var(--band-sky); }
+    .demo-band.is-prairie { background: var(--band-prairie); }
+    .demo-band.is-sage { background: var(--band-sage); }
+    .demo-band-eyebrow { font-family: var(--font-mono); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; }
+    .demo-band-eyebrow.is-prairie { color: var(--prairie-line); }
+    .demo-band-eyebrow.is-sage { color: var(--sage-line); }
+    .demo-band-eyebrow.is-rust { color: var(--rust-line); }
+    .demo-band-title { font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+    .demo-band-meta { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); }
+    .demo-band a { color: var(--accent-line); }
+    .demo-prairie-btn { min-height: 44px; padding: 0 var(--space-5); border: 0; border-radius: var(--radius-md); background: var(--prairie); color: var(--text-on-prairie); font: inherit; font-weight: var(--fw-semibold); cursor: pointer; }
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     #map { width: 100%; height: 100%; }
     #legend-panel { right: 0.75rem; bottom: 1.75rem; }
@@ -240,6 +257,32 @@
         <p class="demo-island-meta">Oct 23, 3:00 PM MDT · facing west</p>
         <p><a href="#main">A link in --accent-line</a></p>
         <button type="button" class="nav-btn">Kit button</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>Landscape tones</h2>
+    <p>Chrome, not data (0.19.0): three section grounds, a prairie fill for one primary call to action, and three
+       line tones for eyebrows and icons. Every text token reads on every band; in high contrast the bands are black.</p>
+    <div class="demo-bands">
+      <div class="demo-band is-sky">
+        <p class="demo-band-eyebrow is-rust">--band-sky · --rust-line</p>
+        <p class="demo-band-title">What the stations are reading</p>
+        <p class="demo-band-meta">Oct 25, 3:00 PM MDT · facing west</p>
+        <p><a href="#main">A link in --accent-line</a></p>
+      </div>
+      <div class="demo-band is-prairie">
+        <p class="demo-band-eyebrow is-prairie">--band-prairie · --prairie-line</p>
+        <p class="demo-band-title">How dry is it?</p>
+        <p class="demo-band-meta">Updated daily from gridMET</p>
+        <button type="button" class="demo-prairie-btn">Show conditions</button>
+      </div>
+      <div class="demo-band is-sage">
+        <p class="demo-band-eyebrow is-sage">--band-sage · --sage-line</p>
+        <p class="demo-band-title">How wet is the soil?</p>
+        <p class="demo-band-meta">Shallow, mid-depth and deep</p>
+        <p><a href="#main">A link in --accent-line</a></p>
       </div>
     </div>
   </section>

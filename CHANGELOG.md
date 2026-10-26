@@ -8,6 +8,29 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.19.0] — 2026-10-25
+
+MINOR: theme, core and the anti-flash snippet. Map, cog, palette, photos,
+places and summary are byte-identical to 0.18.0, so their SRI hashes are
+unchanged. Owner decision for climate.umt.edu (website D29), admitted with
+one consumer as an explicit exception to AGENTS rule 5.
+
+### Added
+- **Landscape tones**, in all three themes and `tokens.json`: section
+  grounds `--band-sky`, `--band-prairie`, `--band-sage`; a fill `--prairie`
+  with `--text-on-prairie`; and line tones `--prairie-line`, `--sage-line`,
+  `--rust-line`. Chrome, not data (HOUSE-STYLE §2). In high contrast the
+  bands are black. `tools/check-contrast.mjs` gates every text token on
+  every band, `--accent-line` ≥ 3:1 on every band, each line tone ≥ 4.5:1 on
+  every surface and band, and `--text-on-prairie` on `--prairie`.
+- **`data-theme-default` on `<html>`.** The anti-flash snippet reads it
+  after `?theme=` and the saved choice and before the OS preference, so a
+  site can open in one theme whatever the OS says. **The snippet's CSP hash
+  changed: recompute** (the exemplar's is updated).
+- **`MCO.defaultTheme()`**: that default, else `MCO.osTheme()`. Compare
+  `?theme=` writes against it.
+- Demo: a landscape-tones section, so axe audits the bands in every theme.
+
 ## [0.18.0] — 2026-10-24
 
 MINOR: theme only. Core, map, cog, palette, photos, places and summary are

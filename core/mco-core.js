@@ -276,6 +276,13 @@
   MCO.osTheme = function () {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
+  // The same, after the page's own default (0.19.0): <html
+  // data-theme-default="light"> wins over the OS preference, as the
+  // anti-flash snippet resolves it. Compare URL writes against this one.
+  MCO.defaultTheme = function () {
+    var def = document.documentElement.getAttribute('data-theme-default');
+    return ['dark', 'light', 'high-contrast'].indexOf(def) !== -1 ? def : MCO.osTheme();
+  };
   // Fires `mco:themechange` on document (0.9.0) with detail {theme,
   // previous}, so a chart, a canvas export or a map re-style listens once
   // instead of every toggle call site remembering it.
