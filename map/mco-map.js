@@ -94,6 +94,59 @@
     return 'https://basemaps.cartocdn.com/gl/' + variant + '/style.json';
   };
 
+  /* ── Basemap label corrections (0.20.0) ────────────────────────────────────
+     CARTO builds its tiles from OpenStreetMap and serves one dated build for
+     weeks, so vandalism that OSM reverts in minutes can sit on every MCO map
+     until CARTO rebuilds. On 2026-10-26 build 20261001-03 labelled Townsend
+     "Fuck Townsend". correctBasemapLabels() rewrites the text-field of every
+     symbol layer so a label that matches a key here exactly shows its value
+     instead. watchBasemap() applies it on every style.load, so theme switches
+     and retries keep it; a map that loads styles without watchBasemap calls it
+     from its own style.load handler.
+
+     Exact whole-label matches only: no patterns and no word filter, so a real
+     place name can never be rewritten. When it happens again, add the entry
+     here and ship a patch. Idempotent: an already-corrected layer is rebuilt
+     from its original expression, not wrapped twice. Legacy "{field}" string
+     text-fields are left alone (CARTO's styles use expressions throughout).
+     Returns the number of layers rewritten. */
+  M.LABEL_CORRECTIONS = {
+    'Fuck Townsend': 'Townsend',
+  };
+
+  var LABEL_VAR = 'mco_label';
+
+  function correctLabel(expr, table) {
+    // A zoom step must stay the top-level expression; correct each output.
+    if (Array.isArray(expr) && expr[0] === 'step') {
+      var out = expr.slice();
+      for (var i = 2; i < out.length; i += 2) out[i] = correctLabel(out[i], table);
+      return out;
+    }
+    if (Array.isArray(expr) && expr[0] === 'let' && expr[1] === LABEL_VAR) expr = expr[2];
+    var match = ['match', ['to-string', ['var', LABEL_VAR]]];
+    Object.keys(table).forEach(function (k) { match.push(k, table[k]); });
+    match.push(['var', LABEL_VAR]);
+    return ['let', LABEL_VAR, expr, match];
+  }
+
+  M.correctBasemapLabels = function (map, table) {
+    table = table || M.LABEL_CORRECTIONS;
+    if (!Object.keys(table).length) return 0;
+    var style = map.getStyle();
+    if (!style || !style.layers) return 0;
+    var n = 0;
+    style.layers.forEach(function (layer) {
+      var field = layer.type === 'symbol' && layer.layout && layer.layout['text-field'];
+      if (!Array.isArray(field)) return;
+      try {
+        map.setLayoutProperty(layer.id, 'text-field', correctLabel(field, table));
+        n++;
+      } catch (e) {}   // an expression we can't wrap keeps its own label
+    });
+    return n;
+  };
+
   /* ── Initial camera from the shared URL convention ─────────────────────────
      Returns an object to spread into new maplibregl.Map({container, style,
      ...MCO.map.initialCamera(params)}). Uses ?lng&lat&zoom when all three
@@ -276,6 +329,7 @@
          styleUrl: MCO.map.cartoStyleUrl,   // what to (re)load; read at retry time
          retries: 1, retryDelayMs: 5000,    // house defaults
          timeoutMs: 15000,                  // a style that never answers counts as failed
+         correctLabels: true,               // correctBasemapLabels() on each style.load (0.20.0)
          onFail: function () {},            // after the fallback is in place
        });
 
@@ -366,6 +420,7 @@
     function onStyleLoad() {
       var s = map.getStyle();
       if (s && s.name === 'mco-blank') return;   // our fallback, not a recovery
+      if (opts.correctLabels !== false) M.correctBasemapLabels(map);
       clearTimeout(hangTimer);
       left = retries;
       failed = false;
@@ -374,6 +429,7 @@
     map.on('error', onError);
     map.on('style.load', onStyleLoad);
     if (!map.isStyleLoaded()) armHang();
+    else if (opts.correctLabels !== false) M.correctBasemapLabels(map);
 
     return {
       retry: retry,

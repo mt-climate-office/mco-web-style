@@ -25,9 +25,9 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.19.0/theme/mco-theme.css"
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.20.0/theme/mco-theme.css"
       integrity="sha384-rTNAIEwih+PJn5SGoJzoje2bripU+o+3w0inaxaQR0SLZk26fqH4D+7AbFO7MhgS" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.19.0/core/mco-core.js"
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.20.0/core/mco-core.js"
         integrity="sha384-p1xp/8iMEAyKW2P1ALbBQFZhoRVU5y1PYVkBd4wBM5LlNAEsz90nbkbLr/4tZ5RP" crossorigin="anonymous"></script>
 ```
 
@@ -126,7 +126,7 @@ A consumer's unit tests (vitest, `node:test`) use the same pinned bytes the
 page loads, not a copy. The kit has no package, so:
 
 1. Fetch the pinned files once, for example
-   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.19.0/core/mco-core.js`
+   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.20.0/core/mco-core.js`
    and `…@0.19.0/photos/mco-photos.js`, into a cache directory, and check
    each against the `integrity` hash your `index.html` pins (sha384, base64)
    before using it. A mismatch fails the run.
@@ -179,12 +179,12 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.19.0
+## SRI hashes — v0.20.0
 
 ```
 theme/mco-theme.css      sha384-rTNAIEwih+PJn5SGoJzoje2bripU+o+3w0inaxaQR0SLZk26fqH4D+7AbFO7MhgS
 core/mco-core.js         sha384-p1xp/8iMEAyKW2P1ALbBQFZhoRVU5y1PYVkBd4wBM5LlNAEsz90nbkbLr/4tZ5RP
-map/mco-map.js           sha384-BmAbWT508YkXfTenCpVne4+ONoA0HyPeR6qLIt1KxVFXTD+jWtHSWnysuInSQx8t
+map/mco-map.js           sha384-TJcSjq9foMHwQ6wRRemH51xdfWJrZPjD2AVXY697GK17QFtFr+Hp2DdhBmTmw54W
 map/cog-protocol.js      sha384-8KfmwSk9894unD1VJPQLo2DlTUp7+wLpl0ViJpo2LYG1J61nyqQ4twyvubpHLaeY
 palette/mco-palette.js   sha384-nmQlqM0DO86ApUoiACDt0cl/bUjemVhSUytRow9vdP1ydxnXGamD81mumft3n41L
 photos/mco-photos.js     sha384-VepbbKE6CKKljLPjOlw1TATvqOZH73WIWtFXmpSR5RAgYVEphm1rE2fkGa+vK17C
