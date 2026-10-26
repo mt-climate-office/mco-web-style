@@ -725,6 +725,10 @@ boundary needs an outline on light basemaps.
   keyless, data stays the primary read). Other providers via
   `MCO.map.themedStyleUrl({dark, light})` — **API keys live in the consuming
   app, never in shared code**, and must be domain-restricted at the provider.
+  CARTO's tiles are OSM data frozen for weeks per build, so OSM vandalism
+  outlives its revert. `MCO.map.LABEL_CORRECTIONS` (applied by
+  `watchBasemap`) rewrites a known-bad label exactly; add an entry and ship
+  a patch when it happens.
 - Controls: `MCO.map.addNavigation` (no compass — rotation is off in these
   apps), `MCO.map.addFitControl` fused into the same group,
   `MCO.map.installZoomFloor` so the region always fills the viewport. Since

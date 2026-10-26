@@ -8,6 +8,25 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.20.0] — 2026-10-26
+
+MINOR: map only. Theme, core, cog, palette, photos, places, summary and the
+anti-flash snippet are byte-identical to 0.19.0, so their SRI hashes are
+unchanged.
+
+### Added
+- **Basemap label corrections.** OpenStreetMap vandalism renamed Townsend
+  "Fuck Townsend". OSM reverted it within minutes, but CARTO's tile build
+  `20261001-03` still carries it and was showing it on every MCO map.
+  `MCO.map.LABEL_CORRECTIONS` maps a bad label to its correct text, exact
+  whole-label matches only. `MCO.map.correctBasemapLabels(map, table?)`
+  rewrites every symbol layer's `text-field` to apply it, keeping each zoom
+  `step` at the top level, and is idempotent.
+- **`watchBasemap()` applies the corrections on every `style.load`** (first
+  load, theme switch, retry). Pass `correctLabels: false` to opt out. A map
+  that loads styles without `watchBasemap` should call
+  `correctBasemapLabels(map)` from its own `style.load` handler.
+
 ## [0.19.0] — 2026-10-25
 
 MINOR: theme, core and the anti-flash snippet. Map, cog, palette, photos,
