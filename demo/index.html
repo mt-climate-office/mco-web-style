@@ -126,6 +126,12 @@
       height: 32px; padding: 0 0.5rem; font: inherit; font-size: 0.78rem;
     }
     @media (hover: none) { .demo-select { height: 40px; } }
+    /* Bar controls (0.21.0). An app's own control in the bar takes
+       --control-h too. The sample bar sits under the sticky one. */
+    .mco-navbar .demo-select { height: var(--control-h); }
+    .demo-bar { z-index: auto; isolation: isolate; border-radius: var(--radius-md); }
+    .demo-bar-step { display: flex; align-items: center; gap: var(--space-2); }
+    .demo-bar-readout { font-family: var(--font-mono); font-size: var(--fs-sm); min-width: 3.5rem; text-align: center; }
     .demo-place-search { display: flex; width: 100%; }
     .demo-place-search .mco-search-input { flex: 1; min-width: 0; }
     .demo-place-title { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
@@ -154,8 +160,11 @@
 
 <!-- is-sticky (0.10.0): this page scrolls, so the bar stays put.
      data-rail (0.10.0): on a landscape phone it becomes a left rail, and
-     .mco-nav-drawer holds the rest (MCO.initNavRail). -->
-<header class="mco-navbar is-sticky" data-rail>
+     .mco-nav-drawer holds the rest (MCO.initNavRail).
+     data-rail="compact" (0.21.0): on a portrait phone too, as ONE row
+     (☰ · logo · the day stepper · search), with .mco-nav-drawer as a left
+     drawer under it. -->
+<header class="mco-navbar is-sticky" data-rail="compact">
   <a href="https://climate.umt.edu" target="_blank" rel="noopener noreferrer"
      class="logo-link" aria-label="Montana Climate Office">
     <img class="logo-img" src="../assets/mco-logo.png" alt="" width="40" height="40">
@@ -164,6 +173,18 @@
     <button type="button" class="nav-btn icon-only" id="btn-rail-menu" aria-label="Menu"
             aria-controls="nav-drawer" aria-expanded="false">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <!-- A hot control (0.21.0): steps the Controls card's date. -->
+    <button type="button" class="nav-btn mco-step" id="rail-step-prev" aria-label="Previous day">‹</button>
+    <button type="button" class="nav-btn mco-step" id="rail-step-next" aria-label="Next day">›</button>
+    <!-- Last in .mco-rail: the compact bar's search button opens the drawer
+         on the field (MCO.initNavRail's search option). -->
+    <button type="button" class="nav-btn icon-only mco-search-toggle" id="btn-search-toggle"
+            aria-expanded="false" aria-controls="nav-drawer" aria-label="Search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
     </button>
   </div>
   <div class="nav-divider" aria-hidden="true"></div>
@@ -174,9 +195,9 @@
   </div>
 
   <div class="controls">
-    <!-- Search combobox (MCO.initSearchBox) over the 56 counties. Below 640px
-         it collapses into .mco-search-toggle and reopens as an overlay bar
-         (MCO.initSearchCollapse). -->
+    <!-- Search combobox (MCO.initSearchBox) over the 56 counties. In this
+         compact bar it moves into the drawer below 640px; the collapsing
+         field (MCO.initSearchCollapse) is in the "Bar controls" section. -->
     <div class="mco-search mco-search-collapse" id="search-wrap">
       <span class="mco-search-icon" aria-hidden="true"></span>
       <label for="demo-search" class="sr-only">Search counties</label>
@@ -204,14 +225,8 @@
   </div>
 
   <div class="nav-meta">
-    <span class="refresh-status"><span class="dot" aria-hidden="true"></span><span>demo live</span></span>
-    <button type="button" class="nav-btn icon-only mco-search-toggle" id="btn-search-toggle"
-            aria-expanded="false" aria-controls="search-wrap" aria-label="Search">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-    </button>
+    <!-- MCO.formatUpdatedMT (0.21.0) fills the text span. -->
+    <span class="refresh-status"><span class="dot" aria-hidden="true"></span><span id="demo-updated">Updated</span></span>
     <button type="button" class="nav-btn" id="btn-toast" aria-label="Show a toast">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
       <span class="btn-label">Toast</span>
@@ -532,10 +547,63 @@
   <section class="demo-section">
     <h2>Modal</h2>
     <p>Native <code>&lt;dialog class="mco-modal"&gt;</code> wired by <code>MCO.initInfoModal</code>:
-       backdrop click closes, focus returns to the opener. The ? button in the navbar opens it too.</p>
+       backdrop click closes, focus returns to the opener. The ? button in the navbar opens it too.
+       Open puts focus on the close button (0.21.0). The <code>intro</code> option (0.21.0) opened it
+       on your first visit to this page without a query string; any query string counts as a deep link
+       here, so the audit's <code>?theme=</code> runs never see it.</p>
     <div class="demo-row">
       <button type="button" class="nav-btn is-primary" id="btn-modal">Open modal</button>
       <button type="button" class="nav-btn is-primary" disabled>Primary, disabled</button>
+      <button type="button" class="nav-btn" id="btn-intro-reset">Forget the intro and reload</button>
+    </div>
+  </section>
+
+  <!-- ── Bar controls (0.21.0) ─────────────────────────────────────────────
+       Self-contained: one control height in a bar, the freshness stamp, and
+       the collapsing search field (MCO.initSearchCollapse). -->
+  <section class="demo-section">
+    <h2>Bar controls</h2>
+    <p>Inside <code>.mco-navbar</code> every control stands <code>--control-h</code>: 34px, 40px on touch.
+       A button, a segmented group, chips, a stepper and the search field, side by side. The stamp is
+       <code>MCO.formatUpdatedMT</code> for a feed last updated yesterday; at 1400px and below the bar
+       hides the word "Updated" (still read). Below 640px the search field collapses to its button
+       (<code>MCO.initSearchCollapse</code>).</p>
+    <div class="mco-navbar demo-bar" role="group" aria-label="Sample bar">
+      <div class="controls">
+        <button type="button" class="nav-btn" id="bar-share" aria-label="Copy link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+          <span class="btn-label">Copy link</span>
+        </button>
+        <div class="seg-btns" role="group" aria-label="Period">
+          <button type="button" class="nav-btn seg-btn" data-bar-period="24h" aria-pressed="true">Day</button>
+          <button type="button" class="nav-btn seg-btn" data-bar-period="7d" aria-pressed="false">Week</button>
+          <button type="button" class="nav-btn seg-btn" data-bar-period="30d" aria-pressed="false">Month</button>
+        </div>
+        <div class="mco-chips" role="group" aria-label="Layers">
+          <button type="button" class="mco-chip" data-bar-chip aria-pressed="true">Stations</button>
+          <button type="button" class="mco-chip" data-bar-chip aria-pressed="false">Counties</button>
+        </div>
+        <div class="demo-bar-step" role="group" aria-label="Hour">
+          <button type="button" class="nav-btn mco-step" id="bar-step-prev" aria-label="Previous hour">‹</button>
+          <span class="demo-bar-readout" id="bar-hour" role="status"></span>
+          <button type="button" class="nav-btn mco-step" id="bar-step-next" aria-label="Next hour">›</button>
+        </div>
+        <div class="mco-search mco-search-collapse" id="bar-search-wrap">
+          <span class="mco-search-icon" aria-hidden="true"></span>
+          <label for="bar-search" class="sr-only">Search the sample bar</label>
+          <input type="search" id="bar-search" class="mco-search-input" placeholder="Search…">
+        </div>
+      </div>
+      <div class="nav-meta">
+        <span class="refresh-status static"><span class="dot" aria-hidden="true"></span><span id="bar-updated">Updated</span></span>
+        <button type="button" class="nav-btn icon-only mco-search-toggle" id="bar-search-toggle"
+                aria-expanded="false" aria-controls="bar-search-wrap" aria-label="Search the sample bar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </section>
 
@@ -870,11 +938,19 @@
   renderVp();
 
   /* ── Modal ───────────────────────────────────────────────────────────── */
+  // intro (0.21.0): once per key, never over a deep link. On this page any
+  // query string counts as one (the audit always passes ?theme=).
+  const INTRO_KEY = 'mco-websty-demo-intro';
   const modal = MCO.initInfoModal({
     dialog: document.getElementById('info-modal'),
     trigger: document.getElementById('btn-info'),
+    intro: { key: INTRO_KEY, skip: location.search.length > 1 },
   });
   document.getElementById('btn-modal').addEventListener('click', modal.open);
+  document.getElementById('btn-intro-reset').addEventListener('click', () => {
+    try { localStorage.removeItem(INTRO_KEY); } catch (e) {}
+    location.href = location.pathname;
+  });
 
   /* ── Tooltip ─────────────────────────────────────────────────────────── */
   const tooltip = document.getElementById('tooltip');
@@ -1094,6 +1170,9 @@
       if (!f) return;
       currentCounty = id;
       MCO.announce(`${f.properties.NAME} selected.`);
+      // Rail or compact drawer: the choice is made, so the drawer goes and
+      // focus returns to the button that opened it (nothing opens next here).
+      if (rail.isOpen()) rail.close();
       if (map) {
         const pts = f.geometry.coordinates.flat(f.geometry.type === 'MultiPolygon' ? 2 : 1);
         const lngs = pts.map((p) => p[0]), lats = pts.map((p) => p[1]);
@@ -1102,35 +1181,68 @@
       }
     },
   });
-  // Collapsible search (MCO.initSearchCollapse) — narrow the window below
-  // 640px and the field becomes the magnifier button in .nav-meta.
-  const searchCtl = MCO.initSearchCollapse({
-    wrap: document.getElementById('search-wrap'),
-    toggle: document.getElementById('btn-search-toggle'),
-    input: demoSearchInput,
-    onClose: searchBox.close,
-  });
-  // Esc unwinds one layer at a time: the combobox consumes the first presses
-  // (preventDefault), then this closes the overlay. '/' opens it when
-  // collapsed, focuses it otherwise.
-  demoSearchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !e.defaultPrevented && searchCtl.isOpen()) searchCtl.close();
-  });
+  // The navbar is a compact bar (0.21.0): below 640px the field lives in the
+  // drawer and the bar's search button opens the drawer on it, so '/' does
+  // the same in rail or drawer mode and focuses the field otherwise.
   window.addEventListener('keydown', (e) => {
     if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     e.preventDefault();
-    if (rail.isRail()) rail.open(demoSearchInput);
-    else if (searchCtl.isCollapsed()) searchCtl.open();
+    if (rail.isRail() || rail.isDrawerMode()) rail.open(demoSearchInput);
     else { demoSearchInput.focus(); demoSearchInput.select(); }
   });
 
   // Short-landscape rail (MCO.initNavRail): rotate a phone, or try 750×342.
+  // data-rail="compact" (0.21.0) adds the portrait-phone drawer: try 390×844.
   const rail = MCO.initNavRail({
     toggle: document.getElementById('btn-rail-menu'),
     drawer: document.getElementById('nav-drawer'),
     scrim: document.getElementById('rail-scrim'),
+    search: { toggle: document.getElementById('btn-search-toggle'), input: demoSearchInput },
+  });
+
+  // The bar's hot control: the Controls card's day stepper, again.
+  const railStep = MCO.initStepper({
+    prev: document.getElementById('rail-step-prev'), next: document.getElementById('rail-step-next'),
+    onStep: (d) => { demoDate = MCO.shiftDate(demoDate, d); showDate(); MCO.announce(readout.textContent); },
+    canStep: (d) => (d < 0 ? demoDate > minDate : demoDate < MCO.todayMT()),
+  });
+  ['step-prev', 'step-next'].forEach((id) =>
+    document.getElementById(id).addEventListener('click', () => railStep.refresh()));
+
+  // Freshness stamp (0.21.0): today's form in the navbar...
+  MCO.formatUpdatedMT(Date.now(), { into: document.getElementById('demo-updated') });
+
+  /* ── Bar controls (0.21.0) ───────────────────────────────────────────── */
+  // ...and the other-day form in the sample bar ("Updated Nov 2, 2:45 PM MST").
+  MCO.formatUpdatedMT(Date.now() - 26 * 3600e3, { into: document.getElementById('bar-updated') });
+  document.querySelectorAll('[data-bar-period]').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-bar-period]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    MCO.announce(`Period: ${b.textContent}.`);
+  }));
+  document.querySelectorAll('[data-bar-chip]').forEach((b) => b.addEventListener('click', () => {
+    b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+  }));
+  let barHour = MCO.currentHourMT();
+  const barHourEl = document.getElementById('bar-hour');
+  const showBarHour = () => { barHourEl.textContent = MCO.pad2(barHour) + ':00'; };
+  MCO.initStepper({
+    prev: document.getElementById('bar-step-prev'), next: document.getElementById('bar-step-next'),
+    onStep: (d) => { barHour += d; showBarHour(); },
+    canStep: (d) => (d < 0 ? barHour > 0 : barHour < 23),
+  });
+  showBarHour();
+  // Collapsible search (MCO.initSearchCollapse): below 640px the field
+  // becomes the magnifier button and reopens as an overlay bar; Esc closes it.
+  const barSearchInput = document.getElementById('bar-search');
+  const barSearch = MCO.initSearchCollapse({
+    wrap: document.getElementById('bar-search-wrap'),
+    toggle: document.getElementById('bar-search-toggle'),
+    input: barSearchInput,
+  });
+  barSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !e.defaultPrevented && barSearch.isOpen()) barSearch.close();
   });
 
   // Everything above is wired: lift the first-paint hold (MCO.ready).

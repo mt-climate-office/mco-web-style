@@ -136,6 +136,17 @@ and where the data comes from. Footers and exports credit
 everywhere. Pages with room carry a `.mco-footer`. Full-viewport map apps put
 the credit in the info modal's Data section and their exports instead.
 
+**The info modal outline** (0.21.0). Every app's info modal has the same
+shape, so a visitor who has read one knows where to look in the next:
+
+- **Heading:** the app's brand title, the same words as `.brand-title`.
+- **Sections, in order:** *What this shows* · *How to use it* · *Share or
+  bookmark* · *Data*. Each is an `.info-section` with an `<h3>`. Leave out a
+  section with nothing true to say, but don't rename or reorder them.
+- **Data** names the sources and ends with the credit line from
+  `MCO.credit({source})`, never hand-typed.
+- Keyboard shortcuts and `?kbd=off` (§5.9) go under *How to use it*.
+
 ---
 
 ## 2. Tokens
@@ -239,6 +250,15 @@ variant), segmented groups `.seg-btns > .seg-btn`, info button `.mco-btn-info`.
 `--accent` with `--text-on-accent`. Never hand-roll `color: #fff` on the
 accent, which is 2.2:1 in high contrast.
 
+**One control height in the bar** (0.21.0). Inside `.mco-navbar` and its
+nav drawer, every control stands `--control-h`: 34 px, and 40 px under
+`(hover: none)`. That covers `.nav-btn` (steppers included), `.seg-btn`,
+`.mco-chip` and `.mco-search-input`. Before 0.21.0 they were 34, 30, 28 and
+32 px, so a bar that mixed them read as four sizes. An app's own control in
+the bar (a `<select>`, a date input) takes `height: var(--control-h)` too.
+Outside the bar, chips, segmented buttons and legend rows keep their own,
+smaller sizes. The bar stays 52 px min-height.
+
 **The website's section links are the second exception** (decided
 2026-10-24, website decision D21). `climate.umt.edu` is a long-form public
 site that sits above the kit (its `docs/VISUAL-SYSTEM.md`), not an
@@ -256,7 +276,8 @@ it. A sticky bar costs height on every screen of the page, so on compact it
 must stay **one row** (≤ 64 px): put the view tabs and the overflow controls
 in an `MCO.initDrawer` drawer, or shed labels to icon-only buttons, rather
 than letting the bar wrap. Two rows (the dashboard's 92 px at 390 px) is 11%
-of a phone screen, permanently. Full-viewport map apps keep the in-flow bar.
+of a phone screen, permanently. Full-viewport map apps keep the in-flow bar,
+and on a phone it is one row too (the compact drawer, below).
 
 The lockup is 12 px title / 11 px subtitle (0.10.0). Don't shrink it to buy
 a row: shed controls into a drawer or the rail instead.
@@ -280,10 +301,11 @@ controls must use a tier.
 
 | Width | What sheds |
 |---|---|
-| ≤ 1400px | button/control text labels (`.btn-label`, `.control-label`) — the buttons then square to 34px (40px on touch) so they match `.icon-only` neighbours; `.mco-btn-info` keeps its circle |
+| ≤ 1400px | button/control text labels (`.btn-label`, `.control-label`) — the buttons then square to 34px (40px on touch) so they match `.icon-only` neighbours; `.mco-btn-info` keeps its circle; the word "Updated" in `.refresh-status` (visually; the time stays, 0.21.0) |
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
+| compact, not short landscape | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, ☰ · logo · hot controls · search; the rest in a left drawer |
 | height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px left column; also compact |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
@@ -297,19 +319,14 @@ shipped exactly that, with a nameless date input and time select at every width
 below 1400 px, until v0.5.1. **Run axe at a narrow viewport, not just at desktop:**
 a shed label is invisible to a 1440 px-only audit.
 
-The brand collapse at ≤750 px is a default, not a mandate: an app whose navbar
-wraps to extra rows instead (mesonet-status) may opt out — note the choice in a
-comment. Opting out takes **two** rules, because the kit hides the lockup and
-the divider separately:
-
-```css
-/* kit-override: branding at all widths */
-@media (max-width: 750px) {
-  .mco-navbar .brand { position: static; width: auto; height: auto;
-                       margin: 0; clip: auto; overflow: visible; }
-  .mco-navbar > .nav-divider { display: block; }
-}
-```
+The brand collapse at ≤750 px is the rule for map tools (0.21.0). A
+full-viewport map tool's phone bar is one row (the compact drawer, below),
+so it no longer opts out of the collapse to keep its branding by wrapping;
+the brand moves into the drawer instead. The earlier opt-out (restoring the
+lockup and the divider at ≤750 px, mesonet-status's old override) is retired
+for map tools. The website and the station dashboard are not map tools and
+keep their recorded exceptions (the website's in §1 and above; the
+dashboard's in CONSUMERS.md).
 
 The lockup is *visually* hidden, not removed, so the brand title may be the
 page's `<h1>` (status does this; good for document outline) as long as it
@@ -339,6 +356,7 @@ flash a wrong state (a default view before URL state is applied). Never hold
 | Flyout: search list, menu | `MCO.initSearchBox` | no | 2 |
 | Bottom sheet, full detent (compact) | `MCO.initSheet` | yes: rest of page inert | 3 |
 | Off-canvas drawer | `MCO.initDrawer` (`.mco-drawer`) | yes on compact: rest inert | 4 |
+| Nav drawer (rail, compact drawer) | `MCO.initNavRail` (`.mco-nav-drawer`) | yes: rest inert, ☰ live | 4 |
 | Sheet at peek / end-docked | `MCO.initSheet` | no; the map stays usable | 5 |
 | Map popup | `MCO.map.popupContent` | no | 6 |
 | Cursor tooltip | `MCO.map.initCursorTooltip` | decoration (`aria-hidden`) | n/a |
@@ -374,8 +392,9 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   ladder only.** A bar that needs 1200 or 1280 sheds at a ladder rung, never
   at its own number.
   - **When one row can't fit at 1060, shed at 1400** (decided 2026-10-09):
-    segmented → select, search narrowed, `.refresh-status` to its dot. The
-    bar must be one row from 1061 to 1440. status (~1185 px), umrb (~1200)
+    segmented → select, search narrowed, and `.refresh-status` down to its
+    dot and time (the kit drops the word "Updated" visually there, 0.21.0;
+    §4 *Freshness stamp*). The bar must be one row from 1061 to 1440. status (~1185 px), umrb (~1200)
     and maintenance (~1290) all shed there.
   - **Focus across the fallback** works only if the kit's `[hidden]` is what
     hides the losing side. An app rule that also hides the wrapper at that
@@ -400,11 +419,11 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   back to the button on close, and the app keeps control of Esc precedence and
   of its own `/` shortcut. Hiding search outright strands the only keyboard
   route to a named feature — don't.
-- **A control-dense bar still wraps on a phone even with search collapsed.** The
-  sanctioned next step is relocating `.controls` into an off-canvas drawer
-  (`.mco-scrim`, `--z-drawer`). mesonet-status is the natural first kit consumer
-  of that — deferred 2026-08-04 as its own design pass rather than riding along
-  on a breakpoint change.
+- **A control-dense bar still wraps on a phone even with search collapsed.**
+  For a full-viewport map tool the answer is the **compact drawer** below
+  (0.21.0): the bar stays one row and `.controls` move into a left drawer.
+  An app-specific drawer (`MCO.initDrawer`) remains the answer for panels
+  that are not the bar's own controls.
 
   mesonet-explorer is the working reference for the *pattern*. A scrim that
   should dim the map but not the navbar above it is
@@ -436,6 +455,39 @@ it.
 - **Don't hide a drawer with `visibility`.** A child with its own transition
   flips a frame late, and `focus()` in the same task silently fails. The kit
   uses `display: none` plus `@starting-style`.
+
+**The one-row phone bar** (0.21.0). On a phone, a full-viewport map tool's
+bar is **one row, ≤ 64 px**, at every compact size: the rail at short
+landscape, the compact drawer everywhere else. It never wraps to a second
+row. The opt-in is `data-rail="compact"` on `.mco-navbar`, which keeps the
+rail and adds the drawer. Plain `data-rail` still means the rail alone.
+- **The row, left to right:** ☰ (the first child of `.mco-rail`, moved to
+  the left edge), the logo badge (it stays), the rest of `.mco-rail` (one or
+  two hot controls, in a row), and `.mco-search-toggle` (the last child of
+  `.mco-rail`, at the right edge). The same `.mco-rail` children make the
+  column at short landscape, where the search button hides because the
+  field sits in the drawer.
+- **Everything in `.mco-nav-drawer`** (brand, `.controls`, `.nav-meta`)
+  opens as a left drawer under the bar. The kit undoes the bar's sheds
+  there, so the lockup, button labels, the "Updated" word and
+  `.refresh-status` (hidden in the bar ≤ 640 px) all show.
+- **`MCO.initNavRail`** runs both modes on one contract. While the drawer is
+  open, the page and the rest of the bar are inert, and only ☰ stays live.
+  Esc, the scrim or ☰ close it, and focus returns to the button that opened
+  it. `isDrawerMode()` tells the app which mode it is in, and `open()` works
+  in both.
+- **Search:** pass `search: {toggle, input}`. The bar's search button then
+  opens the drawer on the field. Don't also give that button to
+  `MCO.initSearchCollapse`, because a compact bar never shows the overlay
+  field. The `/` shortcut checks `rail.isRail() || rail.isDrawerMode()` and
+  calls `rail.open(input)`.
+- **Hot controls** are actions the visitor repeats on the map, such as a
+  date stepper. They are at full control height (`--control-h`), and they
+  also exist in the drawer or the desktop bar, because `.mco-rail` is
+  hidden above compact.
+
+The website and the station dashboard are not full-viewport map tools and
+keep their own recorded bar exceptions.
 
 **Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
 property, never `gap` directly: the brand lockup's divider margin is derived
@@ -508,7 +560,29 @@ via `MCO.initInfoModal`: backdrop click closes, focus returns to the opener.
 First-visit info modals auto-open once, gated by an app-prefixed localStorage
 key, **and never once the visitor has started using the page** (focus has
 moved off `<body>`). An auto-open that lands after the map loads otherwise
-yanks focus from someone already tabbing (WCAG 3.2.1/3.2.2). **`?export=` convention**: a URL param that forces a theme and triggers
+yanks focus from someone already tabbing (WCAG 3.2.1/3.2.2). Use
+`MCO.initInfoModal({…, intro: {key: 'mco-<app>-intro', skip}})` (0.21.0)
+rather than a hand-rolled check. **Never over a deep link:** `skip` is true
+when the URL names a view (a station, a date, a layer), because a visitor
+who followed a shared link came for that view, and the app knows its own
+params. The kit writes the seen flag as the dialog opens, not on close (umrb
+wrote it on close, so a visitor who left without closing saw it every time).
+It stands down when storage is unavailable, and it never opens over another
+dialog or a blocking overlay. Pass `defer: true` and call `modal.intro()` to
+run it later, after the map loads, under the same rules. Every open, from
+the trigger or the intro, puts focus on the dialog's close button.
+
+**Freshness stamp** (0.21.0). A view's "last updated" reads one way
+everywhere: **"Updated 2:45 PM MST"** when it is today in Mountain time,
+**"Updated Nov 2, 2:45 PM MST"** on any other day. Build it with
+`MCO.formatUpdatedMT(ms)`, never by hand. The time is the **data's** time
+(the newest observation in the feed). Use the fetch time only when the feed
+carries none. In the bar it goes in `.refresh-status`, with the text span
+filled by `MCO.formatUpdatedMT(ms, {into: span})`:
+`<span class="refresh-word">Updated</span> <time datetime="…">2:45 PM MST</time>`.
+At ≤ 1400 px the kit hides "Updated" visually, so the stamp shrinks to its
+dot and time and screen readers still hear the whole phrase. No "as of",
+"Last refresh", or "Data through" variants. **`?export=` convention**: a URL param that forces a theme and triggers
 the app's export path — keeps branded-PNG generation headless-scriptable.
 
 **Station photos** (0.14.0; full history 0.15.0) come from `MCO.photos`, which reads the camera
@@ -626,6 +700,12 @@ themes.
    visual state. Pair with swapped `aria-label`s where the action inverts.
    A tab that is a **link** to a view is not a toggle: it carries
    `aria-current="page"`, which `.nav-btn` styles the same way (0.10.0).
+   **On/off filters and layers are chips** (0.21.0): every independent on/off
+   filter or map layer is a `.mco-chip[aria-pressed]`, in the bar or out of
+   it, so a pressed chip always means "this is showing". **Actions are
+   `.nav-btn`**: share, export, step, open a panel. A single choice among
+   several is a segmented group (`.seg-btns`, radio when it fits), not
+   chips. A legend's own on/off list stays legend rows (next).
    **Legend rows** are `.mco-legend-row` buttons wired by
    `MCO.initLegendToggles` (0.8.0). "Off" dims the swatch and strikes the label
    through. **Never put opacity on the row**: parent opacity composites the
