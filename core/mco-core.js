@@ -1395,8 +1395,9 @@
 
   /* ── Bottom sheet (0.9.0) ──────────────────────────────────────────────────
      The detail surface on compact viewports, lifted from mesonet-explorer's
-     field-proven panel: below compact it docks at the bottom with peek/full
-     detents; above, it docks at the end edge, full height (dock: 'compact').
+     field-proven panel: on compact it docks at the bottom with peek/full
+     detents; above compact, it docks at the end edge, full height. There is
+     no dock option: MCO.viewport.isCompact() decides, live across resizes.
 
        <section class="mco-sheet" id="sheet" aria-labelledby="sheet-title" data-state="closed" hidden>
          <div class="mco-sheet-head">

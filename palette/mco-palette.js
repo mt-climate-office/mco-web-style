@@ -235,7 +235,11 @@
      (.mco-legend-swatch). From the dashboard's registry (roles.ts
      NETWORK_COLOR / NETWORK_SHAPE): Tol bright blue / vibrant orange /
      vibrant teal. AgriMet's #EE7733 is 2.87:1 on white, so light darkens it to
-     #CC6622. Data-encoding (§6). */
+     #CC6622. Data-encoding (§6).
+     DEPRECATED for station markers (0.21.0): markers no longer encode the
+     network (MCO.map.stationPaint draws every station alike), so `shape` and
+     the per-network marker `color` only feed the deprecated
+     MCO.map.markerPaint. Kept, unchanged, until 1.0.0. `label` stays current. */
   var NETWORK_SHAPE = { hydromet: 'circle', agrimet: 'hollow', cooperator: 'ring' };
   var NETWORK_COLOR = {
     dark: { hydromet: '#4477AA', agrimet: '#EE7733', cooperator: '#009988' },

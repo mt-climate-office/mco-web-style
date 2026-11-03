@@ -56,7 +56,7 @@ for (const engine of BROWSERS) {
   const browser = await ENGINES[engine].launch(engine === 'chromium'
     ? { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } : {});
   const themes = ['dark', 'light', 'high-contrast'];
-  const pages = ['/demo/', '/exemplar/'];
+  const pages = ['/demo/', '/demo/colocation.html', '/exemplar/'];
   // Wide: everything shown. Narrow: past every shed in the ladder (labels, brand,
   // search) — where a display:none'd label silently costs an input its name.
   const viewports = [

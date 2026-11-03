@@ -357,8 +357,8 @@ flash a wrong state (a default view before URL state is applied). Never hold
 | Bottom sheet, full detent (compact) | `MCO.initSheet` | yes: rest of page inert | 3 |
 | Off-canvas drawer | `MCO.initDrawer` (`.mco-drawer`) | yes on compact: rest inert | 4 |
 | Nav drawer (rail, compact drawer) | `MCO.initNavRail` (`.mco-nav-drawer`) | yes: rest inert, ☰ live | 4 |
-| Sheet at peek / end-docked | `MCO.initSheet` | no; the map stays usable | 5 |
-| Map popup | `MCO.map.popupContent` | no | 6 |
+| Sheet at peek / end-docked; **station detail at every width** | `MCO.initSheet` | no; the map stays usable | 5 |
+| Map popup, non-station features only (a reservation, a county) | `MCO.map.popupContent` | no | 6 |
 | Cursor tooltip | `MCO.map.initCursorTooltip` | decoration (`aria-hidden`) | n/a |
 
 Open moves focus in, and close returns it to the opener (or `#main` if the
@@ -366,6 +366,12 @@ opener is gone). A drawer is a labelled `<aside>`, not `role=dialog`: while
 modal-open it makes everything else `inert`, so no focus trap is needed. Inert
 roots are reference-counted, and live regions and the toast are never inerted.
 Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
+
+**Station detail is `MCO.initSheet` at every width** (0.21.0): end-docked
+above compact, a bottom sheet on compact. A station never opens an anchored
+popup; popups remain for non-station features. **`?station=` always opens
+the sheet via `MCO.map.flyToAndOpen`, and Back closes it** (push on the first
+open from a no-detail state, replace while it stays open; §4).
 
 **Mobile patterns** (kit components since 0.9.0, after mesonet-explorer):
 - Off-canvas drawer: `.mco-drawer` + `MCO.initDrawer({modal: 'compact'})`,
@@ -378,8 +384,8 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   lifts with it; otherwise the corner's attribution rides up over the panel.
   Before turning on `mco-autolift`, mark every bottom-docked panel. The lift
   stops 8px below the top of the element's container (0.13.1), so in the
-  short-landscape rail a tall panel should collapse rather than ride up. On compact,
-  status, maint and umrb open this instead of the anchored popup.
+  short-landscape rail a tall panel should collapse rather than ride up.
+  Station detail opens here at every width (above).
 - Full-viewport apps use `100dvh` (never `100vh`) and `overflow: hidden` on body.
 - **`viewport-fit=cover` is required** for the safe-area insets in the kit CSS
   to be live — without the meta, `env()` silently resolves to 0 (two apps
@@ -768,10 +774,13 @@ dashboard's exactly):
 CI gates every span. **Roles stay app-local**: "air temperature is rose" is
 domain knowledge. Each app keeps **one role registry**, with per-theme values
 and a contrast test, as the dashboard's `roles.ts` does. The one cross-app role
-set is the station networks, `MCO.palette.NETWORK` / `network(name, theme)`:
-**network = shape + color, data value = fill.** HydroMet is a filled circle,
-AgriMet a hollow circle, and Cooperator a ring, so the network survives
-grayscale. The legend swatch uses the same `data-shape`.
+set is the station networks, `MCO.palette.NETWORK` / `network(name, theme)`.
+**Station markers carry no network encoding** (Kyle, kit 0.21.0):
+HydroMet and AgriMet draw the same, and the marker's fill is free for the
+data value. Networks are filters (chips) and detail text (the sheet, the
+tooltip, the sr-table twin), never a marker shape or ring. The palette's
+per-network `shape` and marker `color` are deprecated with
+`MCO.map.markerPaint` (kept working until 1.0.0); `label` is current.
 
 Known issues in fielded palettes (fix on migration, tracked in CONSUMERS.md):
 the status map's roma-sampled bins put its two semantic extremes at nearly the
@@ -849,21 +858,36 @@ boundary needs an outline on light basemaps.
   (dashed, appears at z9 — pale orange on Positron) in `addCustomLayers()`:
   `map.setLayoutProperty('boundary_county', 'visibility', 'none')` — otherwise
   the map shows two county treatments above zoom 9.
-- **Station markers** (0.9.0): **network = shape + color, data value =
-  fill**. `MCO.map.markerPaint(network)` draws HydroMet as a filled circle,
-  AgriMet as a hollow one and Cooperator as a ring, in
-  `MCO.palette.NETWORK` colors. The legend swatch uses the same `data-shape`.
-  The selected station ring is `MCO.map.selectionPaint()` (`--selection-ring`
-  read at paint time, never a literal). Keyboard focus is
-  `MCO.map.focusPaint()` (`--accent-line`, distinct from selection). Add an
-  invisible `MCO.map.hitPaint()` layer (≥ 22 px across) as the click/tap
-  target.
-- **Co-located stations**: up to 3 merge into one feature with an outer ring
-  in the second network's color (`MCO.map.colocatedHaloPaint`). A click
-  cycles through them and announces “1 of 2: Bozeman AgriMet”; the keyboard
-  path is the selectable sr-table twin. Dense clusters keep the app's badge +
-  spider. The badge is `--text-on-accent` on `--accent`, and the spider closes
-  on Esc.
+- **Station markers** (0.21.0): **no network encoding.** Every station is
+  `MCO.map.stationPaint({fill, radius, stroke, strokeWidth})`, one circle
+  with a `--dot-stroke` edge; `fill` carries the data value. Networks are
+  filter chips and detail text. `MCO.map.markerPaint(network)` (the 0.9.0
+  filled / hollow / ring shapes) and `colocatedHaloPaint` are deprecated and
+  keep working until 1.0.0. The selected station ring is
+  `MCO.map.selectionPaint()` (`--selection-ring` read at paint time, never a
+  literal). Keyboard focus is `MCO.map.focusPaint()` (`--accent-line`,
+  distinct from selection). Add an invisible `MCO.map.hitPaint()` layer
+  (≥ 22 px across) as the click/tap target.
+- **Colocated stations** (0.21.0): stations at one site (lat/lon equal to 4
+  decimals, ~11 m) are **one marker with a count badge and a spider**, through
+  `MCO.map.colocation(map, {source, rank, visible, properties, anchorLayers,
+  spiderLayers, onSelect})`. The anchor is the best-ranked visible member, so
+  hiding a network resolves a pair to a plain dot. The badge
+  (`colocation.badgeLayers`) is `--text-on-accent` on an `--accent` disc.
+  Hover fans the members out around the anchor, with a 250 ms grace so the
+  cursor can reach a foot. A click or tap on the anchor opens the spider and
+  the anchor's sheet, so touch needs no hover. Esc closes the spider. The
+  canvas spider is pointer-only: the keyboard path is the selectable sr-table
+  twin and an "Also at this site" list in the sheet
+  (`coloc.siblings(id)`). The app keeps its own source, properties, paints and
+  sheet.
+- **Fly, then open** (0.21.0): a `?station=` deep link, a search pick and an
+  sr-table row all call `MCO.map.flyToAndOpen(map, {center, zoom,
+  ensureVisible, open, signal})`. It re-enables a hidden network first, opens
+  at once if the station is already in view at the zoom, and otherwise flies
+  (jumps under reduced motion) and opens when the map is idle with the
+  station in view, with a timeout so the detail always opens. Never open on
+  the first `moveend`: it can fire before the camera arrives.
 - **Charts** read chrome from `MCO.chartTokens()` and data colors from
   `MCO.palette`. They listen for `mco:themechange` (fired by `MCO.setTheme`)
   and dispose and re-init on it rather than `setOption`.
