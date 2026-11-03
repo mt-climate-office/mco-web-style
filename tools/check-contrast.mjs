@@ -128,6 +128,177 @@ for (const theme of P.THEMES) {
     if (r < 3) errors.push(`palette: categorical ${c} in ${theme} = ${r.toFixed(2)}:1, needs ≥ 3:1`);
   }
 }
+/* Map category sets (0.21.0): palette CATEGORY_SETS, the station and cell
+   categories of mesonet-status, -maintenance and -umrb-build. Gates, per set
+   and theme (HOUSE-STYLE §6):
+     - all three themes present, with the same keys and labels in order
+     - no color in RESERVED_HUE (the tribal fill's orange/brown family), and
+       the tribal fill itself IS in it (so the band means what it says)
+     - ≥ 3:1 (WCAG 1.4.11) against every ground in grounds(): --bg-deep and
+       --bg-surface from tokens.json, the CARTO land and water below, and the
+       tribal fill composited over land at its opacity, read from
+       map/mco-map.js overlayPaints() for that theme. A cell set
+       (fillOpacity) is measured as its fill composited over land, against
+       land, the tribal fill and the surfaces (a cell covers the water in it).
+     - every pair ≥ CAT_MIN_DE apart in OKLab (ΔE × 100), for normal vision
+       and simulated protan/deutan/tritan (Machado et al. 2009, severity 1,
+       applied in linear sRGB); and every color ≥ CAT_MIN_DE from the raw
+       tribal fill and tribal line colors, in each vision
+     - ordered sets (*-age) are OKLab-lightness-monotonic
+   `--report` prints every measured ratio and the worst pair per vision,
+   for these sets and for the BEFORE sets in demo/palette-proposal.html. */
+// CARTO basemap colors (data reference, not tokens): Dark Matter and Positron
+// style.json, `background`/`landcover` and `water` paint, read 2026-11-03.
+// High contrast loads Dark Matter (mco-map.js isDark()).
+const CARTO = { dark: { land: '#0e0e0e', water: '#2c353c' }, light: { land: '#fafaf8', water: '#d4dadc' } };
+const CAT_MIN_DE = 8;
+const MACHADO = {
+  protan: [0.152286, 1.052583, -0.204868, 0.114503, 0.786281, 0.099216, -0.003882, -0.048116, 1.051998],
+  deutan: [0.367322, 0.860646, -0.227968, 0.280085, 0.672501, 0.047413, -0.01182, 0.04294, 0.968881],
+  tritan: [1.255528, -0.076749, -0.178779, -0.078411, 0.930809, 0.147602, 0.004733, 0.691367, 0.3039],
+};
+const VISIONS = ['normal', 'protan', 'deutan', 'tritan'];
+const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const toHex = (c) => '#' + c.map((v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('');
+const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+const unlin = (v) => 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+const over = (fg, a, bg) => { const f = rgb(fg), b = rgb(bg); return toHex(f.map((v, i) => v * a + b[i] * (1 - a))); };
+function simulate(hex, vision) {
+  if (vision === 'normal') return hex;
+  const v = rgb(hex).map(lin), M = MACHADO[vision];
+  return toHex([0, 1, 2].map((r) => unlin(Math.min(1, Math.max(0, M[3 * r] * v[0] + M[3 * r + 1] * v[1] + M[3 * r + 2] * v[2])))));
+}
+const deltaE = (a, b, vision) => {
+  const x = P.toOklab(simulate(a, vision)), y = P.toOklab(simulate(b, vision));
+  return 100 * Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+};
+
+// overlayPaints() per theme, from map/mco-map.js in a stub DOM.
+const tribalCache = {};
+function tribalPaint(theme) {
+  return (tribalCache[theme] ||= readTribalPaint(theme));
+}
+function readTribalPaint(theme) {
+  const doc = { documentElement: { dataset: { theme } } };
+  const mctx = {
+    document: doc, getComputedStyle: () => ({ getPropertyValue: () => '' }),
+    window: { matchMedia: () => ({ matches: false, addEventListener() {} }) },
+  };
+  mctx.window.document = doc;
+  vm.createContext(mctx);
+  vm.runInContext(readFileSync(join(root, 'map/mco-map.js'), 'utf8'), mctx, { filename: 'mco-map.js' });
+  const o = mctx.window.MCO.map.overlayPaints();
+  return { color: o.tribalFill['fill-color'], opacity: o.tribalFill['fill-opacity'], line: o.tribalLine['line-color'] };
+}
+function grounds(theme) {
+  const tokens = json.themes[THEME_KEY[theme]];
+  const base = CARTO[theme === 'light' ? 'light' : 'dark'];
+  const tribal = tribalPaint(theme);
+  return {
+    '--bg-deep': tokens['--bg-deep'], '--bg-surface': tokens['--bg-surface'],
+    'basemap land': base.land, 'basemap water': base.water,
+    'tribal fill': over(tribal.color, tribal.opacity, base.land),
+    _tribalRaw: [tribal.color, tribal.line],
+  };
+}
+// Measure one set (rows [{key,label,color}], optional fillOpacity) in a theme.
+function measureSet(rows, theme, fillOpacity) {
+  const g = grounds(theme);
+  const shown = (c) => (fillOpacity ? over(c, fillOpacity, g['basemap land']) : c);
+  const out = rows.map((r) => {
+    const ratios = {};
+    for (const [k, bg] of Object.entries(g)) {
+      if (k.startsWith('_') || (fillOpacity && k === 'basemap water')) continue;
+      ratios[k] = P.contrast(fillOpacity ? shown(r.color) : r.color, bg);
+    }
+    return { ...r, ratios, reserved: P.isReservedHue(r.color), lch: P.toOklch(r.color) };
+  });
+  const worst = {};
+  for (const v of VISIONS) {
+    worst[v] = { de: Infinity, a: null, b: null };
+    for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
+      const d = deltaE(shown(rows[i].color), shown(rows[j].color), v);
+      if (d < worst[v].de) worst[v] = { de: d, a: rows[i].key, b: rows[j].key };
+    }
+  }
+  // Closest any color comes to the tribal fill / line hexes, per vision.
+  const nearTribal = {};
+  for (const v of VISIONS) {
+    nearTribal[v] = { de: Infinity, a: null, b: null };
+    for (const r of rows) for (const t of g._tribalRaw) {
+      const d = deltaE(r.color, t, v);
+      if (d < nearTribal[v].de) nearTribal[v] = { de: d, a: r.key, b: t };
+    }
+  }
+  return { rows: out, worst, nearTribal };
+}
+
+const R = P.RESERVED_HUE;
+if (!R || !(R.from < R.to)) errors.push('palette: RESERVED_HUE missing');
+for (const theme of P.THEMES) {
+  const raw = tribalPaint(theme).color;
+  if (!P.isReservedHue(raw)) errors.push(`palette: tribal fill ${raw} (${theme}) is outside RESERVED_HUE — the band no longer covers it`);
+}
+const setNames = Object.keys(P.CATEGORY_SETS || {});
+if (!setNames.length) errors.push('palette: CATEGORY_SETS is empty');
+for (const name of setNames) {
+  const set = P.CATEGORY_SETS[name];
+  const sig = (t) => JSON.stringify((set[t] || []).map((r) => [r.key, r.label]));
+  for (const theme of P.THEMES) {
+    const rows = set[theme];
+    if (!rows || !rows.length) { errors.push(`palette: ${name} has no ${theme} rows`); continue; }
+    if (sig(theme) !== sig('dark')) errors.push(`palette: ${name} ${theme} keys/labels differ from dark`);
+    const copy = P.categorySet(name, theme);
+    if (JSON.stringify(copy) !== JSON.stringify(rows.map((r) => ({ key: r.key, label: r.label, color: r.color })))) errors.push(`palette: categorySet(${name}, ${theme}) does not match CATEGORY_SETS`);
+    if (rows.fillOpacity !== copy.fillOpacity) errors.push(`palette: categorySet(${name}, ${theme}) lost fillOpacity`);
+    if (rows.some((r) => !/^#[0-9a-f]{6}$/.test(r.color))) { errors.push(`palette: ${name} ${theme} has a non-#rrggbb color`); continue; }
+    const m = measureSet(rows, theme, rows.fillOpacity);
+    for (const r of m.rows) {
+      rampChecks++;
+      if (r.reserved) errors.push(`palette: ${name} ${theme} ${r.key} ${r.color} is in the reserved orange/brown hue (h ${r.lch[2].toFixed(0)}°)`);
+      for (const [k, v] of Object.entries(r.ratios)) {
+        rampChecks++;
+        if (v < 3) errors.push(`palette: ${name} ${theme} ${r.key} ${r.color} = ${v.toFixed(2)}:1 on ${k}, needs ≥ 3:1`);
+      }
+    }
+    for (const v of VISIONS) {
+      rampChecks++;
+      const w = m.worst[v];
+      if (w.de < CAT_MIN_DE) errors.push(`palette: ${name} ${theme} ${w.a}/${w.b} ΔE ${w.de.toFixed(1)} (${v}), needs ≥ ${CAT_MIN_DE}`);
+      rampChecks++;
+      const n = m.nearTribal[v];
+      if (n.de < CAT_MIN_DE) errors.push(`palette: ${name} ${theme} ${n.a} is ΔE ${n.de.toFixed(1)} from tribal ${n.b} (${v}), needs ≥ ${CAT_MIN_DE}`);
+    }
+    if (/-age$/.test(name)) {
+      const Ls = rows.map((r) => P.toOklab(r.color)[0]);
+      const up = Ls.every((x, i) => !i || x > Ls[i - 1]), down = Ls.every((x, i) => !i || x < Ls[i - 1]);
+      if (!up && !down) errors.push(`palette: ${name} ${theme} is not lightness-monotonic`);
+    }
+  }
+}
+
+if (process.argv.includes('--report')) {
+  // BEFORE sets: the JSON block in demo/palette-proposal.html (from each app's main).
+  const html = readFileSync(join(root, 'demo/palette-proposal.html'), 'utf8');
+  const before = JSON.parse(/<script type="application\/json" id="before-sets">([\s\S]*?)<\/script>/.exec(html)[1]);
+  const print = (title, rows, theme, fillOpacity) => {
+    const m = measureSet(rows, theme, fillOpacity);
+    console.log(`\n${title} [${theme}]${fillOpacity ? ` (cells at ${fillOpacity} over land)` : ''}`);
+    console.log('  worst pair ΔE: ' + VISIONS.map((v) => `${v} ${m.worst[v].de.toFixed(1)} (${m.worst[v].a}/${m.worst[v].b})`).join(' · '));
+    console.log('  nearest tribal ΔE: ' + VISIONS.map((v) => `${v} ${m.nearTribal[v].de.toFixed(1)} (${m.nearTribal[v].a})`).join(' · '));
+    for (const r of m.rows) {
+      const min = Math.min(...Object.values(r.ratios));
+      console.log(`  ${r.color} h${r.lch[2].toFixed(0).padStart(3)}° ${r.reserved ? 'RESERVED' : '        '} ${r.label.padEnd(28)} ` +
+        Object.entries(r.ratios).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' · ') + `  min ${min.toFixed(2)}${min < 3 ? ' FAIL' : ''}`);
+    }
+  };
+  for (const [name, set] of Object.entries(before)) for (const theme of P.THEMES) {
+    const rows = set.keys.map((key, i) => ({ key, label: set.labels[i], color: set[theme][i] }));
+    print(`BEFORE ${name} (${set.source})`, rows, theme, set.fillOpacity);
+  }
+  for (const name of setNames) for (const theme of P.THEMES) print(`AFTER ${name}`, P.CATEGORY_SETS[name][theme], theme, P.CATEGORY_SETS[name][theme].fillOpacity);
+}
+
 const L = P.sample('batlow', 32).map((c) => P.toOklab(c)[0]);
 if (L.some((v, i) => i > 0 && v <= L[i - 1])) errors.push('palette: batlow is not lightness-monotonic');
 if (Object.keys(P.RAMPS).some((k) => /spectral/i.test(k)) || !P.isBanned('Spectral')) errors.push('palette: Spectral must be absent and banned');

@@ -661,9 +661,13 @@ these rules:
   `Blues`, `PuRd`). **`Spectral` is banned** — it traverses red→green and is
   explicitly not colorblind-safe (it survives in one ramp picker as legacy;
   remove on migration).
-- **MCO's status ramps are Crameri `roma`** (decided 2026-10-09): status and
-  maintenance time-since, umrb's build stages. Take it from
-  `MCO.palette` (`roma`, 0.12.0) rather than pasting hexes.
+- **Station and cell categories come from the named sets** (owner decision,
+  2026-11; supersedes "status ramps are `roma`", 2026-10-09). The map tools'
+  categories (status, health and time-since in mesonet-status; compliance,
+  time-since and trip type in mesonet-maintenance; the build stages in
+  mesonet-umrb-build) take their colors from
+  `MCO.palette.categorySet(name, theme)` (0.21.0), never from pasted hexes
+  or a roma sample. See *Station and cell categories* below.
 - **Diverging ramps require a labeled midpoint** (freezing, 0, 50%). Cyclic
   ramps (`romaO`) only for cyclic quantities (wind direction), labeled N…S…N.
 - **Color is never the sole channel** (WCAG 1.4.1). Redundancy options, in
@@ -684,19 +688,68 @@ dashboard's exactly):
   bars. Diverging and cyclic ramps have no span. They are for fills, with the
   `midpoint` labelled.
 - `categorical(n, theme)`, `contrast()`, and `isBanned('Spectral')`
+- `CATEGORY_SETS` / `categorySet(name, theme)`, `RESERVED_HUE`,
+  `isReservedHue(hex)` and `toOklch(hex)` (0.21.0, below)
 
 CI gates every span. **Roles stay app-local**: "air temperature is rose" is
 domain knowledge. Each app keeps **one role registry**, with per-theme values
-and a contrast test, as the dashboard's `roles.ts` does. The one cross-app role
-set is the station networks, `MCO.palette.NETWORK` / `network(name, theme)`:
+and a contrast test, as the dashboard's `roles.ts` does. Apart from the map
+category sets below, the one cross-app role set is the station networks,
+`MCO.palette.NETWORK` / `network(name, theme)`:
 **network = shape + color, data value = fill.** HydroMet is a filled circle,
 AgriMet a hollow circle, and Cooperator a ring, so the network survives
 grayscale. The legend swatch uses the same `data-shape`.
 
+**Station and cell categories** (0.21.0). Orange and brown belong to the
+tribal-lands fill (`MCO.map.overlayPaints().tribalFill`, OKLCH hue ≈ 63°),
+and nothing else on a map may use them:
+
+- **The reserved band is OKLCH hue 30°–110°** at chroma ≥ 0.04
+  (`MCO.palette.RESERVED_HUE`; `isReservedHue(hex)` tests a color). It runs
+  from red-orange through orange, brown, tan and gold to yellow. Pure red
+  (29°) is outside it, and so is any neutral below 0.04 chroma. No station
+  or cell category uses a color in the band, in any theme. CI also checks
+  that the tribal fill itself is inside it.
+- **Categories come from the named sets**, one per legend:
+  `status-reporting`, `status-health`, `status-age`,
+  `maintenance-compliance`, `maintenance-age`, `maintenance-trip`,
+  `umrb-public` and `umrb-internal`. `categorySet(name, theme)` returns
+  `[{key, label, color}]` in legend order. A cell set also carries
+  `fillOpacity`, the alpha its colors were measured at. A tool that needs a
+  new category changes the kit set, not its own copy.
+- **One vocabulary across the tools**: green is the good end (fresh,
+  operational, visited, Maintenance) and rose the bad end (stale, outage,
+  overdue, Repair, an available cell), with teal, blue and violet between.
+  The age ramps are lightness-monotonic, so they also survive grayscale.
+- **What CI holds every set to** (`tools/check-contrast.mjs`; `--report`
+  prints the table). In each theme, each color clears ≥ 3:1 (WCAG 1.4.11)
+  against `--bg-deep`, `--bg-surface`, the CARTO basemap land and water,
+  and the tribal fill composited over land. A cell set is measured as its
+  fill at `fillOpacity` over land. Every pair in a set stays ≥ 8 apart in
+  OKLab (ΔE × 100), and so does every color from the tribal fill and line,
+  for normal vision and for simulated protanopia, deuteranopia and
+  tritanopia (Machado et al. 2009, severity 1). High contrast takes the
+  dark values, because it loads the dark basemap.
+- **Under red-green CVD the two ends lean warm.** Protanopia and
+  deuteranopia have no red-green axis, so the green and rose ends simulate
+  as pale cream and khaki, nearer the tribal tan than they look to normal
+  vision (deuteranopia: ΔE 8.4 at the closest, against 3.6 for
+  maintenance's old "Overdue"). Lightness and the printed names carry them
+  there.
+- **Category names stay printed.** Every legend row carries its label, and
+  popups name the category in words: tone never stands alone (WCAG 1.4.1).
+  "No record" and "No data" are drawn hollow (a `--dot-stroke` edge, no
+  fill) and are not in the sets.
+- `NETWORK`'s AgriMet orange predates the rule. Network is being retired as
+  a color channel in a separate change, so the rule does not gate it.
+  `categorical()` serves chart series, not map categories.
+- `demo/palette-proposal.html` shows each set before and after, in all three
+  themes and under simulated CVD.
+
 Known issues in fielded palettes (fix on migration, tracked in CONSUMERS.md):
 the status map's roma-sampled bins put its two semantic extremes at nearly the
-same lightness (fresh teal L≈0.20 vs dead red L≈0.14 — indistinguishable in
-grayscale); the snowpack/drought USDM ramp is hue-only by design (D4 drought
+same lightness (fresh teal L≈0.20 vs dead red L≈0.14, indistinguishable in
+grayscale), which `status-age` replaces; the snowpack/drought USDM ramp is hue-only by design (D4 drought
 and W4 wet are the same gray in print — always pair it with the D/W category
 names in the legend, as the drought dashboard does), and its yellow/white
 boundary needs an outline on light basemaps.
