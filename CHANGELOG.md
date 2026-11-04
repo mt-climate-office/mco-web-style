@@ -31,8 +31,9 @@ The owner settled each rule (HOUSE-STYLE §1, §3, §4, §5.7, §6, §7).
 
 ### Added
 - **Compact nav drawer:** `data-rail="compact"` on `.mco-navbar`. At
-  portrait compact the bar is one row (☰ · badge · hot controls · search,
-  ≤ 64 px) and `.mco-nav-drawer` opens as a left drawer under it, with the
+  portrait compact the bar is one row (badge · hot controls · search · ☰,
+  ≤ 64 px; the badge holds the left edge, ☰ the right) and
+  `.mco-nav-drawer` opens as a right drawer under it, with the
   drawer contract (inert, Esc, scrim, focus return). `MCO.initNavRail` gains
   a `search: {toggle, input}` option and `isDrawerMode()`. Plain `data-rail`
   is unchanged.

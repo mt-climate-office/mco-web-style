@@ -1489,10 +1489,12 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
    MCO.initNavRail. The rail above still takes short landscape; this takes
    the rest of compact (portrait phones, narrow windows), where the bar
    would otherwise wrap. One row, ≤ 64px, in this order:
-     ☰ (.mco-rail's first child) · logo · hot controls · search toggle
+     logo · hot controls · search toggle · ☰ (.mco-rail's first child)
+   The badge always holds the left edge and ☰ the right (Kyle, 2026-11-03),
    with .mco-rail flattened into the bar (display: contents) and
    .mco-search-toggle last in .mco-rail. .mco-nav-drawer becomes a fixed
-   LEFT drawer under the bar (core measures the bar into --nav-drawer-top);
+   RIGHT drawer under the bar, opening from its button (core measures the
+   bar into --nav-drawer-top);
    the plain .mco-scrim dims the page below the bar.
      <header class="mco-navbar" data-rail="compact">
        <a class="logo-link" …>…</a>
@@ -1515,16 +1517,16 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   }
   .mco-navbar[data-rail="compact"] > .nav-divider { display: none; }
   .mco-navbar[data-rail="compact"] .mco-rail { display: contents; }
-  .mco-navbar[data-rail="compact"] .mco-rail > :first-child { order: -1; }
+  .mco-navbar[data-rail="compact"] .mco-rail > :first-child { order: 1; }
   .mco-navbar[data-rail="compact"] .mco-rail > .mco-search-toggle { margin-left: auto; }
 
   .mco-navbar[data-rail="compact"] .mco-nav-drawer {
     display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
-    position: fixed; top: var(--nav-drawer-top, 0px); bottom: 0; left: 0;
+    position: fixed; top: var(--nav-drawer-top, 0px); bottom: 0; right: 0;
     width: min(var(--drawer-w, 300px), 88vw);
-    padding: 0.75rem 0.9rem max(0.75rem, env(safe-area-inset-bottom)) max(0.9rem, env(safe-area-inset-left));
+    padding: 0.75rem max(0.9rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) 0.9rem;
     overflow-y: auto; overscroll-behavior: contain;
-    background: var(--bg-surface); border-right: 1px solid var(--border); box-shadow: var(--shadow);
+    background: var(--bg-surface); border-left: 1px solid var(--border); box-shadow: var(--shadow);
     transition: transform 0.18s ease-out, opacity 0.18s ease-out;
   }
   .mco-navbar[data-rail="compact"] .mco-nav-drawer.is-open { display: flex; }

@@ -1280,11 +1280,11 @@
      Compact drawer (0.21.0, opt-in): data-rail="compact" ALSO makes the bar
      one row at portrait compact (MCO.viewport.COMPACT_MQ minus the rail's
      short landscape; the query is in mco-theme.css §6), in this order:
-       ☰ (.mco-rail's FIRST child, moved to the left edge) · logo badge ·
-       the rest of .mco-rail (hot controls, in a row) · .mco-search-toggle
-       (LAST in .mco-rail, pushed to the end).
+       logo badge (always the left edge) · the rest of .mco-rail (hot
+       controls, in a row) · .mco-search-toggle (LAST in .mco-rail, pushed
+       right) · ☰ (.mco-rail's FIRST child, moved to the right edge).
      .mco-nav-drawer (brand, .controls, .nav-meta) is then an off-canvas
-     LEFT drawer under the bar, on the same contract: the rest of the page
+     RIGHT drawer under the bar, opening from ☰, on the same contract: the rest of the page
      AND the rest of the bar inert (only ☰ stays live); Esc, the scrim or ☰
      close it; focus back to whichever button opened it. isDrawerMode() is
      true there, and open() works in both modes. Plain data-rail (no value)

@@ -305,7 +305,7 @@ controls must use a tier.
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
-| compact, not short landscape | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, ☰ · logo · hot controls · search; the rest in a left drawer |
+| compact, not short landscape | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, logo · hot controls · search · ☰; the rest in a right drawer |
 | height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px left column; also compact |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
@@ -427,7 +427,7 @@ open from a no-detail state, replace while it stays open; §4).
   route to a named feature — don't.
 - **A control-dense bar still wraps on a phone even with search collapsed.**
   For a full-viewport map tool the answer is the **compact drawer** below
-  (0.21.0): the bar stays one row and `.controls` move into a left drawer.
+  (0.21.0): the bar stays one row and `.controls` move into a right drawer.
   An app-specific drawer (`MCO.initDrawer`) remains the answer for panels
   that are not the bar's own controls.
 
@@ -467,14 +467,14 @@ bar is **one row, ≤ 64 px**, at every compact size: the rail at short
 landscape, the compact drawer everywhere else. It never wraps to a second
 row. The opt-in is `data-rail="compact"` on `.mco-navbar`, which keeps the
 rail and adds the drawer. Plain `data-rail` still means the rail alone.
-- **The row, left to right:** ☰ (the first child of `.mco-rail`, moved to
-  the left edge), the logo badge (it stays), the rest of `.mco-rail` (one or
-  two hot controls, in a row), and `.mco-search-toggle` (the last child of
-  `.mco-rail`, at the right edge). The same `.mco-rail` children make the
+- **The row, left to right:** the logo badge (it always holds the left
+  edge), the rest of `.mco-rail` (one or two hot controls, in a row),
+  `.mco-search-toggle` (the last child of `.mco-rail`), and ☰ (the first
+  child of `.mco-rail`, moved to the right edge). The same `.mco-rail` children make the
   column at short landscape, where the search button hides because the
   field sits in the drawer.
 - **Everything in `.mco-nav-drawer`** (brand, `.controls`, `.nav-meta`)
-  opens as a left drawer under the bar. The kit undoes the bar's sheds
+  opens as a right drawer under the bar, from ☰. The kit undoes the bar's sheds
   there, so the lockup, button labels, the "Updated" word and
   `.refresh-status` (hidden in the bar ≤ 640 px) all show.
 - **`MCO.initNavRail`** runs both modes on one contract. While the drawer is
