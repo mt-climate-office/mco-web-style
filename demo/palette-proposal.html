@@ -83,7 +83,8 @@
 </svg>
 
 <main id="main" tabindex="-1">
-  <h1>Map category palettes: proposal</h1>
+  <h1>Map category palettes: proposal (declined)</h1>
+  <p><strong>Declined, 0.21.1.</strong> Kyle previewed these sets on the tools and kept each tool's original category colors (2026-11-04). The sets are deprecated and stay working until 1.0.0; this page is kept for the record.</p>
   <p>On the map tools, orange and brown meant something different in each tool, and all of it sat on the kit's brown tribal-lands fill. This page puts each tool's category set as it is on <code>main</code> today (Before) next to the proposed kit set from <code>MCO.palette.categorySet()</code> (After), in all three themes. Each set is shown as legend swatches and as marks over basemap land, a reservation (the tribal fill and its line) and a lake, for normal vision and simulated protanopia, deuteranopia and tritanopia.</p>
   <p>The reserved band is OKLCH hue <span id="reserved-band"></span>. The figure after each swatch is its lowest contrast against <code>--bg-deep</code>, <code>--bg-surface</code>, basemap land, water and the tribal fill (cells: the fill at its opacity over land). A figure in red is under 3:1, and <strong>reserved</strong> marks a hue inside the band. <code>node tools/check-contrast.mjs --report</code> prints every ratio and the closest pair for each vision type.</p>
   <div class="pp-band" id="reserved-strip" role="img" aria-label="OKLCH hue wheel from 0 to 360 degrees at medium lightness, with the reserved orange/brown band dimmed"></div>

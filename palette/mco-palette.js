@@ -14,8 +14,9 @@
 
    Roles stay app-local: "air temperature is rose" is domain knowledge. The
    kit ships the ramps, the per-theme spans that clear 3:1 as marks, the
-   station networks (NETWORK), and the map tools' named category sets
-   (CATEGORY_SETS, 0.21.0), which stay off the tribal fill's reserved hue.
+   station networks (NETWORK), and — DEPRECATED (0.21.1), kept working
+   until 1.0.0 — the 0.21.0 map category sets (CATEGORY_SETS), which Kyle
+   declined: category colors are app-local (HOUSE-STYLE §6).
    ========================================================================== */
 (function () {
   'use strict';
@@ -264,7 +265,7 @@
     return n ? { label: n.label, color: n.color, shape: n.shape } : null;
   };
 
-  /* ── OKLCH and the reserved hue (0.21.0) ───────────────────────────────────
+  /* ── OKLCH and the reserved hue (0.21.0; RESERVED_HUE deprecated 0.21.1) ──
      The orange/brown family belongs to the tribal-lands fill
      (MCO.map.overlayPaints().tribalFill, #b88a5e / #9b6b3e, OKLCH hue ≈ 63°).
      No station or cell category may use it (HOUSE-STYLE §6). RESERVED_HUE is
@@ -374,6 +375,7 @@
     },
   };
 
+  // DEPRECATED (0.21.1): category colors are app-local (HOUSE-STYLE §6).
   // CATEGORY_SETS[name][theme] → [{key, label, color}], in legend order;
   // a cell set also carries .fillOpacity on each theme's array.
   P.CATEGORY_SETS = {};

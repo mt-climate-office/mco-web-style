@@ -42,8 +42,14 @@ const allow = cfg.allowProblems || [];
 const settleMs = cfg.settleMs ?? 2000;
 
 const { AxeBuilder } = await load('@axe-core/playwright');
+// WebKit stops loading pages partway through a long run in one browser
+// (~30–80 MapLibre visits; position-based, reproduced on unchanged apps), so
+// it is relaunched every VERIFY_RELAUNCH visits (default 20; 0 = never).
+// Chromium never needed it.
+const RELAUNCH = Number(process.env.VERIFY_RELAUNCH ?? 20);
 for (const engine of browsers(a)) {
   const env = await start({ root, page, engine });
+  let visits = 0;
   console.log(`axe-matrix (${engine}): ${env.base}${page.split('/').pop()} — ${scenarios.length} scenario(s) × ${themes.length} theme(s) × ${VIEWPORTS.length} width(s)`);
 
   for (const sc of scenarios) {
@@ -52,6 +58,8 @@ for (const engine of browsers(a)) {
         const q = (sc.query || '');
         const query = q + (q.includes('?') ? '&' : '?') + 'theme=' + theme;
         const label = `[${engine} · ${sc.name} · ${theme} · ${vp.name}]`;
+        if (engine === 'webkit' && RELAUNCH > 0 && visits > 0 && visits % RELAUNCH === 0) await env.relaunch();
+        visits++;
         // One page visit is one scenario: a failed check re-runs the whole
         // visit once in a fresh context (lib.mjs scenario(), VERIFY_RETRIES).
         await scenario(label, async (rec) => {

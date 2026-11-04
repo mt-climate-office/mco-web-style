@@ -20,8 +20,11 @@ import { chromium } from 'playwright';
 
 const SITES = {
   explorer:    { url: 'https://mesonet.climate.umt.edu/explorer/',    station: 'station', map: true },
-  dashboard:   { url: 'https://mesonet.climate.umt.edu/dash/next/',   station: 's',       map: false },
-  photos:      { url: 'https://mesonet.climate.umt.edu/photos/',      station: 'station', map: true },
+  // bar: not a map tool, but its navbar keeps the control-height rule (0.21.1);
+  // the section track is the control (its links sit inside it, as .seg-btn do).
+  dashboard:   { url: 'https://mesonet.climate.umt.edu/dash/next/',   station: 's',       map: false, bar: '.dash-sections' },
+  // allow404: the documented photo-slot probing (a camera with no photo at the slot).
+  photos:      { url: 'https://mesonet.climate.umt.edu/photos/',      station: 'station', map: true, allow404: true },
   status:      { url: 'https://mesonet.climate.umt.edu/status/',      station: 'station', map: true },
   maintenance: { url: 'https://mesonet.climate.umt.edu/maintenance/', station: 'station', map: true },
   umrb:        { url: 'https://mesonet.climate.umt.edu/umrb/',        station: 'station', map: true },
@@ -49,12 +52,12 @@ for (let i = 0; i < args.length; i++) if (args[i] === '--url') {
 }
 fs.mkdirSync(path.join(out, 'shots'), { recursive: true });
 
-const METRICS = () => {
+const METRICS = (extra) => {
   const vis = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 1 && r.height > 1 && s.visibility !== 'hidden' && s.display !== 'none'; };
   const rect = (el) => { const r = el.getBoundingClientRect(); return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]; };
   const nav = document.querySelector('.mco-navbar');
   const logo = nav?.querySelector('img');
-  const controls = nav ? [...nav.querySelectorAll('button, a.nav-btn, select, input:not([type=radio]):not([type=checkbox]), label.seg-btn')].filter(vis)
+  const controls = nav ? [...nav.querySelectorAll('button, a.nav-btn, select, input:not([type=radio]):not([type=checkbox]), label.seg-btn' + (extra ? ', ' + extra : ''))].filter(vis)
     .filter(el => !el.closest('.mco-nav-drawer:not([data-open])') || getComputedStyle(el.closest('.mco-nav-drawer')).display === 'contents')
     .map(el => ({ tag: el.tagName.toLowerCase(), cls: String(el.className).slice(0, 40), id: el.id, h: rect(el)[3], w: rect(el)[2] })) : [];
   const stamp = document.querySelector('.refresh-status');
@@ -103,22 +106,44 @@ for (const [name, site] of Object.entries(SITES)) {
     const u = v.q ? site.url + (site.url.includes('?') ? '&' : '?') + v.q : site.url;
     const { ctx, page, status, errors } = await load(u, v);
     if (await page.evaluate(() => !!document.querySelector('dialog[open]'))) { await page.keyboard.press('Escape'); await page.waitForTimeout(800); }
-    const m = await page.evaluate(METRICS).catch(e => ({ err: String(e) }));
+    const m = await page.evaluate(METRICS, site.bar || null).catch(e => ({ err: String(e) }));
     await page.screenshot({ path: path.join(out, 'shots', `${name}_${v.id}.png`) });
     results[name].views[v.id] = { status, errors, ...m };
     const valid = status === 200 && m.navH != null;
-    if (site.map && v.id.endsWith('dark') && v.id !== 'd-hc') {
+    if ((site.map || site.bar) && v.id.endsWith('dark') && v.id !== 'd-hc') {
       const want = v.mobile ? 40 : 34;
       const hs = [...new Set((m.controls ?? []).map(c => c.h))];
       check(name, v.id, `navbar controls all ${want}px`, valid && m.controls.length ? hs.length === 1 && hs[0] === want : null, `heights=${hs.join('/')}`);
+    }
+    if (site.map && v.id.endsWith('dark') && v.id !== 'd-hc') {
       if (v.mobile) {
         check(name, v.id, 'phone navbar ≤ 64px', valid ? m.navH <= 64 : null, `navH=${m.navH}`);
         check(name, v.id, 'badge visible on phone', valid ? m.logoVisible : null);
       }
       if (!v.mobile && m.stamp != null) check(name, v.id, 'stamp reads "Updated … M[SD]T"', /Updated .*M[SD]T$/.test(m.stamp), `"${m.stamp}"`);
       if (!v.mobile) check(name, v.id, 'on/off toggles are .mco-chip', valid ? m.offChipToggles.length === 0 : null, m.offChipToggles.join(', '));
-      check(name, v.id, 'no console errors', status === 200 ? errors.length === 0 : null, errors.slice(0, 2).join(' | '));
+      const errs = site.allow404 ? errors.filter(e => !/status of 404/.test(e)) : errors;
+      check(name, v.id, 'no console errors', status === 200 ? errs.length === 0 : null, errs.slice(0, 2).join(' | '));
     }
+    await ctx.close();
+  }
+  // One row at every width (0.21.1): sweep 641–1440 with a mouse, and the
+  // tablet widths with touch, where 40px controls make the bar widest.
+  if (site.map) for (const touch of [false, true]) {
+    const v = { w: 1440, h: 900, scheme: 'dark', mobile: touch };
+    const { ctx, page, status } = await load(site.url, v);
+    if (await page.evaluate(() => !!document.querySelector('dialog[open]'))) { await page.keyboard.press('Escape'); await page.waitForTimeout(500); }
+    const over = [];
+    let measured = 0;
+    for (const w of touch ? [768, 820, 1024, 1180, 1366] : [641, 680, 720, 768, 820, 900, 980, 1024, 1061, 1100, 1180, 1280, 1366, 1440]) {
+      await page.setViewportSize({ width: w, height: touch && w < 1024 ? 1024 : 800 });
+      await page.waitForTimeout(650);     // an app's debounced resize work, then the kit's refold
+      const h = await page.evaluate(() => { const n = document.querySelector('.mco-navbar'); return n ? Math.round(n.getBoundingClientRect().height) : null; });
+      if (h == null) continue;
+      measured++;
+      if (h > 64) over.push(`${w}:${h}`);
+    }
+    check(name, touch ? 'sweep-t' : 'sweep', `navbar one row (≤ 64px) at every ${touch ? 'tablet touch' : '641–1440'} width`, status === 200 && measured ? over.length === 0 : null, over.join(' '));
     await ctx.close();
   }
   // Deep link: ?<param>=<station> must open the sheet at desktop and phone width.
@@ -146,7 +171,11 @@ if (!args.includes('--no-sheets')) {
     }).join('');
     const page = await browser.newPage({ viewport: { width: cols * (cw + 10) + 16, height: 400 } });
     await page.setContent(`<body style="margin:8px;background:#fff"><div style="display:grid;grid-template-columns:repeat(${cols},${cw}px);gap:10px">${cells}</div></body>`);
-    await page.screenshot({ path: path.join(out, `sheet-${v.id}.png`), fullPage: true });
+    // Capture only once every image has decoded: a full-page capture taken
+    // while the big data: PNGs still measure 0 high failed outright (0.21.1).
+    await page.waitForFunction(() => [...document.images].every(i => i.complete && i.naturalHeight > 0), null, { timeout: 30000 }).catch(() => {});
+    try { await page.screenshot({ path: path.join(out, `sheet-${v.id}.png`), fullPage: true }); }
+    catch (e) { console.log(`INVALID contact sheet ${v.id}: ${e.message.split('\n')[0]}`); }
     await page.close();
   }
 }

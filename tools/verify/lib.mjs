@@ -88,17 +88,22 @@ export async function start({ root = '.', page = 'index.html', engine = 'chromiu
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const pw = await load('playwright');
   if (!pw[engine]) throw new Error(`unknown browser ${engine}`);
-  const browser = await pw[engine].launch(engine === 'chromium' ? {
+  const launch = () => pw[engine].launch(engine === 'chromium' ? {
     channel: process.env.VERIFY_CHANNEL || undefined,
     // MapLibre needs WebGL2; GPU-less machines only get it from SwiftShader.
     args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'],
   } : {});
   const pageDir = page.includes('/') ? page.slice(0, page.lastIndexOf('/') + 1) : '';
   const base = `http://127.0.0.1:${server.address().port}/${pageDir}`;
-  return {
-    base, browser, engine,
-    async close() { await browser.close(); await new Promise((r) => server.close(r)); },
+  const env = {
+    base, browser: await launch(), engine,
+    // A fresh browser on the same server (0.21.1): Playwright WebKit stops
+    // loading pages after ~30–80 MapLibre visits in one browser, so a long
+    // matrix relaunches it every few visits (see axe-matrix.mjs).
+    async relaunch() { await env.browser.close().catch(() => {}); env.browser = await launch(); },
+    async close() { await env.browser.close(); await new Promise((r) => server.close(r)); },
   };
+  return env;
 }
 
 /**
