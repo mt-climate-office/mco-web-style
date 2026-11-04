@@ -919,7 +919,8 @@
   /* ── Overlay metrics (0.9.0) ───────────────────────────────────────────────
      Layout measurements published as custom properties on <html>, so CSS can
      keep floating things clear of each other: --chrome-h (sticky navbar →
-     scroll-padding-top), --sheet-h (the open bottom sheet), --tabbar-h. They
+     scroll-padding-top), --sheet-h (the open bottom sheet), --sheet-end (the
+     open end-docked sheet's width, 0.21.1), --tabbar-h. They
      are layout metrics, not theme tokens (tokens.json lists them under
      `metrics`). html.mco-autolift opts into lifting the toast and MapLibre's
      bottom corners above --sheet-h + --tabbar-h (the default in 1.0.0).
@@ -1277,9 +1278,11 @@
        → {open(focusEl?, {opener}?), close({restoreFocus}), toggle, isOpen,
           isRail, isDrawerMode, destroy}
 
-     Compact drawer (0.21.0, opt-in): data-rail="compact" ALSO makes the bar
-     one row at portrait compact (MCO.viewport.COMPACT_MQ minus the rail's
-     short landscape; the query is in mco-theme.css §6), in this order:
+     Compact drawer (0.21.0, opt-in): data-rail="compact" ALSO keeps the bar
+     one row — at portrait compact (MCO.viewport.COMPACT_MQ minus the rail's
+     short landscape; the query is in mco-theme.css §6) and, from 0.21.1, at
+     any width where the full bar would wrap (.is-folded, fold-to-fit
+     above) — in this order:
        logo badge (always the left edge) · the rest of .mco-rail (hot
        controls, in a row) · .mco-search-toggle (LAST in .mco-rail, pushed
        right) · ☰ (.mco-rail's FIRST child, moved to the right edge).
@@ -1300,6 +1303,44 @@
      first and calls rail.open(searchInput); choosing a search result closes
      with {restoreFocus: false} and hands the toggle to whatever opens next;
      a drawer button that opens a dialog closes the drawer first. */
+  /* Fold-to-fit (0.21.1): one row at every width. A compact bar
+     (data-rail="compact") is .is-folded — the compact layout of mco-theme.css
+     §6 — on portrait compact, AND wherever the full bar would wrap: it is
+     measured unfolded, and folds when taller than FOLD_H. Never in the rail.
+     Core watches every compact bar present at load (core loads at the end of
+     <body>, so before first paint in practice); initNavRail watches its own.
+     Re-measured on resize, on the bar's own size changes and once web fonts
+     land; a change fires 'mco:fold' ({detail: {folded}}) on the bar. */
+  var FOLD_H = 64;
+  var _pcMq = window.matchMedia('(max-width: 640px) and (orientation: portrait), (max-width: 640px) and (height > 560px)');
+  var _folding = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  function _fold(bar) {
+    var was = bar.classList.contains('is-folded');
+    var next;
+    if (_railMq.matches) next = false;
+    else if (_pcMq.matches) next = true;
+    else {
+      bar.classList.remove('is-folded');
+      next = bar.getBoundingClientRect().height > FOLD_H;
+    }
+    bar.classList.toggle('is-folded', next);
+    if (next !== was) bar.dispatchEvent(new CustomEvent('mco:fold', { detail: { folded: next } }));
+  }
+  function _watchFold(bar) {
+    if (!bar || bar.getAttribute('data-rail') !== 'compact') return;
+    if (_folding) { if (_folding.has(bar)) return; _folding.add(bar); }
+    var raf = 0;
+    // Deferred a frame: refolding inside a ResizeObserver callback would
+    // resize what it observes and log a loop error.
+    function later() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; _fold(bar); }); }
+    _fold(bar);
+    window.addEventListener('resize', later);
+    _vpSubs.add(later);
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(later).observe(bar);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.mco-navbar[data-rail="compact"]'), _watchFold);
+
   MCO.initNavRail = function (opts) {
     var drawer = opts.drawer;
     var toggle = opts.toggle;
@@ -1310,10 +1351,10 @@
     var compactBar = !!bar && bar.getAttribute('data-rail') === 'compact';
     var openState = false;
     var openMode = null;
-    // compact ∧ ¬rail is exactly the §6 drawer query, so the viewport's
-    // compact/rail flips are the only changes it needs to follow.
+    if (compactBar) _watchFold(bar);
+    // Drawer mode is the folded bar (fold-to-fit above), never the rail.
     function isDrawerMode() {
-      return compactBar && MCO.viewport.isCompact() && !MCO.viewport.isRail();
+      return compactBar && bar.classList.contains('is-folded') && !MCO.viewport.isRail();
     }
     function mode() { return MCO.viewport.isRail() ? 'rail' : isDrawerMode() ? 'drawer' : null; }
     var ov = MCO.overlay({
@@ -1371,9 +1412,11 @@
       if (openState) close();
       else open(search.input || null, { opener: search.toggle });
     }
-    var unsub = MCO.viewport.onChange(function () {
+    function onMode() {
       if (openState && mode() !== openMode) close({ restoreFocus: false });
-    });
+    }
+    var unsub = MCO.viewport.onChange(onMode);
+    if (bar) bar.addEventListener('mco:fold', onMode);
     setExpanded(false);
     toggle.addEventListener('click', toggleIt);
     if (scrim) scrim.addEventListener('click', onScrim);
@@ -1386,6 +1429,7 @@
       destroy: function () {
         close({ restoreFocus: false });
         unsub();
+        if (bar) bar.removeEventListener('mco:fold', onMode);
         toggle.removeEventListener('click', toggleIt);
         if (scrim) scrim.removeEventListener('click', onScrim);
         if (search) search.toggle.removeEventListener('click', onSearch);
@@ -1457,10 +1501,22 @@
       onClose: function () { finishClose(); },
     });
 
+    // End-docked, the sheet hangs under the navbar wherever it is (0.21.1):
+    // --chrome-h is only published for a sticky bar, and an in-flow bar
+    // covered the sheet's head. --sheet-end is the width it covers, so the
+    // right-hand map controls can step clear of it (mco-theme.css).
+    var navbar = document.querySelector('.mco-navbar');
     function metric() {
+      var shown = state !== 'closed';
+      if (shown && !bottomDocked() && navbar) {
+        sheet.style.setProperty('--sheet-top', Math.max(0, Math.round(navbar.getBoundingClientRect().bottom)) + 'px');
+      }
       if (!publish) return;
-      MCO.metrics.set('--sheet-h', state !== 'closed' && bottomDocked() ? sheet.getBoundingClientRect().height : 0);
+      MCO.metrics.set('--sheet-h', shown && bottomDocked() ? sheet.getBoundingClientRect().height : 0);
+      MCO.metrics.set('--sheet-end', shown && !bottomDocked() ? sheet.getBoundingClientRect().width : 0);
     }
+    function onResize() { if (state !== 'closed') metric(); }
+    window.addEventListener('resize', onResize);
     function syncPeek() {
       if (opts.peekHeight != null && opts.peekHeight !== 'auto') {
         sheet.style.setProperty('--sheet-peek-h', opts.peekHeight + 'px');
@@ -1592,6 +1648,7 @@
       destroy: function () {
         close({ restoreFocus: false });
         unsub();
+        window.removeEventListener('resize', onResize);
         if (grip) { grip.removeEventListener('click', onGrip); grip.removeEventListener('keydown', onGripKey); }
         sheet.removeEventListener('click', onClick);
         head.removeEventListener('pointerdown', onDown);

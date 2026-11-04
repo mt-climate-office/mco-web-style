@@ -305,7 +305,7 @@ controls must use a tier.
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
-| compact, not short landscape | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, logo · hot controls · search · ☰; the rest in a right drawer |
+| compact, not short landscape — and any width where the bar would wrap (0.21.1) | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, logo · hot controls · search · ☰; the rest in a right drawer |
 | height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px left column; also compact |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
@@ -400,8 +400,9 @@ open from a no-detail state, replace while it stays open; §4).
   - **When one row can't fit at 1060, shed at 1400** (decided 2026-10-09):
     segmented → select, search narrowed, and `.refresh-status` down to its
     dot and time (the kit drops the word "Updated" visually there, 0.21.0;
-    §4 *Freshness stamp*). The bar must be one row from 1061 to 1440. status (~1185 px), umrb (~1200)
-    and maintenance (~1290) all shed there.
+    §4 *Freshness stamp*). The sheds run first; a compact bar that still
+    would not fit one row folds to the ☰ bar at that width (0.21.1, *The
+    one-row bar* below), so no width ever shows two rows.
   - **Focus across the fallback** works only if the kit's `[hidden]` is what
     hides the losing side. An app rule that also hides the wrapper at that
     breakpoint makes Chromium drop focus before the kit can move it.
@@ -462,11 +463,21 @@ it.
   flips a frame late, and `focus()` in the same task silently fails. The kit
   uses `display: none` plus `@starting-style`.
 
-**The one-row phone bar** (0.21.0). On a phone, a full-viewport map tool's
-bar is **one row, ≤ 64 px**, at every compact size: the rail at short
-landscape, the compact drawer everywhere else. It never wraps to a second
-row. The opt-in is `data-rail="compact"` on `.mco-navbar`, which keeps the
-rail and adds the drawer. Plain `data-rail` still means the rail alone.
+**The one-row bar** (0.21.0; every width from 0.21.1). A full-viewport map
+tool's bar is **one row, ≤ 64 px, at every width** (Kyle, 2026-11-04): the
+rail at short landscape, and the compact bar wherever the full bar would
+wrap. It never wraps to a second row. The opt-in is `data-rail="compact"`
+on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
+`data-rail` still means the rail alone.
+- **Fold-to-fit** (0.21.1). The compact layout applies on portrait compact
+  (a CSS query, so first paint is right) and, through `.is-folded`, at any
+  width where the bar measured unfolded is taller than 64 px. Core sets it
+  for every compact bar at load and keeps it live across resizes, font
+  loads and the bar's own size changes, and `'mco:fold'` fires on a change.
+  So a tablet, or a desktop window too narrow for the app's controls, gets
+  the ☰ bar rather than a second row. **Apps write no row swaps**
+  (`order` / `flex-basis` at 1060 or 1400): the sheds still apply first, so
+  the bar folds only when they are not enough.
 - **The row, left to right:** the logo badge (it always holds the left
   edge), the rest of `.mco-rail` (one or two hot controls, in a row),
   `.mco-search-toggle` (the last child of `.mco-rail`), and ☰ (the first
@@ -747,13 +758,10 @@ these rules:
   `Blues`, `PuRd`). **`Spectral` is banned** — it traverses red→green and is
   explicitly not colorblind-safe (it survives in one ramp picker as legacy;
   remove on migration).
-- **Station and cell categories come from the named sets** (owner decision,
-  2026-11; supersedes "status ramps are `roma`", 2026-10-09). The map tools'
-  categories (status, health and time-since in mesonet-status; compliance,
-  time-since and trip type in mesonet-maintenance; the build stages in
-  mesonet-umrb-build) take their colors from
-  `MCO.palette.categorySet(name, theme)` (0.21.0), never from pasted hexes
-  or a roma sample. See *Station and cell categories* below.
+- **Station and cell category colors stay app-local** (Kyle, 2026-11-04,
+  after previewing the 0.21.0 sets on the live tools). Each map tool keeps
+  its own category colors, orange and brown included, and the overlap with
+  the tribal-lands fill is accepted. See *Station and cell categories* below.
 - **Diverging ramps require a labeled midpoint** (freezing, 0, 50%). Cyclic
   ramps (`romaO`) only for cyclic quantities (wind direction), labeled N…S…N.
 - **Color is never the sole channel** (WCAG 1.4.1). Redundancy options, in
@@ -774,13 +782,13 @@ dashboard's exactly):
   bars. Diverging and cyclic ramps have no span. They are for fills, with the
   `midpoint` labelled.
 - `categorical(n, theme)`, `contrast()`, and `isBanned('Spectral')`
-- `CATEGORY_SETS` / `categorySet(name, theme)`, `RESERVED_HUE`,
-  `isReservedHue(hex)` and `toOklch(hex)` (0.21.0, below)
+- `toOklch(hex)` (0.21.0); `CATEGORY_SETS` / `categorySet(name, theme)`,
+  `RESERVED_HUE` and `isReservedHue(hex)` are **deprecated** (0.21.1, below)
 
 CI gates every span. **Roles stay app-local**: "air temperature is rose" is
 domain knowledge. Each app keeps **one role registry**, with per-theme values
-and a contrast test, as the dashboard's `roles.ts` does. Apart from the map
-category sets below, the one cross-app role set is the station networks,
+and a contrast test, as the dashboard's `roles.ts` does. The one cross-app
+role set is the station networks,
 `MCO.palette.NETWORK` / `network(name, theme)`.
 **Station markers carry no network encoding** (Kyle, kit 0.21.0):
 HydroMet and AgriMet draw the same, and the marker's fill is free for the
@@ -789,56 +797,25 @@ tooltip, the sr-table twin), never a marker shape or ring. The palette's
 per-network `shape` and marker `color` are deprecated with
 `MCO.map.markerPaint` (kept working until 1.0.0); `label` is current.
 
-**Station and cell categories** (0.21.0). Orange and brown belong to the
-tribal-lands fill (`MCO.map.overlayPaints().tribalFill`, OKLCH hue ≈ 63°),
-and nothing else on a map may use them:
+**Station and cell categories** (0.21.1). They are app-local, like every
+other role. 0.21.0 proposed shared named sets kept off the tribal fill's
+orange/brown band. Kyle previewed them on the tools and kept the originals
+(2026-11-04). So `CATEGORY_SETS`, `categorySet()`, `RESERVED_HUE` and
+`isReservedHue()` are **deprecated**: they stay working until 1.0.0, and no
+app adopts them. CI still measures them while they ship. The category rules
+that do hold:
 
-- **The reserved band is OKLCH hue 30°–110°** at chroma ≥ 0.04
-  (`MCO.palette.RESERVED_HUE`; `isReservedHue(hex)` tests a color). It runs
-  from red-orange through orange, brown, tan and gold to yellow. Pure red
-  (29°) is outside it, and so is any neutral below 0.04 chroma. No station
-  or cell category uses a color in the band, in any theme. CI also checks
-  that the tribal fill itself is inside it.
-- **Categories come from the named sets**, one per legend:
-  `status-reporting`, `status-health`, `status-age`,
-  `maintenance-compliance`, `maintenance-age`, `maintenance-trip`,
-  `umrb-public` and `umrb-internal`. `categorySet(name, theme)` returns
-  `[{key, label, color}]` in legend order. A cell set also carries
-  `fillOpacity`, the alpha its colors were measured at. A tool that needs a
-  new category changes the kit set, not its own copy.
-- **One vocabulary across the tools**: green is the good end (fresh,
-  operational, visited, Maintenance) and rose the bad end (stale, outage,
-  overdue, Repair, an available cell), with teal, blue and violet between.
-  The age ramps are lightness-monotonic, so they also survive grayscale.
-- **What CI holds every set to** (`tools/check-contrast.mjs`; `--report`
-  prints the table). In each theme, each color clears ≥ 3:1 (WCAG 1.4.11)
-  against `--bg-deep`, `--bg-surface`, the CARTO basemap land and water,
-  and the tribal fill composited over land. A cell set is measured as its
-  fill at `fillOpacity` over land. Every pair in a set stays ≥ 8 apart in
-  OKLab (ΔE × 100), and so does every color from the tribal fill and line,
-  for normal vision and for simulated protanopia, deuteranopia and
-  tritanopia (Machado et al. 2009, severity 1). High contrast takes the
-  dark values, because it loads the dark basemap.
-- **Under red-green CVD the two ends lean warm.** Protanopia and
-  deuteranopia have no red-green axis, so the green and rose ends simulate
-  as pale cream and khaki, nearer the tribal tan than they look to normal
-  vision (deuteranopia: ΔE 8.4 at the closest, against 3.6 for
-  maintenance's old "Overdue"). Lightness and the printed names carry them
-  there.
 - **Category names stay printed.** Every legend row carries its label, and
-  popups name the category in words: tone never stands alone (WCAG 1.4.1).
-  "No record" and "No data" are drawn hollow (a `--dot-stroke` edge, no
-  fill) and are not in the sets.
-- `NETWORK`'s AgriMet orange predates the rule. Network is being retired as
-  a color channel in a separate change, so the rule does not gate it.
-  `categorical()` serves chart series, not map categories.
-- `demo/palette-proposal.html` shows each set before and after, in all three
-  themes and under simulated CVD.
+  popups and sheets name the category in words: tone never stands alone
+  (WCAG 1.4.1).
+- **Each app's category colors live in its one role registry**, with per-theme
+  values, never as hexes scattered through the code.
+- `demo/palette-proposal.html` keeps the 0.21.0 proposal for the record.
 
 Known issues in fielded palettes (fix on migration, tracked in CONSUMERS.md):
 the status map's roma-sampled bins put its two semantic extremes at nearly the
 same lightness (fresh teal L≈0.20 vs dead red L≈0.14, indistinguishable in
-grayscale), which `status-age` replaces; the snowpack/drought USDM ramp is hue-only by design (D4 drought
+grayscale); the snowpack/drought USDM ramp is hue-only by design (D4 drought
 and W4 wet are the same gray in print — always pair it with the D/W category
 names in the legend, as the drought dashboard does), and its yellow/white
 boundary needs an outline on light basemaps.

@@ -34,8 +34,8 @@ pass's job. Each item cites the rule it checks.
 - [ ] Info button is `.mco-btn-info` (§3)
 - [ ] The ≤750px brand collapse is untouched, or overridden with a `/* kit-override: … */` comment (§3)
 - [ ] ✋ Buttons that shed `.btn-label` below 1400px carry a permanent `aria-label` (§3)
-- [ ] ✋ **Map tools:** the phone bar is one row, ≤ 64px, at 390px and at 750×342: `data-rail="compact"` with logo · hot controls · search · ☰ (badge left, ☰ right), the rest in `.mco-nav-drawer` (§3 *The one-row phone bar*)
-- [ ] ✋ The compact drawer opens from the left, inerts the page and the rest of the bar, and Esc returns focus to the button that opened it (§3)
+- [ ] ✋ **Map tools:** the bar is one row, ≤ 64px, at every width (390px, 750×342, and each width from 641 to 1440, mouse and touch): `data-rail="compact"` folds to logo · hot controls · search · ☰ (badge left, ☰ right) wherever the full bar would wrap, the rest in `.mco-nav-drawer` (§3 *The one-row phone bar*). No app-local row swaps (`order` / `flex-basis`) remain
+- [ ] ✋ The compact drawer opens from the right, inerts the page and the rest of the bar, and Esc returns focus to the button that opened it (§3)
 - [ ] ✋ Every bar control is one height: 34px at desktop, 40px on touch (`--control-h`), the app's own selects and inputs included (§3)
 - [ ] ✋ On/off filters and layers are `.mco-chip[aria-pressed]`; actions are `.nav-btn` (§5.7)
 - [ ] ✋ The freshness stamp is `MCO.formatUpdatedMT` of the data's time in `.refresh-status` ("Updated 2:45 PM MST"), with no other wording (§4)

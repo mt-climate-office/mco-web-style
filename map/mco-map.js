@@ -1208,6 +1208,10 @@
         map.on('idle', onIdle);
         map.on('moveend', onMoveEnd);
         map.triggerRepaint();           // make sure an 'idle' follows
+        // The jump's moveend fired before onMoveEnd was attached, so start
+        // its settle timer here (0.21.1): a map still busy decoding tiles
+        // otherwise opened only at idle or timeoutMs, ~20s on photos.
+        onMoveEnd();
       } else {
         map.flyTo(Object.assign({ speed: o.speed || 1.4 }, cam));
         map.on('idle', onIdle);

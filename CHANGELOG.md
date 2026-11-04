@@ -8,6 +8,65 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.21.1] — 2026-11-04
+
+PATCH: theme, core, map and palette (comments only). Cog, photos, places,
+summary and the anti-flash snippet are byte-identical to 0.21.0, so their
+SRI hashes and every consumer's CSP hashes are unchanged. Fixes from the
+first seven consumer PRs on 0.21.0, and two owner rulings after Kyle
+previewed them (2026-11-04).
+
+### Fixed
+- **The compact bar is one row at every width.** Kyle's ruling: the bar
+  never wraps, at any width. `data-rail="compact"` now folds to the compact
+  layout (badge · hot controls · search · ☰, right drawer) wherever the full
+  bar, measured unfolded, would be taller than 64 px, not only at portrait
+  compact. The fold is `.is-folded`, set by core for every compact bar at
+  load and kept live across resizes, font loads and the bar's own size
+  changes. `'mco:fold'` fires on the bar on a change, and
+  `initNavRail().isDrawerMode()` follows it. Before this, five of the six
+  map tools wrapped to two or three rows from 641 to about 1040 px (to
+  1081 px on touch).
+- **`MCO.map.flyToAndOpen` under reduced motion.** `jumpTo` fires its
+  `moveend` synchronously, before the listener was attached, so the settle
+  fallback never started. A map still busy decoding tiles opened the
+  detail only at `idle` or `timeoutMs` (about 20 s on mesonet-photos). It
+  now opens in 2–6 s across the map tools.
+- **The end-docked sheet hangs under the navbar.** It was positioned at
+  `--chrome-h`, which core publishes only for a sticky bar, so on the map
+  tools' in-flow bars the navbar covered the sheet's title and ×. The sheet
+  now measures the bar into its own `--sheet-top`.
+- **Map controls step clear of the open sheet.** The open end-docked sheet
+  publishes its width as `--sheet-end`, and MapLibre's top-right and
+  bottom-right corners move left by it. Zoom, fit and the attribution were
+  unreachable under the sheet. A map that stops short of the viewport's
+  right edge opts out with `.maplibregl-map { --sheet-end: 0px; }`.
+- **The compact drawer slides in from the right**, the side it opens on.
+  The rail's left-hand `@starting-style` also matched it.
+- `CONFORMANCE.md` §2 said the compact drawer opens from the left.
+
+### Deprecated
+- **The map category sets** (`MCO.palette.CATEGORY_SETS`, `categorySet()`,
+  `RESERVED_HUE`, `isReservedHue()`). Kyle previewed them on the tools and
+  kept each tool's original category colors, orange and brown included
+  (HOUSE-STYLE §6). They stay working until 1.0.0, and CI still measures
+  them while they ship. `toOklch()` is current. `demo/palette-proposal.html`
+  is kept, marked declined.
+
+### Tooling
+- **`family-audit.mjs`:**
+  - sweeps 641–1440 px (mouse) and the tablet widths (touch) for a one-row
+    bar;
+  - checks the dashboard's navbar control height (its section track is the
+    control);
+  - allows mesonet-photos' documented photo-slot 404s;
+  - no longer crashes writing a contact sheet before its images decode.
+- **`axe-matrix.mjs` relaunches WebKit every 20 visits** (`VERIFY_RELAUNCH`;
+  `0` turns it off). Playwright WebKit stops loading pages after about
+  30–80 MapLibre visits in one browser; three consumers hit it, and umrb
+  reproduced it on unchanged `main`. `lib.mjs` `start()` gains
+  `env.relaunch()`.
+
 ## [0.21.0] — 2026-11-03
 
 MINOR: theme, core, map, cog and palette. Photos, places, summary and the
