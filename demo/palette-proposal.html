@@ -67,6 +67,7 @@
     .pp-ruler { font-size: var(--fs-xs); color: var(--text-muted); }
     .pp-band { display: flex; height: 14px; border-radius: 3px; overflow: hidden; margin: var(--space-2) 0; max-width: 640px; }
     .pp-band span { flex: 1; }
+  .cvd-defs { position: absolute; }
   </style>
 </head>
 <body>
@@ -75,7 +76,7 @@
 <!-- SVG filters for the simulated rows: Machado, Oliveira & Fernandes (2009),
      severity 1, in linear RGB — the same matrices tools/check-contrast.mjs
      uses for its ΔE gate. -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<svg class="cvd-defs" width="0" height="0" aria-hidden="true" focusable="false">
   <filter id="cvd-protan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0"/></filter>
   <filter id="cvd-deutan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.367322 0.860646 -0.227968 0 0  0.280085 0.672501 0.047413 0 0  -0.011820 0.042940 0.968881 0 0  0 0 0 1 0"/></filter>
   <filter id="cvd-tritan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1.255528 -0.076749 -0.178779 0 0  -0.078411 0.930809 0.147602 0 0  0.004733 0.691367 0.303900 0 0  0 0 0 1 0"/></filter>
