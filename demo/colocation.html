@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Colocated stations · MCO Web Style demo</title>
+  <meta name="description" content="Demo of MCO.map.colocation (count badge and spider), MCO.map.stationPaint and MCO.map.flyToAndOpen with a station sheet.">
+  <meta name="author" content="Montana Climate Office">
+  <meta name="theme-color" content="#1a6faf" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161b22" media="(prefers-color-scheme: dark)">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+
+  <!-- Anti-flash theme boot (snippets/anti-flash.html) -->
+  <script>
+    (function () {
+      const raw = new URLSearchParams(location.search).get('theme');
+      const url = raw == null ? null : raw.toLowerCase();
+      let saved = null;
+      try { saved = localStorage.getItem('mco-theme'); } catch (e) {}
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const valid = ['dark', 'light', 'high-contrast'];
+      const root = document.documentElement;
+      // A page may name the theme a visitor with no choice gets (0.19.0):
+      // <html data-theme-default="light">. Otherwise the OS preference.
+      const def = root.getAttribute('data-theme-default');
+      const t = valid.includes(url) ? url
+              : valid.includes(saved) ? saved
+              : valid.includes(def) ? def
+              : (prefersDark ? 'dark' : 'light');
+      root.setAttribute('data-theme', t);
+      root.classList.toggle('is-compact', window.matchMedia('(max-width: 640px), (max-height: 560px)').matches);
+      root.classList.toggle('is-touch', window.matchMedia('(hover: none)').matches);
+      // First-paint hold (0.9.0): [data-hold] stays invisible until MCO.ready();
+      // this timeout releases it anyway, so a failed script never strands a page.
+      root.classList.add('mco-booting');
+      setTimeout(function () { root.classList.remove('mco-booting'); }, 3000);
+    })();
+  </script>
+
+  <link rel="preload" href="../fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- MapLibre 6 (ESM): SRI via the import map; mco-map.js imports it (snippets/head.html). -->
+  <script type="importmap">{"integrity":{"https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs":"sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN","https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs":"sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"}}</script>
+  <link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs"
+          integrity="sha384-KQzExYlfg1SnYNpLaXHTnaCTjr5wmiZ6X3sasvPb94caZfH+3+T1Sl4eJziXUtmN"
+          crossorigin="anonymous">
+  <link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl-shared.mjs"
+          integrity="sha384-V59ofCEPEqpSk5Mswc19DtDYbZWJtne210dFzS328Il6O31eLwTV7v57+Z3NjW/7"
+          crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css"
+          integrity="sha384-ntw3zEt6rcVML7jDK0ULmHa5hxLB23afsPqzqfY+gLgMfAkbFCnCgPpkZvV5mmZX"
+          crossorigin="anonymous">
+  <link rel="stylesheet" href="../theme/mco-theme.css">
+
+  <style>
+    /* Demo-page layout only — nothing here is part of the kit. */
+    body { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+    main { position: relative; flex: 1 1 auto; min-height: 0; }
+    main:focus { outline: none; }
+    #map { position: absolute; inset: 0; }
+    #controls-panel { top: 0.75rem; left: 0.75rem; max-width: min(300px, calc(100vw - 1.5rem)); }
+    .demo-note { font-size: var(--fs-sm); color: var(--text-muted); margin: 0 0 var(--space-3); }
+    .demo-links { margin: var(--space-3) 0 0; padding-left: 1.1rem; font-size: var(--fs-sm); }
+    .demo-links a { color: var(--accent-line); }
+    .demo-peek { margin: 0 0 var(--space-3); font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
+    .demo-siblings { margin-top: var(--space-4); }
+    .demo-siblings h3 { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-secondary); margin: 0 0 var(--space-2); }
+    .demo-siblings ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+    .demo-back { margin-top: var(--space-4); font-size: var(--fs-sm); }
+    .demo-back a { color: var(--accent-line); }
+  </style>
+</head>
+<body>
+
+<a class="mco-skip-link" href="#main">Skip to map</a>
+
+<header class="mco-navbar" id="navbar">
+  <a href="https://climate.umt.edu" target="_blank" rel="noopener noreferrer"
+     class="logo-link" aria-label="Montana Climate Office">
+    <img class="logo-img" src="../assets/mco-logo.png" alt="" width="40" height="40">
+  </a>
+  <div class="nav-divider" aria-hidden="true"></div>
+  <div class="brand">
+    <h1 class="brand-title">Colocated stations</h1>
+    <span class="brand-subtitle">mco-web-style demo</span>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+  <div id="map" role="application"
+       aria-label="Map of Mesonet stations. Colocated sites show a count badge. The stations are in the table that follows."></div>
+
+  <div class="mco-panel" id="controls-panel">
+    <div class="mco-panel-head">
+      <h2 class="mco-panel-title" id="controls-title">Networks</h2>
+      <button type="button" class="mco-panel-toggle" id="controls-toggle"
+              aria-controls="controls-body" aria-label="Collapse networks panel">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>
+      </button>
+    </div>
+    <div class="mco-panel-body" id="controls-body">
+      <p class="demo-note">Every station draws the same (<code>stationPaint</code>). A badge counts a site's stations;
+         hover it, or tap on touch, to fan them out.</p>
+      <div class="mco-chips" role="group" aria-labelledby="controls-title">
+        <button type="button" class="mco-chip" data-network="HydroMet" aria-pressed="true">HydroMet <span class="mco-chip-count" data-count="HydroMet"></span></button>
+        <button type="button" class="mco-chip" data-network="AgriMet" aria-pressed="true">AgriMet <span class="mco-chip-count" data-count="AgriMet"></span></button>
+      </div>
+      <ul class="demo-links">
+        <li><a href="?station=wsrabsaw">Deep link: Absarokee AgriMet</a></li>
+        <li><a href="?station=acehavre">Deep link: Havre HydroMet</a></li>
+        <li><a href="index.html">Back to the kit demo</a></li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<section class="mco-sheet" id="station-sheet" aria-labelledby="sheet-title" data-state="closed" hidden>
+  <div class="mco-sheet-head">
+    <button type="button" class="mco-sheet-grip" aria-label="Expand details" aria-expanded="false"></button>
+    <h2 class="mco-sheet-title" id="sheet-title" tabindex="-1">Station</h2>
+    <button type="button" class="modal-close" data-close-sheet aria-label="Close station details">×</button>
+  </div>
+  <div class="mco-sheet-body" id="sheet-body"></div>
+</section>
+
+<div class="mco-tooltip" id="tooltip" aria-hidden="true"></div>
+
+<script src="../core/mco-core.js"></script>
+<script src="../palette/mco-palette.js"></script>
+<script src="../map/mco-map.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Real stations from mesonet2.climate.umt.edu/api/v2/stations/ (2026-11-03):
+  // the ten HydroMet + AgriMet pairs that share coordinates, and some singles.
+  const STATIONS = [
+    { station: 'aceabsar', name: 'Absarokee', sub_network: 'HydroMet', latitude: 45.56, longitude: -109.61, elevation: 1400.4, county: 'Stillwater' },
+    { station: 'wsrabsaw', name: 'Absarokee', sub_network: 'AgriMet', latitude: 45.56, longitude: -109.61, elevation: 1400.4, county: 'Stillwater' },
+    { station: 'acebigti', name: 'Big Timber SE', sub_network: 'HydroMet', latitude: 45.74, longitude: -109.83, elevation: 1347.0, county: 'Sweet Grass' },
+    { station: 'wsrbigtm', name: 'Big Timber SE', sub_network: 'AgriMet', latitude: 45.74, longitude: -109.83, elevation: 1335.29, county: 'Sweet Grass' },
+    { station: 'acebozem', name: 'Bozeman', sub_network: 'HydroMet', latitude: 45.66, longitude: -111.07, elevation: 1495.09, county: 'Gallatin' },
+    { station: 'bozmtest', name: 'Bozeman Test', sub_network: 'AgriMet', latitude: 45.66, longitude: -111.07, elevation: 1494.9, county: 'Gallatin' },
+    { station: 'acecoone', name: 'Cooney Reservoir NW', sub_network: 'HydroMet', latitude: 45.47, longitude: -109.26, elevation: 1439.0, county: 'Stillwater' },
+    { station: 'wsrboydw', name: 'Cooney Reservoir W', sub_network: 'AgriMet', latitude: 45.47, longitude: -109.26, elevation: 1429.65, county: 'Stillwater' },
+    { station: 'acecrowa', name: 'Crow Agency', sub_network: 'HydroMet', latitude: 45.59, longitude: -107.44, elevation: 939.58, county: 'Big Horn' },
+    { station: 'crowagen', name: 'Crow Agency E', sub_network: 'AgriMet', latitude: 45.59, longitude: -107.44, elevation: 939.56, county: 'Big Horn' },
+    { station: 'acehavre', name: 'Havre', sub_network: 'HydroMet', latitude: 48.49, longitude: -109.8, elevation: 830.99, county: 'Hill' },
+    { station: 'havrenmt', name: 'Havre', sub_network: 'AgriMet', latitude: 48.49, longitude: -109.8, elevation: 827.06, county: 'Hill' },
+    { station: 'acemelvi', name: 'Melville', sub_network: 'HydroMet', latitude: 46.0, longitude: -109.84, elevation: 1430.15, county: 'Sweet Grass' },
+    { station: 'wsrmelvi', name: 'Melville SE', sub_network: 'AgriMet', latitude: 46.0, longitude: -109.84, elevation: 1430.15, county: 'Sweet Grass' },
+    { station: 'acemiles', name: 'Miles City', sub_network: 'HydroMet', latitude: 46.41, longitude: -105.95, elevation: 818.85, county: 'Custer' },
+    { station: 'arskeogh', name: 'Fort Keogh N', sub_network: 'AgriMet', latitude: 46.41, longitude: -105.95, elevation: 818.85, county: 'Custer' },
+    { station: 'acemocca', name: 'Moccasin', sub_network: 'HydroMet', latitude: 47.06, longitude: -109.95, elevation: 1294.77, county: 'Judith Basin' },
+    { station: 'moccasin', name: 'Moccasin', sub_network: 'AgriMet', latitude: 47.06, longitude: -109.95, elevation: 1294.77, county: 'Judith Basin' },
+    { station: 'aceoilmo', name: 'Oilmont', sub_network: 'HydroMet', latitude: 48.78, longitude: -111.6, elevation: 1090.0, county: 'Toole' },
+    { station: 'mdaoilmo', name: 'Oilmont E', sub_network: 'AgriMet', latitude: 48.78, longitude: -111.6, elevation: 1087.91, county: 'Toole' },
+    { station: 'acealbio', name: 'Albion SE', sub_network: 'HydroMet', latitude: 45.15, longitude: -104.21, elevation: 1076.0, county: 'Carter' },
+    { station: 'aceashla', name: 'Ashland', sub_network: 'HydroMet', latitude: 45.57, longitude: -106.14, elevation: 971.0, county: 'Powder River' },
+    { station: 'aceaugus', name: 'Augusta N', sub_network: 'HydroMet', latitude: 47.59, longitude: -112.36, elevation: 1313.0, county: 'Teton' },
+    { station: 'acebaker', name: 'Baker S', sub_network: 'HydroMet', latitude: 46.25, longitude: -104.29, elevation: 1008.0, county: 'Fallon' },
+    { station: 'acebarth', name: 'Barth Spring', sub_network: 'HydroMet', latitude: 47.82, longitude: -107.24, elevation: 887.0, county: 'Valley' },
+    { station: 'acebeltn', name: 'Belt NW', sub_network: 'HydroMet', latitude: 47.43, longitude: -111.02, elevation: 1149.0, county: 'Cascade' },
+    { station: 'acebento', name: 'Benton Lake W', sub_network: 'HydroMet', latitude: 47.69, longitude: -111.47, elevation: 1129.0, county: 'Cascade' },
+    { station: 'acebigsa', name: 'Big Sandy NW', sub_network: 'HydroMet', latitude: 48.24, longitude: -110.32, elevation: 871.0, county: 'Chouteau' },
+    { station: 'acebilli', name: 'Billings S', sub_network: 'HydroMet', latitude: 45.63, longitude: -108.49, elevation: 1231.0, county: 'Yellowstone' },
+    { station: 'acebirne', name: 'Birney', sub_network: 'HydroMet', latitude: 45.34, longitude: -106.52, elevation: 974.0, county: 'Rosebud' },
+    { station: 'acebowma', name: 'Bowmans Corner NW', sub_network: 'HydroMet', latitude: 47.31, longitude: -112.17, elevation: 1301.0, county: 'Lewis and Clark' },
+    { station: 'arskeose', name: 'Fort Keogh SE', sub_network: 'AgriMet', latitude: 46.35, longitude: -105.83, elevation: 746.04, county: 'Custer' },
+    { station: 'blm1arge', name: 'Argenta', sub_network: 'AgriMet', latitude: 45.25, longitude: -112.88, elevation: 1898.93, county: 'Beaverhead' },
+    { station: 'blm2virg', name: 'Virginia City', sub_network: 'AgriMet', latitude: 45.27, longitude: -111.88, elevation: 2238.82, county: 'Madison' },
+  ];
+  const byId = new Map(STATIONS.map((s) => [s.station, s]));
+  const FLY_ZOOM = 9;
+  const activeNetworks = new Set(['HydroMet', 'AgriMet']);
+  let map = null;
+  let coloc = null;
+  let selected = null;
+  let historyClose = false;   // the sheet is closing because the URL already lost ?station=
+
+  MCO.initCollapsible({
+    toggle: document.getElementById('controls-toggle'),
+    body: document.getElementById('controls-body'),
+    autoCollapseOnCompact: true,
+  });
+
+  /* ── Station sheet (MCO.initSheet at every width) ────────────────────── */
+  const sheetEl = document.getElementById('station-sheet');
+  const sheetBody = document.getElementById('sheet-body');
+  const sheet = MCO.initSheet({
+    sheet: sheetEl,
+    fallbackFocus: document.getElementById('main'),
+    onState: (state) => {
+      if (state !== 'closed') return;
+      selected = null;
+      paintSelection();
+      twin.render(rows(), { selected: null });
+      if (historyClose) { historyClose = false; return; }
+      // Back undoes the pushed entry; otherwise drop the param in place.
+      if (history.state && history.state.mcoDetail) history.back();
+      else MCO.replaceUrlState({});
+    },
+  });
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function fillSheet(s) {
+    document.getElementById('sheet-title').textContent = s.name;
+    const peek = el('p', 'demo-peek', `${s.sub_network} · ${s.station}`);
+    peek.dataset.peek = '';
+    const dl = el('dl', 'mco-facts');
+    [['Network', s.sub_network], ['Station ID', s.station], ['Elevation', `${Math.round(s.elevation)} m`],
+     ['County', s.county], ['Location', `${s.latitude.toFixed(2)}, ${s.longitude.toFixed(2)}`]].forEach(([k, v]) => {
+      const row = el('div');
+      row.append(el('dt', null, k), el('dd', null, v));
+      dl.appendChild(row);
+    });
+    sheetBody.replaceChildren(peek, dl);
+    // The keyboard and touch path across a site (the spider is pointer-only).
+    const sibs = coloc ? coloc.siblings(s.station) : [];
+    if (sibs.length) {
+      const box = el('div', 'demo-siblings');
+      box.appendChild(el('h3', null, 'Also at this site'));
+      const ul = el('ul');
+      sibs.forEach((m) => {
+        const li = el('li');
+        const b = el('button', 'nav-btn', `${m.name} (${m.sub_network})`);
+        b.type = 'button';
+        b.addEventListener('click', () => openStation(m.station, { push: false }));
+        li.appendChild(b);
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+      sheetBody.appendChild(box);
+    }
+  }
+
+  // Open the sheet. Push a history entry only on the first open from a
+  // no-detail state (HOUSE-STYLE §3/§4), so Back closes it.
+  function openStation(id, opts) {
+    const s = byId.get(id);
+    if (!s) return;
+    const first = selected == null;
+    selected = id;
+    fillSheet(s);
+    sheet.open('peek', { opener: opts && opts.opener });
+    paintSelection();
+    twin.render(rows(), { selected: id });
+    const params = { station: id };
+    if (opts && opts.push && first) MCO.pushUrlState(params, { state: { mcoDetail: id } });
+    else MCO.replaceUrlState(params, { state: first ? null : history.state });
+    MCO.announce(`${s.name}, ${s.sub_network} station ${s.station}, opened.`);
+  }
+
+  // Search, table row, deep link and Back/Forward all come through here.
+  function goTo(id, opts) {
+    const s = byId.get(id);
+    if (!s || !map) return;
+    coloc.close();
+    MCO.map.flyToAndOpen(map, {
+      center: [s.longitude, s.latitude],
+      zoom: FLY_ZOOM,
+      // A station whose network chip is off: turn it back on so its dot shows.
+      ensureVisible: () => {
+        if (activeNetworks.has(s.sub_network)) return;
+        activeNetworks.add(s.sub_network);
+        syncChips();
+        coloc.refresh();
+        twin.render(rows(), { selected });
+      },
+      open: () => openStation(id, opts),
+    });
+  }
+
+  /* ── Network chips: filters, never marker shapes ─────────────────────── */
+  const chips = Array.from(document.querySelectorAll('[data-network]'));
+  function syncChips() {
+    chips.forEach((c) => c.setAttribute('aria-pressed', String(activeNetworks.has(c.dataset.network))));
+    document.querySelectorAll('[data-count]').forEach((n) => {
+      n.textContent = String(STATIONS.filter((s) => s.sub_network === n.dataset.count).length);
+    });
+  }
+  chips.forEach((c) => c.addEventListener('click', () => {
+    const n = c.dataset.network;
+    if (activeNetworks.has(n)) activeNetworks.delete(n); else activeNetworks.add(n);
+    syncChips();
+    if (coloc) coloc.refresh();
+    twin.render(rows(), { selected });
+    MCO.announce(`${c.dataset.network} ${activeNetworks.has(c.dataset.network) ? 'shown' : 'hidden'}.`);
+  }));
+  syncChips();
+
+  /* ── Screen-reader twin: every visible station is a selectable row ──── */
+  const twin = MCO.srTable({
+    container: document.getElementById('main'),
+    caption: 'Stations shown on the map',
+    columns: [
+      { key: 'name', label: 'Station', rowHeader: true },
+      { key: 'sub_network', label: 'Network' },
+      { key: 'site', label: 'Site', value: (r) => r.count > 1 ? `${r.count} stations at this site` : 'Single station' },
+    ],
+    rowKey: (r) => r.station,
+    selectable: true,
+    onSelect: (r) => goTo(r.station, { push: true }),
+  });
+  function rows() {
+    return STATIONS.filter((s) => activeNetworks.has(s.sub_network)).map((s) => {
+      const info = coloc && coloc.info(s.station);
+      return Object.assign({}, s, { count: info ? info.count : 1 });
+    });
+  }
+
+  /* ── Map ─────────────────────────────────────────────────────────────── */
+  function paintSelection() {
+    if (!map) return;
+    const f = ['==', ['get', 'station'], selected || '__none__'];
+    if (map.getLayer('stations-selected')) map.setFilter('stations-selected', ['all', MCO.map.colocation.ANCHOR_ONLY, f]);
+    if (map.getLayer('spider-selected')) map.setFilter('spider-selected', f);
+  }
+  function addLayers() {
+    if (!map.getSource('stations')) map.addSource('stations', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    coloc.addSources();
+    const A = MCO.map.colocation.ANCHOR_ONLY;
+    const layers = [
+      { id: 'spider-lines', type: 'line', source: coloc.spiderLinesSource, paint: MCO.map.colocation.spiderLinePaint() },
+      { id: 'stations-hit', type: 'circle', source: 'stations', filter: A, paint: MCO.map.hitPaint() },
+      { id: 'stations', type: 'circle', source: 'stations', filter: A, paint: MCO.map.stationPaint() },
+      { id: 'stations-selected', type: 'circle', source: 'stations', filter: ['==', ['get', 'station'], '__none__'], paint: MCO.map.selectionPaint() },
+      ...MCO.map.colocation.badgeLayers({ id: 'stations-badge', source: 'stations' }),
+      { id: 'spider-hit', type: 'circle', source: coloc.spiderSource, paint: MCO.map.hitPaint() },
+      { id: 'spider', type: 'circle', source: coloc.spiderSource, paint: MCO.map.stationPaint() },
+      { id: 'spider-selected', type: 'circle', source: coloc.spiderSource, filter: ['==', ['get', 'station'], '__none__'], paint: MCO.map.selectionPaint() },
+    ];
+    layers.forEach((l) => { if (!map.getLayer(l.id)) map.addLayer(l); });
+    coloc.refresh();
+    paintSelection();
+  }
+
+  let booted = false;
+  MCO.map.loadMapLibre().then((maplibregl) => {
+    map = new maplibregl.Map({
+      container: 'map',
+      style: MCO.map.cartoStyleUrl(),
+      ...MCO.map.initialCamera(MCO.urlParams()),
+    });
+    window.__demoMap = map;   // for the verification harness
+    MCO.map.addNavigation(map);
+    MCO.map.addFitControl(map);
+    MCO.map.watchBasemap(map);
+
+    coloc = MCO.map.colocation(map, {
+      source: 'stations',
+      rank: (s) => (s.sub_network === 'HydroMet' ? 0 : 1),
+      visible: (s) => activeNetworks.has(s.sub_network),
+      properties: (s) => ({ station: s.station, name: s.name, sub_network: s.sub_network }),
+      anchorLayers: ['stations-hit', 'stations', 'stations-badge', 'stations-badge-disc'],
+      spiderLayers: ['spider-hit', 'spider'],
+      onSelect: (id) => openStation(id, { push: true, opener: map.getCanvas() }),
+      onEmpty: () => sheet.close(),
+    });
+    window.__demoColoc = coloc;
+    coloc.setData(STATIONS);
+
+    MCO.map.initCursorTooltip(map, {
+      layers: ['spider', 'stations', 'stations-badge'],
+      element: document.getElementById('tooltip'),
+      render: (f) => (MCO.viewport.isTouch() ? null : {
+        name: f.properties.name,
+        sub: `${f.properties.sub_network} · ${f.properties.station}`,
+        line: f.properties.colocationCount > 1 ? `${f.properties.colocationCount} stations at this site` : null,
+      }),
+    });
+
+    // Every style.load (first, theme switch, basemap fallback) starts bare.
+    map.on('style.load', () => {
+      addLayers();
+      twin.render(rows(), { selected });
+      if (booted) return;
+      booted = true;
+      const id = MCO.getParamLower('station');
+      if (id && byId.has(id)) goTo(id, { push: false });
+    });
+  }).catch((err) => {
+    MCO.notice({ tone: 'danger', toneLabel: 'Map unavailable', text: err.message,
+      container: document.getElementById('main'), place: 'over' });
+  });
+
+  // Back/Forward: re-apply ?station=.
+  MCO.onUrlState((params) => {
+    const id = MCO.getParamLower('station', params);
+    if (id === selected) return;
+    if (!id) {
+      if (selected != null) { historyClose = true; sheet.close({ restoreFocus: false }); }
+      return;
+    }
+    if (byId.has(id)) goTo(id, { push: false });
+  });
+
+  twin.render(rows(), { selected });
+  MCO.ready();
+})();
+</script>
+</body>
+</html>

@@ -13,8 +13,9 @@
    exception to "tokens only". Spectral is banned and deliberately absent.
 
    Roles stay app-local: "air temperature is rose" is domain knowledge. The
-   kit ships the ramps, the per-theme spans that clear 3:1 as marks, and the
-   one cross-app role set — the station networks (NETWORK).
+   kit ships the ramps, the per-theme spans that clear 3:1 as marks, the
+   station networks (NETWORK), and the map tools' named category sets
+   (CATEGORY_SETS, 0.21.0), which stay off the tribal fill's reserved hue.
    ========================================================================== */
 (function () {
   'use strict';
@@ -235,7 +236,11 @@
      (.mco-legend-swatch). From the dashboard's registry (roles.ts
      NETWORK_COLOR / NETWORK_SHAPE): Tol bright blue / vibrant orange /
      vibrant teal. AgriMet's #EE7733 is 2.87:1 on white, so light darkens it to
-     #CC6622. Data-encoding (§6). */
+     #CC6622. Data-encoding (§6).
+     DEPRECATED for station markers (0.21.0): markers no longer encode the
+     network (MCO.map.stationPaint draws every station alike), so `shape` and
+     the per-network marker `color` only feed the deprecated
+     MCO.map.markerPaint. Kept, unchanged, until 1.0.0. `label` stays current. */
   var NETWORK_SHAPE = { hydromet: 'circle', agrimet: 'hollow', cooperator: 'ring' };
   var NETWORK_COLOR = {
     dark: { hydromet: '#4477AA', agrimet: '#EE7733', cooperator: '#009988' },
@@ -257,5 +262,141 @@
     theme = theme in P.SURFACE ? theme : 'dark';
     var n = P.NETWORK[theme][String(name).toLowerCase()];
     return n ? { label: n.label, color: n.color, shape: n.shape } : null;
+  };
+
+  /* ── OKLCH and the reserved hue (0.21.0) ───────────────────────────────────
+     The orange/brown family belongs to the tribal-lands fill
+     (MCO.map.overlayPaints().tribalFill, #b88a5e / #9b6b3e, OKLCH hue ≈ 63°).
+     No station or cell category may use it (HOUSE-STYLE §6). RESERVED_HUE is
+     the excluded band in OKLCH hue degrees; colors with chroma below
+     minChroma are neutrals and never count as reserved. */
+  P.RESERVED_HUE = { from: 30, to: 110, minChroma: 0.04 };
+
+  // "#rrggbb" → [L, C, h]: OKLab lightness 0–1, chroma, hue in degrees 0–360.
+  P.toOklch = function (hex) {
+    var lab = P.toOklab(hex);
+    var h = Math.atan2(lab[2], lab[1]) * 180 / Math.PI;
+    return [lab[0], Math.sqrt(lab[1] * lab[1] + lab[2] * lab[2]), h < 0 ? h + 360 : h];
+  };
+  P.isReservedHue = function (hex) {
+    var lch = P.toOklch(hex), R = P.RESERVED_HUE;
+    return lch[1] >= R.minChroma && lch[2] >= R.from && lch[2] <= R.to;
+  };
+
+  /* ── Category sets for the map tools (0.21.0) ──────────────────────────────
+     Named, per-theme category palettes for mesonet-status,
+     mesonet-maintenance and mesonet-umrb-build (owner decision, 2026-11: move
+     every station and cell category off the orange/brown family the
+     tribal-lands fill keeps). Apps take their legend, paint and pill colors
+     from here instead of hard-coding hexes or sampling roma.
+
+     One vocabulary across the three tools, so a color means the same thing
+     everywhere: green = the good end (fresh, operational, visited,
+     Maintenance), rose = the bad end (stale, outage, overdue, Repair, an
+     available cell), with teal, blue and violet between. The ordered
+     sets (the two age ramps) are lightness-monotonic, so they also survive
+     grayscale. Category names are always printed in the legend: color is
+     never the only channel (WCAG 1.4.1). "No record" / "No data" categories
+     are not here: they are drawn hollow (a --dot-stroke edge, no fill).
+
+     Every hex below is data-encoding under the CVD policy (HOUSE-STYLE §6).
+     CI (tools/check-contrast.mjs) measures each one, per theme, at ≥ 3:1
+     (WCAG 1.4.11) against --bg-deep, --bg-surface, the CARTO basemap land
+     and water colors, and the tribal fill composited over land (cells: the
+     fill composited at fillOpacity over land, against land, the tribal
+     fill and the surfaces); checks that none is in RESERVED_HUE; and checks
+     that every pair in a set, and every color and the tribal fill and line,
+     stay ≥ 8 apart (OKLab ΔE × 100) for normal vision and simulated
+     protanopia, deuteranopia and tritanopia (Machado et al. 2009,
+     severity 1). High contrast uses the dark basemap, so it
+     takes the dark values. Measured minimums are in the comment on each
+     set; `node tools/check-contrast.mjs --report` prints the full table. */
+  var AGE = {
+    // dark/HC: min 3.10:1 (the rose bin on basemap water #2c353c); light:
+    // min 3.12:1 (the rose bin on water #d4dadc). Data-encoding (§6).
+    dark: ['#c0ecb2', '#50e3fe', '#75aedd', '#9277ee', '#d24b9b'],
+    light: ['#033722', '#0a565c', '#1061ad', '#9702eb', '#c25083'],
+  };
+  function ageSet(labels) {
+    return { dark: AGE.dark, light: AGE.light, keys: ['0', '1', '2', '3', '4'], labels: labels };
+  }
+  var SETS = {
+    // mesonet-status, Status mode. Bins 0 and 4 of the age ramp.
+    'status-reporting': {
+      keys: ['fresh', 'stale'], labels: ['Reported < 2 h ago', 'Stale (≥ 2 h)'],
+      dark: [AGE.dark[0], AGE.dark[4]], light: [AGE.light[0], AGE.light[4]],
+    },
+    // mesonet-status, Health mode. Bins 0, 2 and 4 of the age ramp.
+    'status-health': {
+      keys: ['operational', 'partial', 'outage'],
+      labels: ['Operational', 'Partial — sensor outage', 'Total outage'],
+      dark: [AGE.dark[0], AGE.dark[2], AGE.dark[4]], light: [AGE.light[0], AGE.light[2], AGE.light[4]],
+    },
+    // mesonet-status, Time since mode.
+    'status-age': ageSet(['< 2 h', '2–3 h', '3–6 h', '6–24 h', '> 24 h']),
+    // mesonet-maintenance, Compliance mode. "AgriMet (as-needed)" is a
+    // compliance category, a low-chroma slate. dark/HC min 3.10:1, light min
+    // 3.12:1 (both overdue, on basemap water). Data-encoding (§6).
+    'maintenance-compliance': {
+      keys: ['visited', 'overdue', 'new', 'as_needed'],
+      labels: ['Visited this year', 'Overdue', 'New this year (exempt)', 'AgriMet (as-needed)'],
+      dark: [AGE.dark[0], AGE.dark[4], '#5195fe', '#b3c1d4'],
+      light: [AGE.light[0], AGE.light[4], '#525ccd', '#4a485b'],
+    },
+    // mesonet-maintenance, Since last Maintenance mode.
+    'maintenance-age': ageSet(['< 1 month', '1–3 months', '3–6 months', '6–12 months', '> 1 year']),
+    // mesonet-maintenance, Most recent trip type. dark/HC min 3.10:1, light
+    // min 3.12:1 (both Repair, on basemap water). Data-encoding (§6).
+    'maintenance-trip': {
+      keys: ['Maintenance', 'Repair', 'Tech Install', 'Structure Install', 'Ground Game', 'Other'],
+      labels: ['Maintenance', 'Repair', 'Tech Install', 'Structure Install', 'Ground Game', 'Other / none'],
+      dark: [AGE.dark[0], AGE.dark[4], '#008bb8', '#986ffd', '#35bffd', '#96adb7'],
+      light: [AGE.light[0], AGE.light[4], '#1080b3', '#460a5d', '#2253b6', '#454a59'],
+    },
+    // mesonet-umrb-build, public view: grid cells, drawn at fillOpacity.
+    // dark/HC and light min 3.21:1 (Available cell at 0.9 over land, on the
+    // tribal fill). Data-encoding (§6).
+    'umrb-public': {
+      fillOpacity: 0.9,
+      keys: ['active', 'building', 'contracted', 'candidate-26', 'candidate-27', 'unassigned'],
+      labels: ['Operational', 'Build in progress', 'Installation pending', 'Install 2026', 'Pending 2027', 'Available cell'],
+      dark: [AGE.dark[0], '#208ac2', '#9faaef', '#966afe', '#f8c2fe', AGE.dark[4]],
+      light: [AGE.light[0], '#0a5260', '#6905e2', '#5f007f', '#ba038e', AGE.light[4]],
+    },
+    // mesonet-umrb-build, internal view. dark/HC and light min 3.21:1
+    // (Available cell, on the tribal fill). Data-encoding (§6).
+    'umrb-internal': {
+      fillOpacity: 0.9,
+      keys: ['active', 'structures', 'ground', 'contracted', 'candidate-26', 'candidate-27', 'unassigned'],
+      labels: ['Operational', 'Station structure complete', 'Ground game complete', 'Installation pending', 'Install 2026', 'Pending 2027', 'Available cell'],
+      dark: [AGE.dark[0], '#5acfb9', '#018dc2', '#9faaef', '#966afe', '#f8c2fe', AGE.dark[4]],
+      light: [AGE.light[0], '#0b535f', '#0a78ca', '#6905e2', '#5f007f', '#ba038e', AGE.light[4]],
+    },
+  };
+
+  // CATEGORY_SETS[name][theme] → [{key, label, color}], in legend order;
+  // a cell set also carries .fillOpacity on each theme's array.
+  P.CATEGORY_SETS = {};
+  Object.keys(SETS).forEach(function (name) {
+    var s = SETS[name];
+    P.CATEGORY_SETS[name] = {};
+    THEMES.forEach(function (t) {
+      var colors = s[t === 'light' ? 'light' : 'dark'];
+      var rows = s.keys.map(function (k, i) { return { key: k, label: s.labels[i], color: colors[i] }; });
+      if (s.fillOpacity != null) rows.fillOpacity = s.fillOpacity;
+      P.CATEGORY_SETS[name][t] = rows;
+    });
+  });
+
+  // categorySet('status-health', 'light') → a fresh copy of that set's rows
+  // ([{key, label, color}], plus .fillOpacity for cell sets). Unknown name
+  // throws; an unknown theme falls back to dark, as network() does.
+  P.categorySet = function (name, theme) {
+    var set = P.CATEGORY_SETS[name];
+    if (!set) throw new Error('MCO.palette: unknown category set ' + name);
+    var rows = set[theme in P.SURFACE ? theme : 'dark'];
+    var out = rows.map(function (r) { return { key: r.key, label: r.label, color: r.color }; });
+    if (rows.fillOpacity != null) out.fillOpacity = rows.fillOpacity;
+    return out;
   };
 })();

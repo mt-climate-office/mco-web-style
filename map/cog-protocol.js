@@ -117,7 +117,30 @@
 
   // ── Block fetcher with LRU cache ───────────────────────────────────────────
 
-  async function getBlock(cogUrl, ifdIdx, blockIdx, ifd) {
+  // One block's bytes. The tile request's AbortSignal rides along, so a tile
+  // MapLibre cancels (panned away) stops its block fetches too (0.21.0). A
+  // short read is retried once, bypassing the HTTP cache, before it throws:
+  // the snowpack consumer logged "short read, 0 of 8875 bytes" for a block a
+  // second request served whole.
+  async function fetchBlockBytes(cogUrl, blockIdx, start, len, signal) {
+    const range = `bytes=${start}-${start + len - 1}`;
+    for (let attempt = 0; ; attempt++) {
+      const res = await fetch(cogUrl, {
+        headers: { Range: range }, signal,
+        cache: attempt ? 'no-store' : 'default',
+      });
+      if (!res.ok) throw new Error(`[cog] block ${blockIdx}: HTTP ${res.status}`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      // A truncated range response would surface from fzstd as "unexpected
+      // EOF"; name it instead (0.11.3).
+      if (bytes.byteLength >= len) return bytes;
+      if (attempt >= 1 || (signal && signal.aborted)) {
+        throw new Error(`[cog] block ${blockIdx}: short read, ${bytes.byteLength} of ${len} bytes`);
+      }
+    }
+  }
+
+  async function getBlock(cogUrl, ifdIdx, blockIdx, ifd, signal) {
     const key = `${cogUrl}:${ifdIdx}:${blockIdx}`;
     if (_blockCache.has(key)) {
       const v = _blockCache.get(key); _blockCache.delete(key); _blockCache.set(key, v); return v;
@@ -125,14 +148,7 @@
     const tw   = ifd[322], th = ifd[323];
     const offs = [].concat(ifd[324]);
     const lens = [].concat(ifd[325]);
-    const res = await fetch(cogUrl, { headers: { Range: `bytes=${offs[blockIdx]}-${offs[blockIdx] + lens[blockIdx] - 1}` } });
-    if (!res.ok) throw new Error(`[cog] block ${blockIdx}: HTTP ${res.status}`);
-    const compressed = new Uint8Array(await res.arrayBuffer());
-    // A truncated range response would surface from fzstd as "unexpected
-    // EOF"; name it instead (0.11.3).
-    if (compressed.byteLength < lens[blockIdx]) {
-      throw new Error(`[cog] block ${blockIdx}: short read, ${compressed.byteLength} of ${lens[blockIdx]} bytes`);
-    }
+    const compressed = await fetchBlockBytes(cogUrl, blockIdx, offs[blockIdx], lens[blockIdx], signal);
     const raw  = fzstd.decompress(compressed);
     // Undo horizontal-differencing predictor with uint16 modular arithmetic
     const u16a = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2);
@@ -148,7 +164,7 @@
 
   // ── Window reader ──────────────────────────────────────────────────────────
 
-  async function readWindow(cogUrl, meta, ifdIdx, geoW, geoS, geoE, geoN, outW, outH) {
+  async function readWindow(cogUrl, meta, ifdIdx, geoW, geoS, geoE, geoN, outW, outH, signal) {
     const { ifds, BW, BN, lonSpan, latSpan } = meta;
     const ifd  = ifds[ifdIdx];
     const imgW = ifd[256], imgH = ifd[257], tw = ifd[322], th = ifd[323];
@@ -169,7 +185,7 @@
     const jobs = [];
     for (let ty = Math.floor(py1/th); ty < Math.ceil(py2/th); ty++)
       for (let tx = Math.floor(px1/tw); tx < Math.ceil(px2/tw); tx++)
-        jobs.push(getBlock(cogUrl, ifdIdx, ty*nTX + tx, ifd).then(t => ({ tx, ty, t })));
+        jobs.push(getBlock(cogUrl, ifdIdx, ty*nTX + tx, ifd, signal).then(t => ({ tx, ty, t })));
     for (const { tx, ty, t } of await Promise.all(jobs)) {
       const cx1 = Math.max(px1, tx*tw),  cx2 = Math.min(px2, (tx+1)*tw);
       const cy1 = Math.max(py1, ty*th),  cy2 = Math.min(py2, (ty+1)*th);
@@ -253,7 +269,7 @@
         let best = ifds.length - 1;
         for (let i = 0; i < ifds.length; i++) { if (ifdRes[i] >= targetRes) { best = i; break; } }
 
-        const data = await readWindow(cogUrl, meta, best, gW, gS, gE, gN, 256, 256);
+        const data = await readWindow(cogUrl, meta, best, gW, gS, gE, gN, 256, 256, abort.signal);
         if (!data || abort.signal.aborted) return { data: await emptyTile() };
 
         const canvas = new OffscreenCanvas(256, 256);

@@ -8,6 +8,68 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.21.0] — 2026-11-03
+
+MINOR: theme, core, map, cog and palette. Photos, places, summary and the
+anti-flash snippet are byte-identical to 0.20.0, so their SRI hashes and
+every consumer's CSP hashes are unchanged. The family conformance release:
+a 2026-11-03 audit of every consumer found the shell uniform but the bars,
+station details, toggles, stamps, legends and category colors inconsistent.
+The owner settled each rule (HOUSE-STYLE §1, §3, §4, §5.7, §6, §7).
+
+### Changed
+- **One control height in the navbar.** `.seg-btn` (30 px), `.mco-chip`
+  (28 px) and `.mco-search-input` (32 px) now match `.nav-btn` at
+  `--control-h`: 34 px on desktop, 40 px under `hover: none`, inside
+  `.mco-navbar` and its drawer only. Outside the bar, sizes are unchanged.
+  This changes rendered sizes in every consumer. It ships as a fix rather
+  than a MAJOR by owner decision: no markup, API or behavior changes, and the
+  touch sizes were already uniform.
+- **`.modal-close` inherits the font**, so the × no longer renders in the
+  browser's default button font.
+- **`MCO.initInfoModal` focuses the close button** on every open.
+
+### Added
+- **Compact nav drawer:** `data-rail="compact"` on `.mco-navbar`. At
+  portrait compact the bar is one row (badge · hot controls · search · ☰,
+  ≤ 64 px; the badge holds the left edge, ☰ the right) and
+  `.mco-nav-drawer` opens as a right drawer under it, with the
+  drawer contract (inert, Esc, scrim, focus return). `MCO.initNavRail` gains
+  a `search: {toggle, input}` option and `isDrawerMode()`. Plain `data-rail`
+  is unchanged.
+- **`MCO.formatUpdatedMT(ms, {into})`:** "Updated 2:45 PM MST", with the
+  date when it is not today in Mountain time. `.refresh-status` hides the
+  word visually at ≤ 1400 px and shows it in the drawer.
+- **`MCO.initInfoModal({intro: {key, skip, defer}})`:** the first-visit
+  auto-open, once per key, never on a deep link or after focus has moved.
+- **`MCO.map.colocation(map, opts)`:** groups stations at one location
+  (4-decimal buckets), draws a count badge and fans the members out as a
+  spider on hover or first tap. Extracted from mesonet-status and
+  mesonet-maintenance, and cross-checked with mesonet-explorer.
+- **`MCO.map.stationPaint()`:** one uniform station circle; markers carry no
+  network encoding.
+- **`MCO.map.flyToAndOpen(map, opts)`:** opens a detail once the map is idle
+  with the target in view, instead of on the first `moveend`.
+- **Map category sets:** `MCO.palette.categorySet(name, theme)`,
+  `CATEGORY_SETS`, `RESERVED_HUE`, `isReservedHue()` and `toOklch()`. Status,
+  maintenance and umrb sets clear 3:1 on the surfaces, both CARTO basemaps
+  and the tribal fill, stay ≥ ΔE 8 apart under protan, deutan and tritan
+  simulation, and avoid the orange/brown band reserved for the tribal fill.
+  `tools/check-contrast.mjs` gates them; `--report` prints the tables.
+- **`demo/colocation.html`** and **`demo/palette-proposal.html`**.
+- **`tools/verify/family-audit.mjs`:** measures every consumer's chrome and
+  checks the family rules (control height, phone bar, badge, stamp, chips,
+  `?station=` opens the sheet), against production or `--url` overrides.
+
+### Fixed
+- **`cog-protocol.js`** passes the tile's abort signal to block fetches and
+  retries a short read once before giving up.
+
+### Deprecated
+- `MCO.map.markerPaint`'s network shapes, `MCO.map.colocatedHaloPaint`, and
+  `MCO.palette.NETWORK`'s `shape` and marker `color`. They keep working until
+  1.0.0.
+
 ## [0.20.0] — 2026-10-26
 
 MINOR: map only. Theme, core, cog, palette, photos, places, summary and the

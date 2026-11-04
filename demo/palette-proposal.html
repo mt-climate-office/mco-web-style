@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Map category palettes · proposal</title>
+  <meta name="description" content="Before and after for the station and cell category palettes of mesonet-status, mesonet-maintenance and mesonet-umrb-build, in all three themes, with simulated color-vision deficiencies.">
+  <meta name="theme-color" content="#1a6faf" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161b22" media="(prefers-color-scheme: dark)">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+
+  <!-- Anti-flash theme boot (snippets/anti-flash.html) -->
+  <script>
+    (function () {
+      const raw = new URLSearchParams(location.search).get('theme');
+      const url = raw == null ? null : raw.toLowerCase();
+      let saved = null;
+      try { saved = localStorage.getItem('mco-theme'); } catch (e) {}
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const valid = ['dark', 'light', 'high-contrast'];
+      const root = document.documentElement;
+      const def = root.getAttribute('data-theme-default');
+      const t = valid.includes(url) ? url
+              : valid.includes(saved) ? saved
+              : valid.includes(def) ? def
+              : (prefersDark ? 'dark' : 'light');
+      root.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="../theme/mco-theme.css">
+  <style>
+    /* Proposal-page layout only — nothing here is part of the kit. */
+    body { background: var(--bg-deep); color: var(--text-primary); }
+    main { max-width: 1280px; margin: 0 auto; padding: var(--space-6) max(16px, env(safe-area-inset-right)) var(--space-7) max(16px, env(safe-area-inset-left)); }
+    h1 { font-size: var(--fs-2xl); margin: 0 0 var(--space-3); }
+    h2 { font-size: var(--fs-xl); margin: var(--space-7) 0 var(--space-2); }
+    h3 { font-size: var(--fs-md); margin: 0 0 var(--space-2); }
+    p, li { max-width: 78ch; line-height: var(--lh-body); color: var(--text-secondary); }
+    main > p { margin: 0 0 var(--space-3); }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    .pp-src { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); }
+    .pp-themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: var(--space-4); margin-top: var(--space-3); }
+    .pp-island { padding: var(--space-4); border-radius: var(--radius-lg); background: var(--bg-deep); border: 1px solid var(--border); min-width: 0; }
+    .pp-island-title { font-size: var(--fs-sm); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin: 0 0 var(--space-3); }
+    .pp-ba { display: grid; gap: var(--space-3); }
+    .pp-ba + .pp-ba { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+    .pp-tag { font-size: var(--fs-xs); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+    .pp-swatches { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+    .pp-swatches li { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: var(--space-2); font-size: var(--fs-sm); color: var(--text-primary); max-width: none; }
+    .pp-chip { width: 22px; height: 16px; border-radius: 3px; }
+    .pp-meta { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-muted); white-space: nowrap; }
+    .pp-fail { color: var(--danger); font-weight: var(--fw-semibold); }
+    .pp-vis { display: grid; grid-template-columns: 4.6rem 1fr; align-items: center; gap: var(--space-2); }
+    .pp-vis-label { font-size: var(--fs-xs); color: var(--text-muted); }
+    /* The tile: basemap land, a reservation patch (tribal fill + line) and a
+       lake, with the categories drawn across all three. */
+    .pp-tile { position: relative; height: 54px; border-radius: 4px; overflow: hidden; }
+    .pp-tile > .pp-tribal, .pp-tile > .pp-water { position: absolute; top: 0; bottom: 0; }
+    .pp-tile > .pp-tribal { left: 34%; width: 33%; border-left: 1px solid; border-right: 1px solid; }
+    .pp-tile > .pp-water { left: 82%; right: 0; }
+    .pp-marks { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-around; padding: 4px 0; }
+    .pp-markrow { display: flex; justify-content: space-around; }
+    .pp-dot { width: 11px; height: 11px; border-radius: 50%; box-sizing: border-box; border: 1.2px solid var(--dot-stroke); }
+    .pp-cells { position: absolute; inset: 0; display: flex; z-index: 0; }
+    .pp-tile > .pp-tribal { z-index: 1; }
+    .pp-cells > span { flex: 1; border-right: 1px solid; }
+    .pp-ruler { font-size: var(--fs-xs); color: var(--text-muted); }
+    .pp-band { display: flex; height: 14px; border-radius: 3px; overflow: hidden; margin: var(--space-2) 0; max-width: 640px; }
+    .pp-band span { flex: 1; }
+  .cvd-defs { position: absolute; }
+  </style>
+</head>
+<body>
+<a class="mco-skip-link" href="#main">Skip to main content</a>
+
+<!-- SVG filters for the simulated rows: Machado, Oliveira & Fernandes (2009),
+     severity 1, in linear RGB — the same matrices tools/check-contrast.mjs
+     uses for its ΔE gate. -->
+<svg class="cvd-defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <filter id="cvd-protan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0"/></filter>
+  <filter id="cvd-deutan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.367322 0.860646 -0.227968 0 0  0.280085 0.672501 0.047413 0 0  -0.011820 0.042940 0.968881 0 0  0 0 0 1 0"/></filter>
+  <filter id="cvd-tritan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1.255528 -0.076749 -0.178779 0 0  -0.078411 0.930809 0.147602 0 0  0.004733 0.691367 0.303900 0 0  0 0 0 1 0"/></filter>
+</svg>
+
+<main id="main" tabindex="-1">
+  <h1>Map category palettes: proposal</h1>
+  <p>On the map tools, orange and brown meant something different in each tool, and all of it sat on the kit's brown tribal-lands fill. This page puts each tool's category set as it is on <code>main</code> today (Before) next to the proposed kit set from <code>MCO.palette.categorySet()</code> (After), in all three themes. Each set is shown as legend swatches and as marks over basemap land, a reservation (the tribal fill and its line) and a lake, for normal vision and simulated protanopia, deuteranopia and tritanopia.</p>
+  <p>The reserved band is OKLCH hue <span id="reserved-band"></span>. The figure after each swatch is its lowest contrast against <code>--bg-deep</code>, <code>--bg-surface</code>, basemap land, water and the tribal fill (cells: the fill at its opacity over land). A figure in red is under 3:1, and <strong>reserved</strong> marks a hue inside the band. <code>node tools/check-contrast.mjs --report</code> prints every ratio and the closest pair for each vision type.</p>
+  <div class="pp-band" id="reserved-strip" role="img" aria-label="OKLCH hue wheel from 0 to 360 degrees at medium lightness, with the reserved orange/brown band dimmed"></div>
+  <div id="sets"></div>
+</main>
+
+<!-- BEFORE: each app's category colors on main (repo@sha, file), read
+     2026-11-03. Status and maintenance are theme-invariant; umrb's high
+     contrast takes its dark values (isDark()). No-record / no-data
+     categories are drawn hollow and are omitted. tools/check-contrast.mjs
+     --report reads this block. Data-encoding (§6). -->
+<script type="application/json" id="before-sets">
+{
+  "status-reporting": {"source":"mesonet-status@f082f5f app.js","keys":["fresh","stale"],"labels":["Reported < 2 h ago","Stale (≥ 2 h)"],"dark":["#1e5fac","#984e14"],"light":["#1e5fac","#984e14"],"high-contrast":["#1e5fac","#984e14"]},
+  "status-health": {"source":"mesonet-status@f082f5f app.js","keys":["operational","partial","outage"],"labels":["Operational","Partial — sensor outage","Total outage"],"dark":["#1e5fac","#c0eac3","#984e14"],"light":["#1e5fac","#c0eac3","#984e14"],"high-contrast":["#1e5fac","#c0eac3","#984e14"]},
+  "status-age": {"source":"mesonet-status@f082f5f app.js","keys":["0","1","2","3","4"],"labels":["< 2 h","2–3 h","3–6 h","6–24 h","> 24 h"],"dark":["#1e5fac","#4bb2ce","#c0eac3","#c1a545","#984e14"],"light":["#1e5fac","#4bb2ce","#c0eac3","#c1a545","#984e14"],"high-contrast":["#1e5fac","#4bb2ce","#c0eac3","#c1a545","#984e14"]},
+  "maintenance-compliance": {"source":"mesonet-maintenance@3f84f92 app.js","keys":["visited","overdue","new","as_needed"],"labels":["Visited this year","Overdue","New this year (exempt)","AgriMet (as-needed)"],"dark":["#2a8a86","#b8421b","#5aaee8","#7a8ba6"],"light":["#2a8a86","#b8421b","#5aaee8","#7a8ba6"],"high-contrast":["#2a8a86","#b8421b","#5aaee8","#7a8ba6"]},
+  "maintenance-age": {"source":"mesonet-maintenance@3f84f92 app.js","keys":["0","1","2","3","4"],"labels":["< 1 month","1–3 months","3–6 months","6–12 months","> 1 year"],"dark":["#1e5fac","#4bb2ce","#c0eac3","#c1a545","#984e14"],"light":["#1e5fac","#4bb2ce","#c0eac3","#c1a545","#984e14"],"high-contrast":["#1e5fac","#4bb2ce","#c0eac3","#c1a545","#984e14"]},
+  "maintenance-trip": {"source":"mesonet-maintenance@3f84f92 app.js","keys":["Maintenance","Repair","Tech Install","Structure Install","Ground Game","Other"],"labels":["Maintenance","Repair","Tech Install","Structure Install","Ground Game","Other / none"],"dark":["#2a8a86","#b8421b","#e0a32e","#b07fd0","#5aaee8","#9aa3b3"],"light":["#2a8a86","#b8421b","#e0a32e","#b07fd0","#5aaee8","#9aa3b3"],"high-contrast":["#2a8a86","#b8421b","#e0a32e","#b07fd0","#5aaee8","#9aa3b3"]},
+  "umrb-public": {"source":"mesonet-umrb-build@5a9dae1 app.js","fillOpacity":0.78,"keys":["active","building","contracted","candidate-26","candidate-27","unassigned"],"labels":["Operational","Build in progress","Installation pending","Install 2026","Pending 2027","Available cell"],"dark":["#1b47aa","#44a5d0","#c0ebc4","#ceb95a","#b2742a","#95290d"],"light":["#001e8d","#0481ab","#97c09b","#a69338","#8b5308","#690500"],"high-contrast":["#1b47aa","#44a5d0","#c0ebc4","#ceb95a","#b2742a","#95290d"]},
+  "umrb-internal": {"source":"mesonet-umrb-build@5a9dae1 app.js","fillOpacity":0.78,"keys":["active","structures","ground","contracted","candidate-26","candidate-27","unassigned"],"labels":["Operational","Station structure complete","Ground game complete","Installation pending","Install 2026","Pending 2027","Available cell"],"dark":["#1b47aa","#3887c5","#64c7d9","#c0ebc4","#ceb95a","#b2742a","#95290d"],"light":["#001e8d","#0065a1","#37a0b2","#97c09b","#a69338","#8b5308","#690500"],"high-contrast":["#1b47aa","#3887c5","#64c7d9","#c0ebc4","#ceb95a","#b2742a","#95290d"]}
+}
+</script>
+
+<script src="../core/mco-core.js"></script>
+<script src="../palette/mco-palette.js"></script>
+<script src="../map/mco-map.js"></script>
+<script>
+  'use strict';
+  const P = MCO.palette;
+  const THEMES = [['dark', 'Dark'], ['light', 'Light'], ['high-contrast', 'High contrast']];
+  const VISIONS = [['', 'Normal'], ['protan', 'Protan'], ['deutan', 'Deutan'], ['tritan', 'Tritan']];
+  const TITLES = {
+    'status-reporting': 'mesonet-status · Reporting status',
+    'status-health': 'mesonet-status · Health',
+    'status-age': 'mesonet-status · Time since',
+    'maintenance-compliance': 'mesonet-maintenance · HydroMet requirement',
+    'maintenance-age': 'mesonet-maintenance · Since last Maintenance',
+    'maintenance-trip': 'mesonet-maintenance · Most recent trip type',
+    'umrb-public': 'mesonet-umrb-build · Public view (cells)',
+    'umrb-internal': 'mesonet-umrb-build · Internal view (cells)',
+  };
+  // CARTO Dark Matter / Positron land and water (data reference, as in
+  // tools/check-contrast.mjs; high contrast loads Dark Matter).
+  const CARTO = { dark: { land: '#0e0e0e', water: '#2c353c' }, light: { land: '#fafaf8', water: '#d4dadc' } };
+  const base = (t) => CARTO[t === 'light' ? 'light' : 'dark'];
+
+  // overlayPaints() reads the PAGE theme, so read it once per theme.
+  const TRIBAL = {};
+  {
+    const root = document.documentElement, was = root.dataset.theme;
+    for (const [t] of THEMES) { root.dataset.theme = t; const o = MCO.map.overlayPaints(); TRIBAL[t] = { fill: o.tribalFill, line: o.tribalLine }; }
+    root.dataset.theme = was;
+  }
+  const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const over = (fg, a, bg) => '#' + hex(fg).map((v, i) => Math.round(v * a + hex(bg)[i] * (1 - a)).toString(16).padStart(2, '0')).join('');
+  const rgba = (c, a) => `rgba(${hex(c).join(',')},${a})`;
+  function grounds(t) {
+    const tok = getComputedStyle(document.querySelector(`.pp-probe[data-theme="${t}"]`));
+    const tri = TRIBAL[t].fill;
+    return [tok.getPropertyValue('--bg-deep').trim(), tok.getPropertyValue('--bg-surface').trim(),
+      base(t).land, base(t).water, over(tri['fill-color'], tri['fill-opacity'], base(t).land)];
+  }
+  function minContrast(color, t, op) {
+    const g = grounds(t);
+    if (!op) return Math.min(...g.map((b) => P.contrast(color, b)));
+    const c = over(color, op, base(t).land);
+    return Math.min(...[g[0], g[1], g[2], g[4]].map((b) => P.contrast(c, b)));
+  }
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  // Probes so token reads come from each theme's own block.
+  for (const [t] of THEMES) { const p = el('div', 'pp-probe'); p.dataset.theme = t; p.hidden = true; document.body.appendChild(p); }
+
+  function tile(rows, t, op, filter) {
+    const tl = el('div', 'pp-tile');
+    tl.style.background = base(t).land;
+    const tri = el('div', 'pp-tribal');
+    tri.style.background = rgba(TRIBAL[t].fill['fill-color'], TRIBAL[t].fill['fill-opacity']);
+    tri.style.borderColor = rgba(TRIBAL[t].line['line-color'], TRIBAL[t].line['line-opacity']);
+    const wat = el('div', 'pp-water'); wat.style.background = base(t).water;
+    tl.append(tri, wat);
+    if (op) {
+      // Cells: one per category, across land, reservation and lake. Layer
+      // order as on the map: basemap (land, water) → cells → tribal overlay.
+      // Cell edges are umrb's cellLinePaint colors (data reference).
+      const cells = el('div', 'pp-cells');
+      rows.forEach((r) => { const s = el('span'); s.style.background = rgba(r.color, op); s.style.borderColor = t === 'light' ? '#1a1a2e' : '#0d1117'; cells.appendChild(s); });
+      tl.replaceChildren(wat, cells, tri);
+    } else {
+      const marks = el('div', 'pp-marks');
+      for (let k = 0; k < 2; k++) {
+        const row = el('div', 'pp-markrow');
+        for (let i = 0; i < 3; i++) rows.forEach((r) => { const d = el('span', 'pp-dot'); d.style.background = r.color; row.appendChild(d); });
+        marks.appendChild(row);
+      }
+      tl.appendChild(marks);
+    }
+    if (filter) tl.style.filter = `url(#cvd-${filter})`;
+    tl.setAttribute('aria-hidden', 'true');
+    return tl;
+  }
+
+  function block(tag, rows, t, op) {
+    const wrap = el('div', 'pp-ba');
+    wrap.appendChild(el('span', 'pp-tag', tag + (op ? ` · cells at ${op}` : '')));
+    const ul = el('ul', 'pp-swatches');
+    for (const r of rows) {
+      const li = el('li');
+      const chip = el('span', 'pp-chip'); chip.style.background = op ? over(r.color, op, base(t).land) : r.color; chip.setAttribute('aria-hidden', 'true');
+      const m = minContrast(r.color, t, op);
+      const meta = el('span', 'pp-meta', `${r.color} · ${m.toFixed(2)}:1`);
+      if (m < 3) meta.classList.add('pp-fail');
+      if (P.isReservedHue(r.color)) { const rs = el('strong', 'pp-fail', ' reserved'); meta.appendChild(rs); }
+      li.append(chip, el('span', null, r.label), meta);
+      ul.appendChild(li);
+    }
+    wrap.appendChild(ul);
+    for (const [f, name] of VISIONS) {
+      const v = el('div', 'pp-vis');
+      v.append(el('span', 'pp-vis-label', name), tile(rows, t, op, f));
+      wrap.appendChild(v);
+    }
+    return wrap;
+  }
+
+  const before = JSON.parse(document.getElementById('before-sets').textContent);
+  const host = document.getElementById('sets');
+  for (const name of Object.keys(P.CATEGORY_SETS)) {
+    const sec = el('section');
+    sec.setAttribute('aria-labelledby', 'h-' + name);
+    const h = el('h2', null, TITLES[name] || name); h.id = 'h-' + name;
+    sec.appendChild(h);
+    const b = before[name];
+    sec.appendChild(el('p', 'pp-src', `MCO.palette.categorySet('${name}', theme) · before: ${b ? b.source : 'new'}`));
+    const grid = el('div', 'pp-themes');
+    for (const [t, label] of THEMES) {
+      const isl = el('div', 'pp-island'); isl.dataset.theme = t;
+      isl.appendChild(el('h3', 'pp-island-title', label));
+      if (b) isl.appendChild(block('Before', b.keys.map((key, i) => ({ key, label: b.labels[i], color: b[t][i] })), t, b.fillOpacity));
+      const after = P.categorySet(name, t);
+      isl.appendChild(block('After', after, t, after.fillOpacity));
+      grid.appendChild(isl);
+    }
+    sec.appendChild(grid);
+    host.appendChild(sec);
+  }
+
+  // The reserved band, drawn on an OKLCH hue strip (L 0.7, C 0.12).
+  {
+    const R = P.RESERVED_HUE;
+    document.getElementById('reserved-band').textContent = `${R.from}°–${R.to}° (chroma ≥ ${R.minChroma}); the tribal fill sits at ${P.toOklch(TRIBAL.dark.fill['fill-color'])[2].toFixed(0)}° (dark) and ${P.toOklch(TRIBAL.light.fill['fill-color'])[2].toFixed(0)}° (light)`;
+    const strip = document.getElementById('reserved-strip');
+    for (let h = 0; h < 360; h += 6) {
+      const s = el('span');
+      s.style.background = `oklch(0.7 0.12 ${h})`;
+      if (h + 6 > R.from && h < R.to) s.style.opacity = '0.25';
+      strip.appendChild(s);
+    }
+  }
+</script>
+</body>
+</html>

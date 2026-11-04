@@ -136,6 +136,17 @@ and where the data comes from. Footers and exports credit
 everywhere. Pages with room carry a `.mco-footer`. Full-viewport map apps put
 the credit in the info modal's Data section and their exports instead.
 
+**The info modal outline** (0.21.0). Every app's info modal has the same
+shape, so a visitor who has read one knows where to look in the next:
+
+- **Heading:** the app's brand title, the same words as `.brand-title`.
+- **Sections, in order:** *What this shows* · *How to use it* · *Share or
+  bookmark* · *Data*. Each is an `.info-section` with an `<h3>`. Leave out a
+  section with nothing true to say, but don't rename or reorder them.
+- **Data** names the sources and ends with the credit line from
+  `MCO.credit({source})`, never hand-typed.
+- Keyboard shortcuts and `?kbd=off` (§5.9) go under *How to use it*.
+
 ---
 
 ## 2. Tokens
@@ -239,6 +250,15 @@ variant), segmented groups `.seg-btns > .seg-btn`, info button `.mco-btn-info`.
 `--accent` with `--text-on-accent`. Never hand-roll `color: #fff` on the
 accent, which is 2.2:1 in high contrast.
 
+**One control height in the bar** (0.21.0). Inside `.mco-navbar` and its
+nav drawer, every control stands `--control-h`: 34 px, and 40 px under
+`(hover: none)`. That covers `.nav-btn` (steppers included), `.seg-btn`,
+`.mco-chip` and `.mco-search-input`. Before 0.21.0 they were 34, 30, 28 and
+32 px, so a bar that mixed them read as four sizes. An app's own control in
+the bar (a `<select>`, a date input) takes `height: var(--control-h)` too.
+Outside the bar, chips, segmented buttons and legend rows keep their own,
+smaller sizes. The bar stays 52 px min-height.
+
 **The website's section links are the second exception** (decided
 2026-10-24, website decision D21). `climate.umt.edu` is a long-form public
 site that sits above the kit (its `docs/VISUAL-SYSTEM.md`), not an
@@ -256,7 +276,8 @@ it. A sticky bar costs height on every screen of the page, so on compact it
 must stay **one row** (≤ 64 px): put the view tabs and the overflow controls
 in an `MCO.initDrawer` drawer, or shed labels to icon-only buttons, rather
 than letting the bar wrap. Two rows (the dashboard's 92 px at 390 px) is 11%
-of a phone screen, permanently. Full-viewport map apps keep the in-flow bar.
+of a phone screen, permanently. Full-viewport map apps keep the in-flow bar,
+and on a phone it is one row too (the compact drawer, below).
 
 The lockup is 12 px title / 11 px subtitle (0.10.0). Don't shrink it to buy
 a row: shed controls into a drawer or the rail instead.
@@ -280,10 +301,11 @@ controls must use a tier.
 
 | Width | What sheds |
 |---|---|
-| ≤ 1400px | button/control text labels (`.btn-label`, `.control-label`) — the buttons then square to 34px (40px on touch) so they match `.icon-only` neighbours; `.mco-btn-info` keeps its circle |
+| ≤ 1400px | button/control text labels (`.btn-label`, `.control-label`) — the buttons then square to 34px (40px on touch) so they match `.icon-only` neighbours; `.mco-btn-info` keeps its circle; the word "Updated" in `.refresh-status` (visually; the time stays, 0.21.0) |
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
+| compact, not short landscape | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, logo · hot controls · search · ☰; the rest in a right drawer |
 | height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px left column; also compact |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
@@ -297,19 +319,14 @@ shipped exactly that, with a nameless date input and time select at every width
 below 1400 px, until v0.5.1. **Run axe at a narrow viewport, not just at desktop:**
 a shed label is invisible to a 1440 px-only audit.
 
-The brand collapse at ≤750 px is a default, not a mandate: an app whose navbar
-wraps to extra rows instead (mesonet-status) may opt out — note the choice in a
-comment. Opting out takes **two** rules, because the kit hides the lockup and
-the divider separately:
-
-```css
-/* kit-override: branding at all widths */
-@media (max-width: 750px) {
-  .mco-navbar .brand { position: static; width: auto; height: auto;
-                       margin: 0; clip: auto; overflow: visible; }
-  .mco-navbar > .nav-divider { display: block; }
-}
-```
+The brand collapse at ≤750 px is the rule for map tools (0.21.0). A
+full-viewport map tool's phone bar is one row (the compact drawer, below),
+so it no longer opts out of the collapse to keep its branding by wrapping;
+the brand moves into the drawer instead. The earlier opt-out (restoring the
+lockup and the divider at ≤750 px, mesonet-status's old override) is retired
+for map tools. The website and the station dashboard are not map tools and
+keep their recorded exceptions (the website's in §1 and above; the
+dashboard's in CONSUMERS.md).
 
 The lockup is *visually* hidden, not removed, so the brand title may be the
 page's `<h1>` (status does this; good for document outline) as long as it
@@ -339,8 +356,9 @@ flash a wrong state (a default view before URL state is applied). Never hold
 | Flyout: search list, menu | `MCO.initSearchBox` | no | 2 |
 | Bottom sheet, full detent (compact) | `MCO.initSheet` | yes: rest of page inert | 3 |
 | Off-canvas drawer | `MCO.initDrawer` (`.mco-drawer`) | yes on compact: rest inert | 4 |
-| Sheet at peek / end-docked | `MCO.initSheet` | no; the map stays usable | 5 |
-| Map popup | `MCO.map.popupContent` | no | 6 |
+| Nav drawer (rail, compact drawer) | `MCO.initNavRail` (`.mco-nav-drawer`) | yes: rest inert, ☰ live | 4 |
+| Sheet at peek / end-docked; **station detail at every width** | `MCO.initSheet` | no; the map stays usable | 5 |
+| Map popup, non-station features only (a reservation, a county) | `MCO.map.popupContent` | no | 6 |
 | Cursor tooltip | `MCO.map.initCursorTooltip` | decoration (`aria-hidden`) | n/a |
 
 Open moves focus in, and close returns it to the opener (or `#main` if the
@@ -348,6 +366,12 @@ opener is gone). A drawer is a labelled `<aside>`, not `role=dialog`: while
 modal-open it makes everything else `inert`, so no focus trap is needed. Inert
 roots are reference-counted, and live regions and the toast are never inerted.
 Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
+
+**Station detail is `MCO.initSheet` at every width** (0.21.0): end-docked
+above compact, a bottom sheet on compact. A station never opens an anchored
+popup; popups remain for non-station features. **`?station=` always opens
+the sheet via `MCO.map.flyToAndOpen`, and Back closes it** (push on the first
+open from a no-detail state, replace while it stays open; §4).
 
 **Mobile patterns** (kit components since 0.9.0, after mesonet-explorer):
 - Off-canvas drawer: `.mco-drawer` + `MCO.initDrawer({modal: 'compact'})`,
@@ -360,8 +384,8 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   lifts with it; otherwise the corner's attribution rides up over the panel.
   Before turning on `mco-autolift`, mark every bottom-docked panel. The lift
   stops 8px below the top of the element's container (0.13.1), so in the
-  short-landscape rail a tall panel should collapse rather than ride up. On compact,
-  status, maint and umrb open this instead of the anchored popup.
+  short-landscape rail a tall panel should collapse rather than ride up.
+  Station detail opens here at every width (above).
 - Full-viewport apps use `100dvh` (never `100vh`) and `overflow: hidden` on body.
 - **`viewport-fit=cover` is required** for the safe-area insets in the kit CSS
   to be live — without the meta, `env()` silently resolves to 0 (two apps
@@ -374,8 +398,9 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   ladder only.** A bar that needs 1200 or 1280 sheds at a ladder rung, never
   at its own number.
   - **When one row can't fit at 1060, shed at 1400** (decided 2026-10-09):
-    segmented → select, search narrowed, `.refresh-status` to its dot. The
-    bar must be one row from 1061 to 1440. status (~1185 px), umrb (~1200)
+    segmented → select, search narrowed, and `.refresh-status` down to its
+    dot and time (the kit drops the word "Updated" visually there, 0.21.0;
+    §4 *Freshness stamp*). The bar must be one row from 1061 to 1440. status (~1185 px), umrb (~1200)
     and maintenance (~1290) all shed there.
   - **Focus across the fallback** works only if the kit's `[hidden]` is what
     hides the losing side. An app rule that also hides the wrapper at that
@@ -400,11 +425,11 @@ Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
   back to the button on close, and the app keeps control of Esc precedence and
   of its own `/` shortcut. Hiding search outright strands the only keyboard
   route to a named feature — don't.
-- **A control-dense bar still wraps on a phone even with search collapsed.** The
-  sanctioned next step is relocating `.controls` into an off-canvas drawer
-  (`.mco-scrim`, `--z-drawer`). mesonet-status is the natural first kit consumer
-  of that — deferred 2026-08-04 as its own design pass rather than riding along
-  on a breakpoint change.
+- **A control-dense bar still wraps on a phone even with search collapsed.**
+  For a full-viewport map tool the answer is the **compact drawer** below
+  (0.21.0): the bar stays one row and `.controls` move into a right drawer.
+  An app-specific drawer (`MCO.initDrawer`) remains the answer for panels
+  that are not the bar's own controls.
 
   mesonet-explorer is the working reference for the *pattern*. A scrim that
   should dim the map but not the navbar above it is
@@ -436,6 +461,39 @@ it.
 - **Don't hide a drawer with `visibility`.** A child with its own transition
   flips a frame late, and `focus()` in the same task silently fails. The kit
   uses `display: none` plus `@starting-style`.
+
+**The one-row phone bar** (0.21.0). On a phone, a full-viewport map tool's
+bar is **one row, ≤ 64 px**, at every compact size: the rail at short
+landscape, the compact drawer everywhere else. It never wraps to a second
+row. The opt-in is `data-rail="compact"` on `.mco-navbar`, which keeps the
+rail and adds the drawer. Plain `data-rail` still means the rail alone.
+- **The row, left to right:** the logo badge (it always holds the left
+  edge), the rest of `.mco-rail` (one or two hot controls, in a row),
+  `.mco-search-toggle` (the last child of `.mco-rail`), and ☰ (the first
+  child of `.mco-rail`, moved to the right edge). The same `.mco-rail` children make the
+  column at short landscape, where the search button hides because the
+  field sits in the drawer.
+- **Everything in `.mco-nav-drawer`** (brand, `.controls`, `.nav-meta`)
+  opens as a right drawer under the bar, from ☰. The kit undoes the bar's sheds
+  there, so the lockup, button labels, the "Updated" word and
+  `.refresh-status` (hidden in the bar ≤ 640 px) all show.
+- **`MCO.initNavRail`** runs both modes on one contract. While the drawer is
+  open, the page and the rest of the bar are inert, and only ☰ stays live.
+  Esc, the scrim or ☰ close it, and focus returns to the button that opened
+  it. `isDrawerMode()` tells the app which mode it is in, and `open()` works
+  in both.
+- **Search:** pass `search: {toggle, input}`. The bar's search button then
+  opens the drawer on the field. Don't also give that button to
+  `MCO.initSearchCollapse`, because a compact bar never shows the overlay
+  field. The `/` shortcut checks `rail.isRail() || rail.isDrawerMode()` and
+  calls `rail.open(input)`.
+- **Hot controls** are actions the visitor repeats on the map, such as a
+  date stepper. They are at full control height (`--control-h`), and they
+  also exist in the drawer or the desktop bar, because `.mco-rail` is
+  hidden above compact.
+
+The website and the station dashboard are not full-viewport map tools and
+keep their own recorded bar exceptions.
 
 **Navbar gap.** Tighten `.mco-navbar` spacing through its `--nav-gap` custom
 property, never `gap` directly: the brand lockup's divider margin is derived
@@ -508,7 +566,29 @@ via `MCO.initInfoModal`: backdrop click closes, focus returns to the opener.
 First-visit info modals auto-open once, gated by an app-prefixed localStorage
 key, **and never once the visitor has started using the page** (focus has
 moved off `<body>`). An auto-open that lands after the map loads otherwise
-yanks focus from someone already tabbing (WCAG 3.2.1/3.2.2). **`?export=` convention**: a URL param that forces a theme and triggers
+yanks focus from someone already tabbing (WCAG 3.2.1/3.2.2). Use
+`MCO.initInfoModal({…, intro: {key: 'mco-<app>-intro', skip}})` (0.21.0)
+rather than a hand-rolled check. **Never over a deep link:** `skip` is true
+when the URL names a view (a station, a date, a layer), because a visitor
+who followed a shared link came for that view, and the app knows its own
+params. The kit writes the seen flag as the dialog opens, not on close (umrb
+wrote it on close, so a visitor who left without closing saw it every time).
+It stands down when storage is unavailable, and it never opens over another
+dialog or a blocking overlay. Pass `defer: true` and call `modal.intro()` to
+run it later, after the map loads, under the same rules. Every open, from
+the trigger or the intro, puts focus on the dialog's close button.
+
+**Freshness stamp** (0.21.0). A view's "last updated" reads one way
+everywhere: **"Updated 2:45 PM MST"** when it is today in Mountain time,
+**"Updated Nov 2, 2:45 PM MST"** on any other day. Build it with
+`MCO.formatUpdatedMT(ms)`, never by hand. The time is the **data's** time
+(the newest observation in the feed). Use the fetch time only when the feed
+carries none. In the bar it goes in `.refresh-status`, with the text span
+filled by `MCO.formatUpdatedMT(ms, {into: span})`:
+`<span class="refresh-word">Updated</span> <time datetime="…">2:45 PM MST</time>`.
+At ≤ 1400 px the kit hides "Updated" visually, so the stamp shrinks to its
+dot and time and screen readers still hear the whole phrase. No "as of",
+"Last refresh", or "Data through" variants. **`?export=` convention**: a URL param that forces a theme and triggers
 the app's export path — keeps branded-PNG generation headless-scriptable.
 
 **Station photos** (0.14.0; full history 0.15.0) come from `MCO.photos`, which reads the camera
@@ -626,6 +706,12 @@ themes.
    visual state. Pair with swapped `aria-label`s where the action inverts.
    A tab that is a **link** to a view is not a toggle: it carries
    `aria-current="page"`, which `.nav-btn` styles the same way (0.10.0).
+   **On/off filters and layers are chips** (0.21.0): every independent on/off
+   filter or map layer is a `.mco-chip[aria-pressed]`, in the bar or out of
+   it, so a pressed chip always means "this is showing". **Actions are
+   `.nav-btn`**: share, export, step, open a panel. A single choice among
+   several is a segmented group (`.seg-btns`, radio when it fits), not
+   chips. A legend's own on/off list stays legend rows (next).
    **Legend rows** are `.mco-legend-row` buttons wired by
    `MCO.initLegendToggles` (0.8.0). "Off" dims the swatch and strikes the label
    through. **Never put opacity on the row**: parent opacity composites the
@@ -661,9 +747,13 @@ these rules:
   `Blues`, `PuRd`). **`Spectral` is banned** — it traverses red→green and is
   explicitly not colorblind-safe (it survives in one ramp picker as legacy;
   remove on migration).
-- **MCO's status ramps are Crameri `roma`** (decided 2026-10-09): status and
-  maintenance time-since, umrb's build stages. Take it from
-  `MCO.palette` (`roma`, 0.12.0) rather than pasting hexes.
+- **Station and cell categories come from the named sets** (owner decision,
+  2026-11; supersedes "status ramps are `roma`", 2026-10-09). The map tools'
+  categories (status, health and time-since in mesonet-status; compliance,
+  time-since and trip type in mesonet-maintenance; the build stages in
+  mesonet-umrb-build) take their colors from
+  `MCO.palette.categorySet(name, theme)` (0.21.0), never from pasted hexes
+  or a roma sample. See *Station and cell categories* below.
 - **Diverging ramps require a labeled midpoint** (freezing, 0, 50%). Cyclic
   ramps (`romaO`) only for cyclic quantities (wind direction), labeled N…S…N.
 - **Color is never the sole channel** (WCAG 1.4.1). Redundancy options, in
@@ -684,19 +774,71 @@ dashboard's exactly):
   bars. Diverging and cyclic ramps have no span. They are for fills, with the
   `midpoint` labelled.
 - `categorical(n, theme)`, `contrast()`, and `isBanned('Spectral')`
+- `CATEGORY_SETS` / `categorySet(name, theme)`, `RESERVED_HUE`,
+  `isReservedHue(hex)` and `toOklch(hex)` (0.21.0, below)
 
 CI gates every span. **Roles stay app-local**: "air temperature is rose" is
 domain knowledge. Each app keeps **one role registry**, with per-theme values
-and a contrast test, as the dashboard's `roles.ts` does. The one cross-app role
-set is the station networks, `MCO.palette.NETWORK` / `network(name, theme)`:
-**network = shape + color, data value = fill.** HydroMet is a filled circle,
-AgriMet a hollow circle, and Cooperator a ring, so the network survives
-grayscale. The legend swatch uses the same `data-shape`.
+and a contrast test, as the dashboard's `roles.ts` does. Apart from the map
+category sets below, the one cross-app role set is the station networks,
+`MCO.palette.NETWORK` / `network(name, theme)`.
+**Station markers carry no network encoding** (Kyle, kit 0.21.0):
+HydroMet and AgriMet draw the same, and the marker's fill is free for the
+data value. Networks are filters (chips) and detail text (the sheet, the
+tooltip, the sr-table twin), never a marker shape or ring. The palette's
+per-network `shape` and marker `color` are deprecated with
+`MCO.map.markerPaint` (kept working until 1.0.0); `label` is current.
+
+**Station and cell categories** (0.21.0). Orange and brown belong to the
+tribal-lands fill (`MCO.map.overlayPaints().tribalFill`, OKLCH hue ≈ 63°),
+and nothing else on a map may use them:
+
+- **The reserved band is OKLCH hue 30°–110°** at chroma ≥ 0.04
+  (`MCO.palette.RESERVED_HUE`; `isReservedHue(hex)` tests a color). It runs
+  from red-orange through orange, brown, tan and gold to yellow. Pure red
+  (29°) is outside it, and so is any neutral below 0.04 chroma. No station
+  or cell category uses a color in the band, in any theme. CI also checks
+  that the tribal fill itself is inside it.
+- **Categories come from the named sets**, one per legend:
+  `status-reporting`, `status-health`, `status-age`,
+  `maintenance-compliance`, `maintenance-age`, `maintenance-trip`,
+  `umrb-public` and `umrb-internal`. `categorySet(name, theme)` returns
+  `[{key, label, color}]` in legend order. A cell set also carries
+  `fillOpacity`, the alpha its colors were measured at. A tool that needs a
+  new category changes the kit set, not its own copy.
+- **One vocabulary across the tools**: green is the good end (fresh,
+  operational, visited, Maintenance) and rose the bad end (stale, outage,
+  overdue, Repair, an available cell), with teal, blue and violet between.
+  The age ramps are lightness-monotonic, so they also survive grayscale.
+- **What CI holds every set to** (`tools/check-contrast.mjs`; `--report`
+  prints the table). In each theme, each color clears ≥ 3:1 (WCAG 1.4.11)
+  against `--bg-deep`, `--bg-surface`, the CARTO basemap land and water,
+  and the tribal fill composited over land. A cell set is measured as its
+  fill at `fillOpacity` over land. Every pair in a set stays ≥ 8 apart in
+  OKLab (ΔE × 100), and so does every color from the tribal fill and line,
+  for normal vision and for simulated protanopia, deuteranopia and
+  tritanopia (Machado et al. 2009, severity 1). High contrast takes the
+  dark values, because it loads the dark basemap.
+- **Under red-green CVD the two ends lean warm.** Protanopia and
+  deuteranopia have no red-green axis, so the green and rose ends simulate
+  as pale cream and khaki, nearer the tribal tan than they look to normal
+  vision (deuteranopia: ΔE 8.4 at the closest, against 3.6 for
+  maintenance's old "Overdue"). Lightness and the printed names carry them
+  there.
+- **Category names stay printed.** Every legend row carries its label, and
+  popups name the category in words: tone never stands alone (WCAG 1.4.1).
+  "No record" and "No data" are drawn hollow (a `--dot-stroke` edge, no
+  fill) and are not in the sets.
+- `NETWORK`'s AgriMet orange predates the rule. Network is being retired as
+  a color channel in a separate change, so the rule does not gate it.
+  `categorical()` serves chart series, not map categories.
+- `demo/palette-proposal.html` shows each set before and after, in all three
+  themes and under simulated CVD.
 
 Known issues in fielded palettes (fix on migration, tracked in CONSUMERS.md):
 the status map's roma-sampled bins put its two semantic extremes at nearly the
-same lightness (fresh teal L≈0.20 vs dead red L≈0.14 — indistinguishable in
-grayscale); the snowpack/drought USDM ramp is hue-only by design (D4 drought
+same lightness (fresh teal L≈0.20 vs dead red L≈0.14, indistinguishable in
+grayscale), which `status-age` replaces; the snowpack/drought USDM ramp is hue-only by design (D4 drought
 and W4 wet are the same gray in print — always pair it with the D/W category
 names in the legend, as the drought dashboard does), and its yellow/white
 boundary needs an outline on light basemaps.
@@ -769,21 +911,36 @@ boundary needs an outline on light basemaps.
   (dashed, appears at z9 — pale orange on Positron) in `addCustomLayers()`:
   `map.setLayoutProperty('boundary_county', 'visibility', 'none')` — otherwise
   the map shows two county treatments above zoom 9.
-- **Station markers** (0.9.0): **network = shape + color, data value =
-  fill**. `MCO.map.markerPaint(network)` draws HydroMet as a filled circle,
-  AgriMet as a hollow one and Cooperator as a ring, in
-  `MCO.palette.NETWORK` colors. The legend swatch uses the same `data-shape`.
-  The selected station ring is `MCO.map.selectionPaint()` (`--selection-ring`
-  read at paint time, never a literal). Keyboard focus is
-  `MCO.map.focusPaint()` (`--accent-line`, distinct from selection). Add an
-  invisible `MCO.map.hitPaint()` layer (≥ 22 px across) as the click/tap
-  target.
-- **Co-located stations**: up to 3 merge into one feature with an outer ring
-  in the second network's color (`MCO.map.colocatedHaloPaint`). A click
-  cycles through them and announces “1 of 2: Bozeman AgriMet”; the keyboard
-  path is the selectable sr-table twin. Dense clusters keep the app's badge +
-  spider. The badge is `--text-on-accent` on `--accent`, and the spider closes
-  on Esc.
+- **Station markers** (0.21.0): **no network encoding.** Every station is
+  `MCO.map.stationPaint({fill, radius, stroke, strokeWidth})`, one circle
+  with a `--dot-stroke` edge; `fill` carries the data value. Networks are
+  filter chips and detail text. `MCO.map.markerPaint(network)` (the 0.9.0
+  filled / hollow / ring shapes) and `colocatedHaloPaint` are deprecated and
+  keep working until 1.0.0. The selected station ring is
+  `MCO.map.selectionPaint()` (`--selection-ring` read at paint time, never a
+  literal). Keyboard focus is `MCO.map.focusPaint()` (`--accent-line`,
+  distinct from selection). Add an invisible `MCO.map.hitPaint()` layer
+  (≥ 22 px across) as the click/tap target.
+- **Colocated stations** (0.21.0): stations at one site (lat/lon equal to 4
+  decimals, ~11 m) are **one marker with a count badge and a spider**, through
+  `MCO.map.colocation(map, {source, rank, visible, properties, anchorLayers,
+  spiderLayers, onSelect})`. The anchor is the best-ranked visible member, so
+  hiding a network resolves a pair to a plain dot. The badge
+  (`colocation.badgeLayers`) is `--text-on-accent` on an `--accent` disc.
+  Hover fans the members out around the anchor, with a 250 ms grace so the
+  cursor can reach a foot. A click or tap on the anchor opens the spider and
+  the anchor's sheet, so touch needs no hover. Esc closes the spider. The
+  canvas spider is pointer-only: the keyboard path is the selectable sr-table
+  twin and an "Also at this site" list in the sheet
+  (`coloc.siblings(id)`). The app keeps its own source, properties, paints and
+  sheet.
+- **Fly, then open** (0.21.0): a `?station=` deep link, a search pick and an
+  sr-table row all call `MCO.map.flyToAndOpen(map, {center, zoom,
+  ensureVisible, open, signal})`. It re-enables a hidden network first, opens
+  at once if the station is already in view at the zoom, and otherwise flies
+  (jumps under reduced motion) and opens when the map is idle with the
+  station in view, with a timeout so the detail always opens. Never open on
+  the first `moveend`: it can fire before the camera arrives.
 - **Charts** read chrome from `MCO.chartTokens()` and data colors from
   `MCO.palette`. They listen for `mco:themechange` (fired by `MCO.setTheme`)
   and dispose and re-init on it rather than `setOption`.

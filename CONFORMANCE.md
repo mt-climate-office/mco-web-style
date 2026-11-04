@@ -34,6 +34,13 @@ pass's job. Each item cites the rule it checks.
 - [ ] Info button is `.mco-btn-info` (§3)
 - [ ] The ≤750px brand collapse is untouched, or overridden with a `/* kit-override: … */` comment (§3)
 - [ ] ✋ Buttons that shed `.btn-label` below 1400px carry a permanent `aria-label` (§3)
+- [ ] ✋ **Map tools:** the phone bar is one row, ≤ 64px, at 390px and at 750×342: `data-rail="compact"` with logo · hot controls · search · ☰ (badge left, ☰ right), the rest in `.mco-nav-drawer` (§3 *The one-row phone bar*)
+- [ ] ✋ The compact drawer opens from the left, inerts the page and the rest of the bar, and Esc returns focus to the button that opened it (§3)
+- [ ] ✋ Every bar control is one height: 34px at desktop, 40px on touch (`--control-h`), the app's own selects and inputs included (§3)
+- [ ] ✋ On/off filters and layers are `.mco-chip[aria-pressed]`; actions are `.nav-btn` (§5.7)
+- [ ] ✋ The freshness stamp is `MCO.formatUpdatedMT` of the data's time in `.refresh-status` ("Updated 2:45 PM MST"), with no other wording (§4)
+- [ ] ✋ The info modal follows the outline: brand-title heading; What this shows · How to use it · Share or bookmark · Data, with the Data credit from `MCO.credit` (§1)
+- [ ] ✋ A first-visit intro uses `initInfoModal`'s `intro` option, with `skip` set for the app's deep-link params (§4)
 
 ## 3. Tokens
 

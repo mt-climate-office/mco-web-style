@@ -51,7 +51,7 @@ const scale = {};   // theme-invariant type/spacing scale (0.9.0)
 const metrics = {}; // layout metrics JS writes at runtime (0.9.0), not theme tokens
 const METRICS = ['--chrome-h', '--sheet-h', '--tabbar-h', '--overlay-bottom'];
 for (const [k, v] of Object.entries(rootProps)) {
-  (k.startsWith('--z-') ? zIndex : /^--(fs|lh|fw|space)-/.test(k) ? scale
+  (k.startsWith('--z-') ? zIndex : /^--(fs|lh|fw|space|control)-/.test(k) ? scale
     : METRICS.includes(k) ? metrics : dark)[k] = v;
 }
 
@@ -100,7 +100,7 @@ compare('scale', scale, json.scale);
 compare('metrics', metrics, json.metrics);
 // Scale tokens are theme-invariant: a theme block that redefines one is a bug.
 for (const [label, map] of [['light', light], ['high-contrast', hc]]) {
-  for (const k of Object.keys(map)) if (/^--(fs|lh|fw|space)-/.test(k)) errors.push(`${k} is theme-invariant but redefined in ${label}`);
+  for (const k of Object.keys(map)) if (/^--(fs|lh|fw|space|control)-/.test(k)) errors.push(`${k} is theme-invariant but redefined in ${label}`);
 }
 
 // 4: required tokens everywhere.

@@ -614,31 +614,29 @@
     };
   };
 
-  /* ── Station markers (0.9.0) ───────────────────────────────────────────────
-     HOUSE-STYLE §7: network = SHAPE + color, data value = fill. Shape
-     survives grayscale and every CVD type. Network colors come from
-     MCO.palette.NETWORK (palette/mco-palette.js — load it first), per theme
-     and contrast-tested against both basemaps.
-       map.addLayer({ id: 'agrimet', type: 'circle', source: 's',
-         filter: ['==', ['get', 'net'], 'AgriMet'],
-         paint: MCO.map.markerPaint('agrimet', { radius: 6 }) });
-     Shapes: circle (filled, --dot-stroke edge) · hollow (--bg-surface fill,
-     thick colored ring) · ring (no fill, thin colored ring). Pass `fill` (a
-     color or expression) to encode a data value inside a circle. Paints read
-     the theme when called: re-call after a theme switch, like every paint.
+  /* ── Station markers (0.9.0; network shapes deprecated 0.21.0) ─────────────
+     HOUSE-STYLE §7 (0.21.0): station markers carry NO network encoding.
+     HydroMet and AgriMet draw the same; networks are filters (chips) and
+     detail text. stationPaint() is the one circle paint for every station:
+       map.addLayer({ id: 'stations', type: 'circle', source: 's',
+         filter: MCO.map.colocation.ANCHOR_ONLY,
+         paint: MCO.map.stationPaint({ fill: ['get', 'color'] }) });
+     Its defaults are markerPaint('hydromet')'s: the radius ramp, the
+     HydroMet color, and a 1.2px --dot-stroke edge. Pass `fill` (a color or
+     expression) to encode a data value. Paints read the theme when called:
+     re-call after a theme switch, like every paint.
+
+     DEPRECATED (0.21.0, kept working until 1.0.0): markerPaint(network)'s
+     per-network shapes (circle / hollow / ring in MCO.palette.NETWORK
+     colors) and colocatedHaloPaint()'s second-network ring. New code uses
+     stationPaint(); colocated sites are one marker with a count badge and a
+     spider (MCO.map.colocation, below), not a halo with click-cycling.
 
      selectionPaint() is the selected-station ring, from --selection-ring
      read at paint time (never a literal — explorer's '#5aaee8' is the dark
      value and wrong on light). focusPaint() is the keyboard-focus halo, in
      --accent-line, distinct from selection. hitPaint() is an invisible
-     layer at least 22px across on touch, for a tappable target.
-
-     Co-located stations (§7): up to 3 merge into one feature drawn with
-     colocatedHaloPaint() — an outer ring in the second network's color —
-     and a click cycles through them ("1 of 2: Bozeman AgriMet"), reachable
-     by keyboard through the selectable MCO.srTable twin. Dense clusters keep
-     the app's badge + spider; the badge is --text-on-accent on --accent,
-     and the spider closes on Esc (MCO.overlay). */
+     layer at least 22px across on touch, for a tappable target. */
   function token(name, fallback) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
   }
@@ -649,10 +647,24 @@
     if (!n) throw new Error('MCO.map.markerPaint: unknown network ' + key);
     return n;
   }
+  var STATION_RADIUS = ['interpolate', ['linear'], ['zoom'], 4, 3.5, 10, 7];
+  M.stationPaint = function (opts) {
+    opts = opts || {};
+    var hm = MCO.palette && MCO.palette.network && MCO.palette.network('hydromet', themeName());
+    return {
+      'circle-radius': opts.radius != null ? opts.radius : STATION_RADIUS,
+      // Tol bright blue, MCO.palette.NETWORK.hydromet: data-encoding (§6),
+      // the fallback for a page that has not loaded the palette.
+      'circle-color': opts.fill != null ? opts.fill : (hm ? hm.color : '#4477AA'),
+      'circle-stroke-color': opts.stroke != null ? opts.stroke : token('--dot-stroke', '#ffffff'),
+      'circle-stroke-width': opts.strokeWidth != null ? opts.strokeWidth : 1.2,
+    };
+  };
+  // Deprecated shapes (0.21.0): use stationPaint(). Kept so existing layers draw.
   M.markerPaint = function (network, opts) {
     opts = opts || {};
     var n = networkOf(network);
-    var r = opts.radius != null ? opts.radius : ['interpolate', ['linear'], ['zoom'], 4, 3.5, 10, 7];
+    var r = opts.radius != null ? opts.radius : STATION_RADIUS;
     if (n.shape === 'hollow') {
       return { 'circle-radius': r, 'circle-color': opts.fill || token('--bg-surface', '#1e2530'),
         'circle-stroke-color': n.color, 'circle-stroke-width': 2.5 };
@@ -679,8 +691,9 @@
     opts = opts || {};
     return { 'circle-radius': opts.radius != null ? opts.radius : 11, 'circle-color': 'rgba(0,0,0,0)' };
   };
-  // Outer ring in the second network's color; prop names the feature
-  // property holding that network's key (e.g. 'net2' = 'agrimet').
+  // DEPRECATED (0.21.0): colocated sites are a count badge + spider
+  // (MCO.map.colocation). Outer ring in the second network's color; prop
+  // names the feature property holding that network's key ('net2' = 'agrimet').
   M.colocatedHaloPaint = function (opts) {
     opts = opts || {};
     var prop = opts.prop || 'net2';
@@ -689,6 +702,518 @@
     match.push('rgba(0,0,0,0)');
     return { 'circle-radius': opts.radius != null ? opts.radius : ['interpolate', ['linear'], ['zoom'], 4, 6, 10, 10.5],
       'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': match, 'circle-stroke-width': 2 };
+  };
+
+  /* ── Colocated stations: count badge + spider (0.21.0) ─────────────────────
+     An AgriMet and a HydroMet at one site are ONE marker with a count badge
+     ("2"); hovering it (or tapping, on touch) fans the members out around it
+     as a "spider". Extracted from mesonet-status, whose copy maintenance and
+     explorer share near-verbatim. The app keeps its own GeoJSON source,
+     feature properties, layers and paints, popups and sheets; this module
+     groups, writes the source, owns the two spider sources, and runs the
+     hover / click / Esc behaviour.
+
+       var coloc = MCO.map.colocation(map, {
+         source: 'stations',                      // the app's GeoJSON source id
+         id: function (s) { return s.station; },  // default
+         lngLat: function (s) { return [s.longitude, s.latitude]; },  // default
+         rank: function (s) { return s.sub_network === 'HydroMet' ? 0 : 1; },  // lower = anchor
+         visible: function (s) { return activeNetworks.has(s.sub_network); },
+         properties: function (s) { return { station: s.station, name: s.name, color: … }; },
+         anchorLayers: ['stations', 'stations-badge', 'stations-badge-disc'],
+         spiderLayers: ['spider'],
+         onSelect: function (id, info) { openSheet(id); },   // a station was clicked or tapped
+         onEmpty: function () { closeSheet(); },             // a click hit no station
+       });
+       // In style.load, before the app adds its layers:
+       coloc.addSources();                 // 'mco-spider' + 'mco-spider-lines'
+       map.addLayer({ id: 'spider-lines', type: 'line', source: coloc.spiderLinesSource,
+                      paint: MCO.map.colocation.spiderLinePaint() });
+       map.addLayer({ id: 'stations', type: 'circle', source: 'stations',
+                      filter: MCO.map.colocation.ANCHOR_ONLY, paint: MCO.map.stationPaint() });
+       MCO.map.colocation.badgeLayers({ id: 'stations-badge', source: 'stations' })
+         .forEach(function (l) { map.addLayer(l); });
+       map.addLayer({ id: 'spider', type: 'circle', source: coloc.spiderSource,
+                      paint: MCO.map.stationPaint() });
+       coloc.setData(stations);            // or coloc.refresh() to re-group the same list
+       → {setData, refresh, addSources, open, close, isOpen, openBucket,
+          members, siblings, info, collection, spiderSource, spiderLinesSource, dispose}
+
+     Grouping: stations whose lat/lon agree to PRECISION (4) decimals (~11 m
+     in Montana) share a bucket. Only visible() stations are members, so
+     hiding a network turns a pair into a plain dot and promotes the other
+     to anchor. Members sort by rank(), then id. Every emitted feature gets
+     colocationCount, colocationIndex (0 = anchor), bucket and colocationId
+     on top of the app's properties; app layers show anchors only
+     (ANCHOR_ONLY). Hidden stations are left out of the source unless
+     includeHidden: true, which emits them as singles (count 1, index 0) for
+     an app that hides them by layer filter instead (explorer).
+
+     Spider: the members other than the anchor sit on a circle radiusPx (26)
+     from the anchor in screen pixels, first at the top, rebuilt on every
+     frame the camera moves. Feet carry the app's properties with
+     colocationCount 1 and colocationIndex 0, as status's did.
+
+     Interaction (interactive: false turns it off and leaves open/close):
+     - Hover (mouse only): an anchor opens its spider; leaving every station
+       layer closes it after graceMs (250), so the cursor can travel to a foot.
+     - Click/tap: a foot → onSelect(foot). A stacked anchor → open the spider
+       AND onSelect(anchor), as status does: on touch the first tap both fans
+       the site out and opens the anchor's detail, so nothing needs hover.
+       anchorClick: 'spider' makes a first click only fan it out. A plain dot
+       closes any spider and → onSelect. Empty map → close + onEmpty.
+     - Esc closes the spider (MCO.escStack when mco-core is loaded, so it
+       takes its turn with sheets and dialogs).
+     A11y: the canvas spider is pointer-only. The keyboard and screen-reader
+     path is the app's selectable MCO.srTable twin (every station, colocated
+     or not, is a row) and an "Also at this site" list in the station sheet,
+     built from coloc.siblings(id). */
+  var C = {};
+  C.PRECISION = 4;
+  C.RADIUS_PX = 26;
+  C.GRACE_MS = 250;
+  C.bucketKey = function (lat, lon, precision) {
+    var p = precision != null ? precision : C.PRECISION;
+    return Number(lat).toFixed(p) + ',' + Number(lon).toFixed(p);
+  };
+  C.ANCHOR_ONLY = ['==', ['get', 'colocationIndex'], 0];
+  C.STACKED = ['>', ['get', 'colocationCount'], 1];
+
+  function defaultId(s) { return s.station; }
+  function defaultLngLat(s) { return [s.longitude, s.latitude]; }
+  function validLngLat(ll) {
+    return ll && typeof ll[0] === 'number' && typeof ll[1] === 'number' && isFinite(ll[0]) && isFinite(ll[1]);
+  }
+
+  // Pure grouping, for an app that builds its own features:
+  //   var g = MCO.map.colocation.group(stations, {rank, visible});
+  //   g.buckets: Map bucket → members (anchor first); g.byId: Map id → {bucket, index, count}
+  C.group = function (items, opts) {
+    opts = opts || {};
+    var id = opts.id || defaultId;
+    var lngLat = opts.lngLat || defaultLngLat;
+    var rank = opts.rank || function () { return 0; };
+    var visible = opts.visible || function () { return true; };
+    var buckets = new Map();
+    var byId = new Map();
+    (items || []).forEach(function (s) {
+      var ll = lngLat(s);
+      if (!validLngLat(ll) || !visible(s)) return;
+      var k = C.bucketKey(ll[1], ll[0], opts.precision);
+      var arr = buckets.get(k);
+      if (!arr) { arr = []; buckets.set(k, arr); }
+      arr.push(s);
+    });
+    buckets.forEach(function (members, k) {
+      members.sort(function (a, b) {
+        return (rank(a) - rank(b)) || String(id(a)).localeCompare(String(id(b)));
+      });
+      members.forEach(function (s, i) {
+        byId.set(String(id(s)), { bucket: k, index: i, count: members.length });
+      });
+    });
+    return { buckets: buckets, byId: byId };
+  };
+
+  // Badge filter: stacked anchors only, AND-ed with an app filter if given.
+  C.badgeFilter = function (extra) {
+    var f = ['all', C.ANCHOR_ONLY, C.STACKED];
+    if (extra) f.push(extra);
+    return f;
+  };
+
+  // The count badge: a disc in --accent (fill-only) edged in --dot-stroke,
+  // and the count in --text-on-accent, which CI holds at >= 4.5:1 on --accent
+  // in every theme (tools/check-contrast.mjs). Both are offset `offset` px
+  // (default up-right of the dot) and never collide away. Returns two layer
+  // specs, disc first: add both, in order, above the station layer, and list
+  // both ids in anchorLayers so a click on the badge opens the site. Tokens
+  // are read at call time: re-add on style.load, like every paint. The font
+  // stack is the one TRIBAL_LABEL_LAYOUT uses (served by CARTO's glyphs).
+  C.badgeLayers = function (opts) {
+    opts = opts || {};
+    var id = opts.id || 'stations-badge';
+    var off = opts.offset || [8, -8];
+    var filter = C.badgeFilter(opts.filter);
+    var disc = {
+      id: id + '-disc', type: 'circle', source: opts.source, filter: filter,
+      paint: {
+        'circle-radius': opts.radius != null ? opts.radius : 7,
+        'circle-color': token('--accent', '#1a6faf'),
+        'circle-stroke-color': token('--dot-stroke', '#ffffff'),
+        'circle-stroke-width': 1,
+        'circle-translate': off,
+      },
+    };
+    var text = {
+      id: id, type: 'symbol', source: opts.source, filter: filter,
+      layout: {
+        'text-field': ['to-string', ['get', 'colocationCount']],
+        'text-font': ['Montserrat SemiBold', 'Open Sans Bold'],
+        'text-size': opts.textSize || 10,
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: {
+        'text-color': token('--text-on-accent', '#ffffff'),
+        'text-translate': off,
+      },
+    };
+    if (opts.minzoom != null) { disc.minzoom = opts.minzoom; text.minzoom = opts.minzoom; }
+    return [disc, text];
+  };
+
+  // Connector lines from anchor to feet, in --dot-stroke (the markers' edge).
+  C.spiderLinePaint = function () {
+    return { 'line-color': token('--dot-stroke', '#ffffff'), 'line-width': 1.2, 'line-opacity': 0.65 };
+  };
+
+  function emptyFC() { return { type: 'FeatureCollection', features: [] }; }
+
+  M.colocation = function (map, opts) {
+    opts = opts || {};
+    var id = opts.id || defaultId;
+    var lngLat = opts.lngLat || defaultLngLat;
+    var props = opts.properties || function (s) { return Object.assign({}, s); };
+    var spiderSource = opts.spiderSource || 'mco-spider';
+    var linesSource = opts.spiderLinesSource || 'mco-spider-lines';
+    var radiusPx = opts.radiusPx != null ? opts.radiusPx : C.RADIUS_PX;
+    var graceMs = opts.graceMs != null ? opts.graceMs : C.GRACE_MS;
+    var anchorLayers = opts.anchorLayers || [];
+    var spiderLayers = opts.spiderLayers || [];
+    var touchMq = window.matchMedia('(hover: none)');
+
+    var items = [];
+    var itemById = new Map();
+    var grouped = { buckets: new Map(), byId: new Map() };
+    var lastFC = emptyFC();
+    var openKey = null;
+    var closeTimer = null;
+    var raf = 0;
+    var hovered = false;
+    var disposed = false;
+
+    function isTouch() { return MCO.viewport ? MCO.viewport.isTouch() : touchMq.matches; }
+    function sid(s) { return String(id(s)); }
+
+    function feature(s, coords, extra) {
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: coords },
+        properties: Object.assign({}, props(s), extra),
+      };
+    }
+    function collection() {
+      var features = [];
+      items.forEach(function (s) {
+        var ll = lngLat(s);
+        if (!validLngLat(ll)) return;
+        var key = sid(s);
+        var g = grouped.byId.get(key);
+        if (g) {
+          features.push(feature(s, [ll[0], ll[1]], {
+            colocationCount: g.count, colocationIndex: g.index, bucket: g.bucket, colocationId: key,
+          }));
+        } else if (opts.includeHidden) {
+          features.push(feature(s, [ll[0], ll[1]], {
+            colocationCount: 1, colocationIndex: 0,
+            bucket: C.bucketKey(ll[1], ll[0], opts.precision), colocationId: key,
+          }));
+        }
+      });
+      return { type: 'FeatureCollection', features: features };
+    }
+
+    function addSources() {
+      if (!map.getSource(spiderSource)) map.addSource(spiderSource, { type: 'geojson', data: emptyFC() });
+      if (!map.getSource(linesSource)) map.addSource(linesSource, { type: 'geojson', data: emptyFC() });
+    }
+    function setData(next) {
+      if (next) {
+        items = Array.prototype.slice.call(next);
+        itemById = new Map();
+        items.forEach(function (s) { itemById.set(sid(s), s); });
+      }
+      grouped = C.group(items, {
+        id: id, lngLat: lngLat, rank: opts.rank, visible: opts.visible, precision: opts.precision,
+      });
+      lastFC = collection();
+      var src = opts.source && map.getSource(opts.source);
+      if (src) src.setData(lastFC);
+      if (openKey != null) rebuild();   // the open site's membership may have changed
+      return lastFC;
+    }
+
+    function rebuild() {
+      if (openKey == null) return;
+      var members = grouped.buckets.get(openKey) || [];
+      if (members.length <= 1) { close(); return; }
+      var feetSrc = map.getSource(spiderSource);
+      var lineSrc = map.getSource(linesSource);
+      if (!feetSrc || !lineSrc) return;   // style mid-swap; addSources() + refresh() restore it
+      var all = lngLat(members[0]);
+      var a = map.project(all);
+      var others = members.slice(1);
+      var feet = [];
+      var lines = [];
+      others.forEach(function (s, i) {
+        var theta = (i / others.length) * 2 * Math.PI - Math.PI / 2;   // first foot at the top
+        var ll = map.unproject([a.x + radiusPx * Math.cos(theta), a.y + radiusPx * Math.sin(theta)]);
+        feet.push(feature(s, [ll.lng, ll.lat], {
+          colocationCount: 1, colocationIndex: 0, bucket: openKey, colocationId: sid(s),
+        }));
+        lines.push({
+          type: 'Feature', properties: {},
+          geometry: { type: 'LineString', coordinates: [[all[0], all[1]], [ll.lng, ll.lat]] },
+        });
+      });
+      feetSrc.setData({ type: 'FeatureCollection', features: feet });
+      lineSrc.setData({ type: 'FeatureCollection', features: lines });
+    }
+
+    function onEsc() { close(); }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    // open(bucketOrId): a bucket key, or a station id whose site to fan out.
+    function open(k) {
+      if (k == null) return false;
+      k = String(k);
+      if (!grouped.buckets.has(k) && grouped.byId.has(k)) k = grouped.byId.get(k).bucket;
+      var members = grouped.buckets.get(k);
+      if (!members || members.length <= 1) return false;
+      cancelClose();
+      var was = openKey;
+      openKey = k;
+      rebuild();
+      if (MCO.escStack) MCO.escStack.push(onEsc, map.getContainer());
+      else if (was == null) document.addEventListener('keydown', onKey);
+      if (opts.onSpider) opts.onSpider(true, members.slice());
+      return true;
+    }
+    function close() {
+      cancelClose();
+      if (openKey == null) return;
+      openKey = null;
+      if (MCO.escStack) MCO.escStack.pop(onEsc);
+      else document.removeEventListener('keydown', onKey);
+      var f = map.getSource(spiderSource);
+      var l = map.getSource(linesSource);
+      if (f) f.setData(emptyFC());
+      if (l) l.setData(emptyFC());
+      if (opts.onSpider) opts.onSpider(false, []);
+    }
+    function scheduleClose() {
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(function () { closeTimer = null; close(); }, graceMs);
+    }
+    function cancelClose() { clearTimeout(closeTimer); closeTimer = null; }
+
+    // Interaction.
+    function present(ids) { return ids.filter(function (l) { return map.getLayer(l); }); }
+    function isFootLayer(lid) { return spiderLayers.indexOf(lid) !== -1; }
+    function isAnchorLayer(lid) { return anchorLayers.indexOf(lid) !== -1; }
+    function hit(point) {
+      var layers = present(spiderLayers.concat(anchorLayers));
+      if (!layers.length) return null;
+      var feats = map.queryRenderedFeatures(point, { layers: layers });
+      if (!feats.length) return null;
+      // A foot wins over the anchor it sits beside.
+      return feats.filter(function (f) { return isFootLayer(f.layer.id); })[0] || feats[0];
+    }
+    function select(f, e, foot) {
+      var key = f.properties.colocationId;
+      if (opts.onSelect) {
+        opts.onSelect(key, {
+          item: itemById.get(key), feature: f, foot: foot,
+          lngLat: f.geometry.coordinates.slice(), originalEvent: e && e.originalEvent,
+        });
+      }
+    }
+    function onClick(e) {
+      var f = hit(e.point);
+      if (!f) { close(); if (opts.onEmpty) opts.onEmpty(e); return; }
+      var p = f.properties;
+      if (isFootLayer(f.layer.id)) { cancelClose(); select(f, e, true); return; }
+      if (p.colocationCount > 1) {
+        var was = openKey === p.bucket;
+        if (!was) open(p.bucket);
+        else cancelClose();
+        if (opts.anchorClick === 'spider' && !was) return;
+        select(f, e, false);
+        return;
+      }
+      close();
+      select(f, e, false);
+    }
+    // Touch browsers synthesize a mousemove on tap: hover stays mouse-only.
+    function onMove(e) {
+      if (opts.hover === false || isTouch()) return;
+      var f = hit(e.point);
+      if (f) {
+        cancelClose();
+        hovered = true;
+        var p = f.properties;
+        if (isAnchorLayer(f.layer.id) && p.colocationCount > 1 && openKey !== p.bucket) open(p.bucket);
+      } else if (hovered) {
+        hovered = false;
+        if (openKey != null) scheduleClose();
+      }
+    }
+    function onLeave() {
+      if (isTouch()) return;
+      hovered = false;
+      if (openKey != null) scheduleClose();
+    }
+    function onCamera() {
+      if (openKey == null || raf) return;
+      raf = requestAnimationFrame(function () { raf = 0; rebuild(); });
+    }
+
+    var interactive = opts.interactive !== false;
+    if (interactive) {
+      map.on('click', onClick);
+      map.on('mousemove', onMove);
+      map.getCanvas().addEventListener('mouseleave', onLeave);
+    }
+    map.on('move', onCamera);
+
+    function resolveKey(k) {
+      k = String(k);
+      if (!grouped.buckets.has(k) && grouped.byId.has(k)) k = grouped.byId.get(k).bucket;
+      return k;
+    }
+    return {
+      setData: setData,
+      refresh: function () { return setData(); },
+      addSources: addSources,
+      open: open,
+      close: close,
+      isOpen: function () { return openKey != null; },
+      openBucket: function () { return openKey; },
+      // members(bucketOrId) → the site's visible members, anchor first.
+      members: function (k) { return (grouped.buckets.get(resolveKey(k)) || []).slice(); },
+      // siblings(id) → the other visible stations at that station's site.
+      siblings: function (key) {
+        var g = grouped.byId.get(String(key));
+        if (!g) return [];
+        return grouped.buckets.get(g.bucket).filter(function (s) { return sid(s) !== String(key); });
+      },
+      // info(id) → {bucket, index, count} or null (hidden or unknown).
+      info: function (key) {
+        var g = grouped.byId.get(String(key));
+        return g ? { bucket: g.bucket, index: g.index, count: g.count } : null;
+      },
+      collection: function () { return lastFC; },
+      spiderSource: spiderSource,
+      spiderLinesSource: linesSource,
+      dispose: function () {
+        if (disposed) return;
+        disposed = true;
+        close();
+        cancelAnimationFrame(raf);
+        if (interactive) {
+          map.off('click', onClick);
+          map.off('mousemove', onMove);
+          map.getCanvas().removeEventListener('mouseleave', onLeave);
+        }
+        map.off('move', onCamera);
+      },
+    };
+  };
+  Object.keys(C).forEach(function (k) { M.colocation[k] = C[k]; });
+
+  /* ── Fly to a station, then open its detail (0.21.0) ───────────────────────
+     The ?station= deep link, search pick and sr-table row all do this. The
+     apps' copies flew and opened on the first moveend, which can fire before
+     the camera arrives (another camera move ending, a zoom-floor snap): the
+     audit saw deep links that zoomed but opened nothing.
+
+       MCO.map.flyToAndOpen(map, {
+         center: [s.longitude, s.latitude],
+         zoom: 11,                       // never zooms OUT: max(zoom, current)
+         ensureVisible: function () {},  // first: e.g. re-enable a hidden network chip
+         open: function () { openSheet(s.station); },
+         signal: ac.signal,              // optional AbortSignal: no open() once aborted
+         // speed (1.4), padding (passed to flyTo), inset (16px viewport margin
+         // for "in view"), settleMs (2000), timeoutMs (10000)
+       }).then(function (opened) { … });   // false when aborted or superseded
+
+     1. ensureVisible().
+     2. If center is already in view at >= zoom, open() now and don't move.
+     3. Otherwise flyTo, or jumpTo under reduced motion (the live gate).
+     4. open() once the map is idle (or its tiles are loaded at moveend) with
+        center inside the viewport. Fallbacks, so a deep link always opens:
+        settleMs after the flight ends, timeoutMs overall.
+     A newer call on the same map supersedes a pending one. */
+  var _flights = new WeakMap();
+  M.flyToAndOpen = function (map, o) {
+    o = o || {};
+    var prev = _flights.get(map);
+    if (prev) prev.cancel();
+    return new Promise(function (resolve) {
+      var done = false;
+      var settleTimer = null;
+      var hardTimer = null;
+      var inset = o.inset != null ? o.inset : 16;
+      var flight = { cancel: function () { finish(false); } };
+      _flights.set(map, flight);
+
+      function inView() {
+        var p = map.project(o.center);
+        var c = map.getContainer();
+        return p.x >= inset && p.y >= inset && p.x <= c.clientWidth - inset && p.y <= c.clientHeight - inset;
+      }
+      function cleanup() {
+        clearTimeout(settleTimer);
+        clearTimeout(hardTimer);
+        map.off('idle', onIdle);
+        map.off('moveend', onMoveEnd);
+        if (o.signal) o.signal.removeEventListener('abort', onAbort);
+        if (_flights.get(map) === flight) _flights.delete(map);
+      }
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        cleanup();
+        if (ok && o.open) {
+          try { o.open(); } catch (e) { console.error(e); }
+        }
+        resolve(ok);
+      }
+      function onAbort() { finish(false); }
+      function onIdle() { if (!map.isMoving() && inView()) finish(true); }
+      function onMoveEnd() {
+        if (map.isMoving()) return;
+        if (map.loaded() && inView()) { finish(true); return; }
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(function () { finish(true); }, o.settleMs != null ? o.settleMs : 2000);
+      }
+
+      if (o.signal) {
+        if (o.signal.aborted) { finish(false); return; }
+        o.signal.addEventListener('abort', onAbort);
+      }
+      if (o.ensureVisible) {
+        try { o.ensureVisible(); } catch (e) { console.error(e); }
+      }
+      if (done) return;   // ensureVisible may have started another flight
+      var target = o.zoom != null ? o.zoom : map.getZoom();
+      if (inView() && map.getZoom() >= target - 0.01) { finish(true); return; }
+
+      var cam = { center: o.center, zoom: Math.max(target, map.getZoom()) };
+      if (o.padding != null) cam.padding = o.padding;
+      hardTimer = setTimeout(function () { finish(true); }, o.timeoutMs != null ? o.timeoutMs : 10000);
+      if (_rm) {
+        map.jumpTo(cam);                // its move events fire synchronously
+        if (map.loaded() && inView()) { finish(true); return; }
+        map.on('idle', onIdle);
+        map.on('moveend', onMoveEnd);
+        map.triggerRepaint();           // make sure an 'idle' follows
+      } else {
+        map.flyTo(Object.assign({ speed: o.speed || 1.4 }, cam));
+        map.on('idle', onIdle);
+        map.on('moveend', onMoveEnd);
+      }
+    });
   };
 
   /* ── Hillshade ─────────────────────────────────────────────────────────────

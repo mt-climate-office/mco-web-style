@@ -376,7 +376,12 @@
   --space-5:    1rem;
   --space-6:    1.5rem;
   --space-7:    2rem;
+  /* One control height (0.21.0): every .nav-btn, .seg-btn, .mco-chip and
+     .mco-search-input in the navbar and its drawer. 40px on touch, set
+     below on html:root (which outranks :root without matching it here). */
+  --control-h:  34px;
 }
+@media (hover: none) { html:root { --control-h: 40px; } }
 
 /* ── 3. Reset & accessibility utilities ──────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -687,8 +692,22 @@ a.nav-btn { text-decoration: none; }
 /* A chip with no count still shows it is loading (0.11.3). */
 .mco-chip[aria-busy="true"]:not(:has(.mco-chip-count))::after { content: "\2026"; content: "\2026" / ""; }
 
+/* One control height in the bar (0.21.0). Inside .mco-navbar (its nav
+   drawer included) buttons, segmented groups, chips, steppers and the
+   search field all stand --control-h: 34px, 40px on touch. Was 34 / 30 /
+   28 / 32, so a bar mixing them read as four sizes. Outside the bar the
+   seg-btn, chip and legend-row sizes above are unchanged. */
+.mco-navbar :is(.nav-btn, .mco-chip) { min-height: var(--control-h); }
+.mco-navbar .seg-btn { height: var(--control-h); min-height: var(--control-h); }
+.mco-navbar .nav-btn.mco-step { min-width: var(--control-h); }
+.mco-navbar .mco-search-input { height: var(--control-h); }
+
 /* Refresh/liveness status: read-only, deliberately subordinated. Add .static
-   when the view isn't live (historical modes) to stop the pulse. */
+   when the view isn't live (historical modes) to stop the pulse. The text is
+   MCO.formatUpdatedMT (0.21.0), one wording family-wide:
+     <span class="refresh-status"><span class="dot" aria-hidden="true"></span>
+       <span><span class="refresh-word">Updated</span> 2:45 PM MST</span></span>
+   ≤1400px the bar sheds "Updated" visually (still read); the time stays. */
 .refresh-status {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--font-mono);
@@ -915,7 +934,7 @@ a.nav-btn { text-decoration: none; }
 }
 .info-modal-title    { font-size: 1.05rem; font-weight: 700; color: var(--accent-line); margin: 0; }
 .info-modal-subtitle { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
-.modal-close { display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; line-height: 1; flex-shrink: 0; min-width: 34px; min-height: 34px; transition: var(--transition); }
+.modal-close { display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font: inherit; font-size: 1.2rem; cursor: pointer; line-height: 1; flex-shrink: 0; min-width: 34px; min-height: 34px; transition: var(--transition); }
 .modal-close:hover { color: var(--text-primary); border-color: var(--accent-line); }
 .info-section { margin-bottom: 1.25rem; }
 .info-section:last-child { margin-bottom: 0; }
@@ -1311,6 +1330,15 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   .mco-navbar .nav-btn:has(> .btn-label) {
     padding: 0.4rem; min-width: 34px; justify-content: center;
   }
+  /* The freshness stamp keeps its time and sheds the word (0.21.0), the
+     .control-label way: visually, so "Updated" is still read. */
+  .mco-navbar .refresh-status .refresh-word {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0);
+    white-space: nowrap; border: 0;
+  }
 }
 @media (max-width: 1060px) {
   /* Tighten via the custom property, never `gap` directly — the lockup
@@ -1455,6 +1483,70 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
 }
 @starting-style {
   .mco-navbar[data-rail] .mco-nav-drawer.is-open { transform: translateX(-12px); opacity: 0; }
+}
+
+/* Compact nav drawer (0.21.0) — opt-in: .mco-navbar[data-rail="compact"] +
+   MCO.initNavRail. The rail above still takes short landscape; this takes
+   the rest of compact (portrait phones, narrow windows), where the bar
+   would otherwise wrap. One row, ≤ 64px, in this order:
+     logo · hot controls · search toggle · ☰ (.mco-rail's first child)
+   The badge always holds the left edge and ☰ the right (Kyle, 2026-11-03),
+   with .mco-rail flattened into the bar (display: contents) and
+   .mco-search-toggle last in .mco-rail. .mco-nav-drawer becomes a fixed
+   RIGHT drawer under the bar, opening from its button (core measures the
+   bar into --nav-drawer-top);
+   the plain .mco-scrim dims the page below the bar.
+     <header class="mco-navbar" data-rail="compact">
+       <a class="logo-link" …>…</a>
+       <div class="mco-rail">
+         <button class="nav-btn icon-only" aria-label="Menu" aria-controls="nav-drawer">☰</button>
+         …1–2 hot controls…
+         <button class="nav-btn icon-only mco-search-toggle" aria-label="Search" aria-controls="nav-drawer">…</button>
+       </div>
+       <div class="nav-divider" aria-hidden="true"></div>
+       <div class="mco-nav-drawer" id="nav-drawer">brand · .controls (search field) · .nav-meta</div>
+     </header>
+   The query is compact ∧ ¬rail, written out: COMPACT_MQ minus RAIL_MQ.
+   KEEP IN SYNC with MCO.viewport.COMPACT_MQ and RAIL_MQ. The bar drops its
+   backdrop blur here: a backdrop-filter would make the bar the containing
+   block of the fixed drawer (--glass is legible without it, §3). */
+@media (max-width: 640px) and (orientation: portrait), (max-width: 640px) and (height > 560px) {
+  .mco-navbar[data-rail="compact"] {
+    flex-wrap: nowrap;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  .mco-navbar[data-rail="compact"] > .nav-divider { display: none; }
+  .mco-navbar[data-rail="compact"] .mco-rail { display: contents; }
+  .mco-navbar[data-rail="compact"] .mco-rail > :first-child { order: 1; }
+  .mco-navbar[data-rail="compact"] .mco-rail > .mco-search-toggle { margin-left: auto; }
+
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer {
+    display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
+    position: fixed; top: var(--nav-drawer-top, 0px); bottom: 0; right: 0;
+    width: min(var(--drawer-w, 300px), 88vw);
+    padding: 0.75rem max(0.9rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) 0.9rem;
+    overflow-y: auto; overscroll-behavior: contain;
+    background: var(--bg-surface); border-left: 1px solid var(--border); box-shadow: var(--shadow);
+    transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+  }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer.is-open { display: flex; }
+  /* Undo the bar-only collapses, as the rail's drawer does. */
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .brand,
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .control-label,
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .refresh-word {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto;
+  }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .brand-title,
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .brand-subtitle { white-space: normal; }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .btn-label { display: inline; }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .nav-btn:has(> .btn-label) { padding: 6px 12px; justify-content: flex-start; }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .controls { flex-direction: column; align-items: stretch; }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .nav-meta { margin-left: 0; flex-wrap: wrap; }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .mco-search-collapse { display: flex; position: relative; }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .mco-search > input { flex: 1; min-width: 0; }
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .mco-search-toggle { display: none; }
+  /* The bar hides the stamp ≤640px; the drawer has the room (0.21.0). */
+  .mco-navbar[data-rail="compact"] .mco-nav-drawer .refresh-status { display: inline-flex; }
 }
 
 /* Glass is legible on its own (0.10.0, #37): --glass is near-opaque and the

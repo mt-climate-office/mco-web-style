@@ -41,6 +41,7 @@
      npx playwright install chromium webkit
    Exit code: 0 when no consumer regressed, 1 otherwise.
    ========================================================================== */
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -101,6 +102,36 @@ const MIME = {
 /* ── Two static servers per consumer: as committed, and the candidate ──── */
 const KIT_URL_G = new RegExp(KIT_URL.source, 'g');
 const KIT_PATH = '/__mco-kit/';
+const KIT_VERSION_G = /mco-web-style@(\d+\.\d+\.\d+)\//g;
+
+// A consumer whose code builds kit tags at runtime (the website's station map
+// loads palette and map with `s.integrity = KIT_SRI[path]`) carries the pinned
+// SRI hashes as strings in its bundle, out of reach of candidateHtml. Swap each
+// one for the hash of this checkout's file. The pinned bytes come from
+// jsDelivr at the version the bundle names. A file the CDN can't serve is
+// left alone, so that tag fails loudly rather than passing by accident.
+const SRI_FILES = ['theme/mco-theme.css', 'core/mco-core.js', 'map/mco-map.js', 'map/cog-protocol.js',
+  'palette/mco-palette.js', 'photos/mco-photos.js', 'places/mco-places.js', 'summary/mco-summary.js',
+  'map/data/mt_state_simple.geojson', 'map/data/mt_counties_simple.geojson', 'map/data/mt_reservations_simple.geojson'];
+const sri = (buf) => 'sha384-' + createHash('sha384').update(buf).digest('base64');
+const sriSwaps = new Map();   // version -> Promise<Array<[pinned, candidate]>>
+function swapsFor(version) {
+  if (!sriSwaps.has(version)) sriSwaps.set(version, Promise.all(SRI_FILES.map(async (f) => {
+    try {
+      const res = await fetch(`https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@${version}/${f}`);
+      if (!res.ok) return null;
+      const pinned = sri(Buffer.from(await res.arrayBuffer()));
+      const candidate = sri(await readFile(join(KIT, f)));
+      return pinned === candidate ? null : [pinned, candidate];
+    } catch { return null; }
+  })).then((pairs) => pairs.filter(Boolean)));
+  return sriSwaps.get(version);
+}
+async function candidateCode(text) {
+  const versions = [...new Set([...text.matchAll(KIT_VERSION_G)].map((m) => m[1]))];
+  for (const v of versions) for (const [pinned, candidate] of await swapsFor(v)) text = text.split(pinned).join(candidate);
+  return text.replace(KIT_URL_G, KIT_PATH);
+}
 // Candidate HTML: rewrite kit URLs inside START TAGS only (never inside an
 // inline script, whose CSP hash would break), strip their integrity, and let
 // the CSP's jsDelivr directives also allow 'self', where the kit now lives.
@@ -126,7 +157,8 @@ function serve(root, candidate) {
       if (candidate && dir === root) {
         if (ext === '.html') body = Buffer.from(candidateHtml(body.toString('utf8')));
         // App code that builds kit URLs itself (an export's logo, say).
-        else if (['.js', '.mjs', '.css'].includes(ext)) body = Buffer.from(body.toString('utf8').replace(KIT_URL_G, KIT_PATH));
+        // Their pinned SRI strings are swapped for this checkout's (candidateCode).
+        else if (['.js', '.mjs', '.css'].includes(ext)) body = Buffer.from(await candidateCode(body.toString('utf8')));
       }
       res.writeHead(200, { 'content-type': MIME[ext] || 'application/octet-stream', 'access-control-allow-origin': '*' });
       res.end(body);

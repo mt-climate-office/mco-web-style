@@ -82,6 +82,43 @@
       hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
     });
   };
+  /* The freshness stamp (0.21.0): one wording for the family, in Mountain
+     time whatever the viewer's zone, the zone abbreviation from Intl.
+       MCO.formatUpdatedMT(ms)  → 'Updated 2:45 PM MST'          (ms is today in MT)
+                                → 'Updated Nov 2, 2:45 PM MST'   (any other day)
+       MCO.formatUpdatedMT(ms, {into: el}) also fills el, DOM-built:
+         <span class="refresh-word">Updated</span> <time datetime="…">2:45 PM MST</time>
+     ms is the DATA's time (the newest observation); fall back to the fetch
+     time only when the feed carries none. In the navbar the kit hides the
+     word visually at ≤1400px (.refresh-status .refresh-word), so put `into`
+     on the text span beside the dot, never on .refresh-status itself. A
+     missing or invalid ms returns '' and empties el. */
+  MCO.formatUpdatedMT = function (ms, o) {
+    var el = o && o.into;
+    var d = new Date(ms);
+    if (ms == null || ms === '' || !isFinite(d.getTime())) {
+      if (el) el.textContent = '';
+      return '';
+    }
+    // Date and time formatted apart and joined with ', ': one combined
+    // toLocaleString reads "Nov 2 at 2:45 PM" in WebKit, "Nov 2, 2:45 PM" in Chromium.
+    var when = d.toLocaleTimeString('en-US',
+      { timeZone: MCO.TZ, hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+    if (d.toLocaleDateString('en-CA', { timeZone: MCO.TZ }) !== MCO.todayMT()) {
+      when = d.toLocaleDateString('en-US', { timeZone: MCO.TZ, month: 'short', day: 'numeric' }) + ', ' + when;
+    }
+    if (el) {
+      var word = document.createElement('span');
+      word.className = 'refresh-word';
+      word.textContent = 'Updated';
+      var time = document.createElement('time');
+      time.dateTime = d.toISOString();
+      time.textContent = when;
+      el.textContent = '';
+      el.append(word, ' ', time);
+    }
+    return 'Updated ' + when;
+  };
   MCO.formatDateMT = function (ms) {
     return new Date(ms).toLocaleDateString('en-US', {
       timeZone: MCO.TZ, year: 'numeric', month: 'short', day: 'numeric',
@@ -1234,44 +1271,93 @@
 
        var rail = MCO.initNavRail({
          toggle: menuBtn, drawer: navDrawerEl, scrim: scrimEl,   // scrim optional
+         search: { toggle: searchBtn, input: searchInput },      // optional (0.21.0)
          onChange: function (open) {},
        });
-       → {open(focusEl?), close({restoreFocus}), toggle, isOpen, isRail, destroy}
+       → {open(focusEl?, {opener}?), close({restoreFocus}), toggle, isOpen,
+          isRail, isDrawerMode, destroy}
 
-     App side: a "/" shortcut checks rail.isRail() first and calls
-     rail.open(searchInput); choosing a search result closes with
-     {restoreFocus: false} and hands the toggle to whatever opens next; a
-     drawer button that opens a dialog closes the drawer first. */
+     Compact drawer (0.21.0, opt-in): data-rail="compact" ALSO makes the bar
+     one row at portrait compact (MCO.viewport.COMPACT_MQ minus the rail's
+     short landscape; the query is in mco-theme.css §6), in this order:
+       logo badge (always the left edge) · the rest of .mco-rail (hot
+       controls, in a row) · .mco-search-toggle (LAST in .mco-rail, pushed
+       right) · ☰ (.mco-rail's FIRST child, moved to the right edge).
+     .mco-nav-drawer (brand, .controls, .nav-meta) is then an off-canvas
+     RIGHT drawer under the bar, opening from ☰, on the same contract: the rest of the page
+     AND the rest of the bar inert (only ☰ stays live); Esc, the scrim or ☰
+     close it; focus back to whichever button opened it. isDrawerMode() is
+     true there, and open() works in both modes. Plain data-rail (no value)
+     is unchanged: a rail at short landscape, the normal bar elsewhere.
+
+     search: the bar's .mco-search-toggle in a compact bar, whose search
+     field lives in the drawer. A press opens the drawer on the input, and
+     focus comes back to the search button. Don't also hand that button to
+     MCO.initSearchCollapse: in a compact bar ≤640px is always rail or
+     drawer mode, so the field never collapses to an overlay.
+
+     App side: a "/" shortcut checks rail.isRail() || rail.isDrawerMode()
+     first and calls rail.open(searchInput); choosing a search result closes
+     with {restoreFocus: false} and hands the toggle to whatever opens next;
+     a drawer button that opens a dialog closes the drawer first. */
   MCO.initNavRail = function (opts) {
     var drawer = opts.drawer;
     var toggle = opts.toggle;
     var scrim = opts.scrim || null;
+    var search = opts.search && opts.search.toggle ? opts.search : null;
     var onChange = opts.onChange || null;
+    var bar = drawer.closest('.mco-navbar');
+    var compactBar = !!bar && bar.getAttribute('data-rail') === 'compact';
     var openState = false;
+    var openMode = null;
+    // compact ∧ ¬rail is exactly the §6 drawer query, so the viewport's
+    // compact/rail flips are the only changes it needs to follow.
+    function isDrawerMode() {
+      return compactBar && MCO.viewport.isCompact() && !MCO.viewport.isRail();
+    }
+    function mode() { return MCO.viewport.isRail() ? 'rail' : isDrawerMode() ? 'drawer' : null; }
     var ov = MCO.overlay({
       el: drawer,
       opener: function () { return toggle; },
       initialFocus: opts.initialFocus,
-      inert: function () { return MCO.overlay.siblingsOf(drawer, [toggle, scrim]); },
+      // Rail: the rail column stays live beside the drawer. Drawer: only ☰
+      // does; the hot controls and the search button share its row.
+      inert: function () {
+        return openMode === 'drawer'
+          ? MCO.overlay.siblingsOf(toggle, [drawer, scrim])
+          : MCO.overlay.siblingsOf(drawer, [toggle, scrim]);
+      },
       fallbackFocus: toggle,
       onClose: function () { hide(); },
     });
+    function setExpanded(v) {
+      toggle.setAttribute('aria-expanded', String(v));
+      if (search) search.toggle.setAttribute('aria-expanded', String(v));
+    }
     function hide() {
       if (!openState) return;
       openState = false;
+      openMode = null;
       drawer.classList.remove('is-open');
-      toggle.setAttribute('aria-expanded', 'false');
+      setExpanded(false);
       if (scrim) scrim.hidden = true;
       if (onChange) onChange(false);
     }
-    function open(focusEl) {
-      if (openState || !MCO.viewport.isRail()) return;
+    function open(focusEl, o) {
+      var m = mode();
+      if (openState || !m) return;
       openState = true;
+      openMode = m;
+      // The drawer hangs under the bar (fixed, so measured, not assumed).
+      if (m === 'drawer') {
+        drawer.style.setProperty('--nav-drawer-top',
+          Math.max(0, Math.round(bar.getBoundingClientRect().bottom)) + 'px');
+      }
       // display flips with the class, so the target is focusable right away.
       drawer.classList.add('is-open');
-      toggle.setAttribute('aria-expanded', 'true');
+      setExpanded(true);
       if (scrim) scrim.hidden = false;
-      ov.open({ focus: !focusEl });
+      ov.open({ focus: !focusEl, opener: o && o.opener });
       if (focusEl) focusEl.focus({ preventScroll: true });
       if (onChange) onChange(true);
     }
@@ -1281,29 +1367,37 @@
     }
     function toggleIt() { if (openState) close(); else open(); }
     function onScrim() { close(); }
+    function onSearch() {
+      if (openState) close();
+      else open(search.input || null, { opener: search.toggle });
+    }
     var unsub = MCO.viewport.onChange(function () {
-      if (openState && !MCO.viewport.isRail()) close({ restoreFocus: false });
+      if (openState && mode() !== openMode) close({ restoreFocus: false });
     });
-    toggle.setAttribute('aria-expanded', 'false');
+    setExpanded(false);
     toggle.addEventListener('click', toggleIt);
     if (scrim) scrim.addEventListener('click', onScrim);
+    if (search) search.toggle.addEventListener('click', onSearch);
     return {
       open: open, close: close, toggle: toggleIt,
       isOpen: function () { return openState; },
       isRail: MCO.viewport.isRail,
+      isDrawerMode: isDrawerMode,
       destroy: function () {
         close({ restoreFocus: false });
         unsub();
         toggle.removeEventListener('click', toggleIt);
         if (scrim) scrim.removeEventListener('click', onScrim);
+        if (search) search.toggle.removeEventListener('click', onSearch);
       },
     };
   };
 
   /* ── Bottom sheet (0.9.0) ──────────────────────────────────────────────────
      The detail surface on compact viewports, lifted from mesonet-explorer's
-     field-proven panel: below compact it docks at the bottom with peek/full
-     detents; above, it docks at the end edge, full height (dock: 'compact').
+     field-proven panel: on compact it docks at the bottom with peek/full
+     detents; above compact, it docks at the end edge, full height. There is
+     no dock option: MCO.viewport.isCompact() decides, live across resizes.
 
        <section class="mco-sheet" id="sheet" aria-labelledby="sheet-title" data-state="closed" hidden>
          <div class="mco-sheet-head">
@@ -1683,15 +1777,45 @@
 
   /* ── Info modal (native <dialog>) ──────────────────────────────────────────
      Opener-captured focus restore (works with multiple openers), backdrop
-     click to close, [data-close-modal] delegation for close buttons. */
+     click to close, [data-close-modal] delegation for close buttons. Open
+     puts focus on the close button (.modal-close / [data-close-modal],
+     0.21.0), whichever way the dialog opened.
+
+     First-visit intro (0.21.0, opt-in):
+       var modal = MCO.initInfoModal({ dialog, trigger,
+         intro: { key: 'mco-<app>-intro', skip: hasDeepLink } });
+     auto-opens the dialog once per key, at init. It stands down when skip
+     is true (or a function returning true: the app knows its deep-link
+     params), once focus has left <body> (the visitor has started; HOUSE-
+     STYLE §4), while another dialog or a blocking overlay is open, and when
+     storage is unavailable (it could not keep "once"). The seen flag is
+     written as it opens. {defer: true} skips the init attempt; call
+     modal.intro() later (after the map loads, say). intro() → true if it
+     opened. */
   MCO.initInfoModal = function (opts) {
     var dialog = opts.dialog;
     var trigger = opts.trigger;
+    var intro = opts.intro || null;
     var opener = null;
 
     function open() {
       opener = document.activeElement;
       dialog.showModal();
+      var closeBtn = dialog.querySelector('.modal-close, [data-close-modal]');
+      if (closeBtn && closeBtn.focus) closeBtn.focus();
+    }
+    function maybeIntro() {
+      if (!intro || !intro.key || dialog.open) return false;
+      if (typeof intro.skip === 'function' ? intro.skip() : intro.skip) return false;
+      var a = document.activeElement;
+      if (a && a !== document.body && a !== document.documentElement) return false;
+      if (MCO.overlay.isBlocking()) return false;
+      try {
+        if (localStorage.getItem(intro.key) !== null) return false;
+        localStorage.setItem(intro.key, '1');
+      } catch (e) { return false; }
+      open();
+      return true;
     }
     if (trigger) trigger.addEventListener('click', open);
     dialog.addEventListener('click', function (e) {
@@ -1701,7 +1825,8 @@
       if (opener && opener.focus) opener.focus();  // a11y: return focus to the opener
       opener = null;
     });
-    return { open: open, close: function () { dialog.close(); } };
+    if (intro && !intro.defer) maybeIntro();
+    return { open: open, close: function () { dialog.close(); }, intro: maybeIntro };
   };
 
   /* ── Collapsible panel ─────────────────────────────────────────────────────
