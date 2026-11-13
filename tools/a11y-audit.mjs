@@ -44,6 +44,426 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const port = server.address().port;
 
+  /* ── 1.0.0 probes ─────────────────────────────────────────────────────────
+     The phone layout of 1.0.0, on the demo, in touch contexts: the rail at
+     the RIGHT edge (badge, ☰, search, the control bar's time controls, all
+     ≥ 44px) with its drawer beside it; the full-height station panel with
+     the bar and the control bar live and its 44px close button at every
+     width; the bottom control bar (--tabbar-h, safe area, hidden under a
+     keyboard); MCO.keyboard and the K7 hold; the legend in the drawer; and
+     ← / → date stepping with every exemption. A keyboard is modelled by
+     overriding visualViewport.height (emulation has no on-screen keyboard).
+     PROBE_ONLY=v1 runs just these. */
+  async function v1Probes(engine, probe) {
+    const launch = () => ENGINES[engine].launch(engine === 'chromium'
+      ? { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } : {});
+    let vb = await launch();
+    let visits = 0;
+    const open = async (w, h, o = {}) => {
+      // WebKit stops loading pages after enough visits in one browser.
+      if (++visits % 12 === 0) { await vb.close(); vb = await launch(); }
+      const touch = o.touch !== false;
+      const ctx = await vb.newContext({ viewport: { width: w, height: h }, hasTouch: touch,
+        isMobile: touch && engine === 'chromium', reducedMotion: 'reduce' });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(String(e)));
+      await p.goto(`http://127.0.0.1:${port}${o.path || '/demo/'}?theme=dark${o.qs || ''}`, { waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(o.wait || 900);
+      return { ctx, p, errs };
+    };
+    // Shared measurements: rects as [x, y, w, h], rounded.
+    const R = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map(Math.round); })()`;
+    const hits = (p, sel) => p.evaluate((s) => {
+      const e = document.querySelector(s); if (!e) return false;
+      const r = e.getBoundingClientRect();
+      const h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!h && (h === e || e.contains(h));
+    }, sel);
+    // A simulated keyboard: the visual viewport shrinks, the layout one doesn't.
+    const keyboard = (p, px) => p.evaluate((kb) => {
+      const vv = window.visualViewport;
+      const h = document.documentElement.clientHeight - kb;
+      Object.defineProperty(vv, 'height', { configurable: true, get: () => h });
+      vv.dispatchEvent(new Event('resize'));
+    }, px);
+
+    // 1. The rail at the right edge, in both short-landscape sizes.
+    for (const [w, h] of [[750, 342], [844, 390]]) {
+      const { ctx, p, errs } = await open(w, h);
+      const at = `${w}×${h}`;
+      const r = await p.evaluate(() => {
+        const nav = document.querySelector('.mco-navbar'), cb = document.querySelector('.mco-controlbar');
+        const nr = nav.getBoundingClientRect(), cr = cb.getBoundingClientRect();
+        const btns = [...nav.querySelectorAll('.mco-rail .nav-btn'), ...cb.querySelectorAll('.nav-btn')]
+          .filter((b) => b.getClientRects().length).map((b) => { const q = b.getBoundingClientRect(); return [b.id || b.className, Math.round(q.width), Math.round(q.height), Math.round(q.top), Math.round(q.bottom)]; });
+        const order = [document.querySelector('.logo-link'), document.getElementById('btn-rail-menu'), document.getElementById('btn-search-toggle'), document.getElementById('rail-step-prev')]
+          .map((e) => Math.round(e.getBoundingClientRect().top));
+        return { rail: MCO.viewport.isRail(), right: Math.round(innerWidth - nr.right), x: Math.round(nr.left), w: Math.round(nr.width),
+          cbar: [Math.round(cr.left), Math.round(cr.top), Math.round(cr.width), Math.round(cr.bottom)], btns, order,
+          vh: innerHeight, inset: getComputedStyle(document.body).getPropertyValue('--rail-inset').trim(),
+          padR: getComputedStyle(document.body).paddingRight, tabbar: getComputedStyle(document.documentElement).getPropertyValue('--tabbar-h').trim() };
+      });
+      const allBig = r.btns.length >= 4 && r.btns.every((b) => b[1] >= 44 && b[2] >= 44 && b[3] >= 0 && b[4] <= r.vh);
+      const ordered = r.order.every((y, i) => i === 0 || y > r.order[i - 1]);
+      probe(`v1 ${at}: rail at the right edge (x ${r.x}, gap ${r.right}px), control bar at its foot, body padded ${r.padR}, --tabbar-h ${r.tabbar}`,
+        r.rail && r.right === 0 && r.x > w / 2 && r.cbar[0] === r.x && r.cbar[3] === h && r.padR === r.w + 'px' && r.tabbar === '0px', JSON.stringify(r));
+      probe(`v1 ${at}: rail order badge → ☰ → search → time controls; every rail button ≥ 44px and on screen`,
+        allBig && ordered, JSON.stringify({ btns: r.btns, order: r.order }));
+      await p.click('#btn-rail-menu');
+      await p.waitForTimeout(300);
+      const d = await p.evaluate(() => {
+        const dr = document.getElementById('nav-drawer').getBoundingClientRect(), nr = document.querySelector('.mco-navbar').getBoundingClientRect();
+        return { focus: document.activeElement.id, left: Math.round(dr.left), right: Math.round(dr.right), railLeft: Math.round(nr.left),
+          top: Math.round(dr.top), bottom: Math.round(dr.bottom), mainInert: document.getElementById('main').inert,
+          cbarInert: document.querySelector('.mco-controlbar').inert || !!document.querySelector('.mco-controlbar').closest('[inert]') };
+      });
+      probe(`v1 ${at}: ☰ opens the drawer beside the rail (drawer ${d.left}–${d.right}, rail at ${d.railLeft}), focus on the drawer, page inert, control bar live`,
+        Math.abs(d.right - d.railLeft) <= 1 && d.top === 0 && d.bottom === h && d.focus === 'nav-drawer' && d.mainInert && !d.cbarInert, JSON.stringify(d));
+      const ab = (await new AxeBuilder({ page: p }).analyze()).violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+      probe(`v1 ${at}: axe with the rail drawer open: no serious/critical`, ab.length === 0, ab.map((v) => v.id).join(', '));
+      await p.keyboard.press('Escape');
+      await p.waitForTimeout(200);
+      await p.click('#btn-search-toggle');
+      await p.waitForTimeout(300);
+      const sf = await p.evaluate(() => document.activeElement.id);
+      probe(`v1 ${at}: the rail's search button opens the drawer on the field`, sf === 'demo-search', sf);
+      await p.keyboard.press('Escape'); await p.keyboard.press('Escape');
+      probe(`v1 ${at}: no page errors`, errs.length === 0, errs.join(' | '));
+      await ctx.close();
+    }
+
+    // 2. The station panel at every width: full height under the bar on
+    //    compact, end-docked above; close button 44px, top right, hittable.
+    for (const [w, h, touch] of [[320, 568, true], [390, 844, true], [750, 342, true], [844, 390, true], [768, 1024, true], [1440, 900, false]]) {
+      const { ctx, p } = await open(w, h, { touch });
+      const at = `${w}×${h}`;
+      await p.evaluate(() => { scrollTo(0, 0); document.getElementById('btn-sheet').click(); });
+      await p.waitForTimeout(400);
+      const s = await p.evaluate(() => {
+        const sh = document.getElementById('demo-sheet'), nav = document.querySelector('.mco-navbar'), cb = document.querySelector('.mco-controlbar');
+        const sr = sh.getBoundingClientRect(), nr = nav.getBoundingClientRect(), cr = cb.getBoundingClientRect();
+        const x = sh.querySelector('[data-close-sheet]'), xr = x.getBoundingClientRect(), tr = sh.querySelector('.mco-sheet-title').getBoundingClientRect();
+        const inert = (e) => !!e.closest('[inert]');
+        return { compact: MCO.viewport.isCompact(), rail: MCO.viewport.isRail(), state: sh.dataset.state,
+          rect: [sr.left, sr.top, sr.right, sr.bottom].map(Math.round), vw: document.documentElement.clientWidth, vh: innerHeight,
+          navBottom: Math.round(nr.bottom), navLeft: Math.round(nr.left), cbarTop: cr.height ? Math.round(cr.top) : null,
+          close: [Math.round(xr.width), Math.round(xr.height), Math.round(sr.right - xr.right), Math.round(xr.top - sr.top)],
+          closeRightOfTitle: xr.left >= tr.right - 1,
+          navInert: inert(nav), cbarInert: inert(cb), mainInert: inert(document.getElementById('main')),
+          grip: !!sh.querySelector('.mco-sheet-grip'), sheetH: getComputedStyle(document.documentElement).getPropertyValue('--sheet-h').trim(),
+          focus: document.activeElement.id };
+      });
+      const hit = await hits(p, '#demo-sheet [data-close-sheet]');
+      const closeOk = s.close[0] >= 44 && s.close[1] >= 44 && s.close[2] <= 16 && s.close[3] <= 16 && s.closeRightOfTitle && hit;
+      if (s.compact) {
+        const top = s.rail ? 0 : s.navBottom, bottom = s.cbarTop != null && !s.rail ? s.cbarTop : s.vh, right = s.rail ? s.navLeft : s.vw;
+        probe(`v1 ${at}: panel = viewport minus the bar(s): [${s.rect}] vs [0,${top},${right},${bottom}]; one state; bar and control bar live; rest inert; --sheet-h ${s.sheetH}`,
+          s.state === 'full' && Math.abs(s.rect[0]) <= 1 && Math.abs(s.rect[1] - top) <= 1 && Math.abs(s.rect[2] - right) <= 1 && Math.abs(s.rect[3] - bottom) <= 1 &&
+          !s.navInert && !s.cbarInert && s.mainInert && s.sheetH === '0px' && s.focus === 'demo-sheet-title', JSON.stringify(s));
+      } else {
+        probe(`v1 ${at}: panel end-docked under the bar, page live: [${s.rect}]`,
+          s.state === 'full' && s.rect[2] === s.vw && Math.abs(s.rect[1] - s.navBottom) <= 1 && !s.mainInert, JSON.stringify(s));
+      }
+      probe(`v1 ${at}: panel close button ${s.close[0]}×${s.close[1]}, top right, hittable; no grip`, closeOk, JSON.stringify({ close: s.close, hit, right: s.closeRightOfTitle }));
+      const sb = (await new AxeBuilder({ page: p }).analyze()).violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+      probe(`v1 ${at}: axe with the panel open: no serious/critical`, sb.length === 0, sb.map((v) => v.id).join(', '));
+      if (s.compact) {
+        // The bar stays live: ☰ opens over the panel and closes again.
+        await p.click('#btn-rail-menu');
+        await p.waitForTimeout(250);
+        const o = await p.evaluate(() => document.getElementById('nav-drawer').classList.contains('is-open'));
+        await p.keyboard.press('Escape');
+        await p.waitForTimeout(200);
+        probe(`v1 ${at}: ☰ in the live bar opens over the panel`, o, String(o));
+      }
+      await p.click('#demo-sheet [data-close-sheet]');
+      await p.waitForTimeout(300);
+      const c = await p.evaluate(() => ({ state: document.getElementById('demo-sheet').dataset.state, focus: document.activeElement.id,
+        mainInert: !!document.getElementById('main').closest('[inert]') }));
+      probe(`v1 ${at}: the close button closes, focus back, nothing left inert`, c.state === 'closed' && c.focus === 'btn-sheet' && !c.mainInert, JSON.stringify(c));
+      await ctx.close();
+    }
+    // The deprecated shims still open the one state.
+    {
+      const { ctx, p } = await open(390, 844);
+      const sh = await p.evaluate(() => {
+        const out = [];
+        const s = MCO.initSheet({ sheet: document.getElementById('demo-sheet'), onState: (st) => out.push(st) });
+        s.open('peek'); const a = s.state(); s.setState('peek'); const b = s.state(); s.close(); s.setState('peek'); const c = s.state(); s.close();
+        return { a, b, c, out };
+      });
+      probe(`v1 shims: open('peek') / setState('peek') open the one state; state() ${sh.a}; onState never 'peek'`,
+        sh.a === 'full' && sh.b === 'full' && sh.c === 'full' && !sh.out.includes('peek'), JSON.stringify(sh));
+      await ctx.close();
+    }
+
+    // 3. The bottom control bar: docked, publishes --tabbar-h, clears the
+    //    safe area, hides under a keyboard; the drawer and toast clear it.
+    for (const [w, h] of [[320, 568], [390, 844], [768, 1024]]) {
+      const { ctx, p } = await open(w, h);
+      const at = `${w}×${h}`;
+      const b = await p.evaluate(() => {
+        const cb = document.querySelector('.mco-controlbar'), r = cb.getBoundingClientRect(), cs = getComputedStyle(cb);
+        return { rect: [r.left, r.top, r.width, r.bottom].map(Math.round), vh: innerHeight, vw: document.documentElement.clientWidth,
+          tabbar: getComputedStyle(document.documentElement).getPropertyValue('--tabbar-h').trim(),
+          padB: cs.paddingBottom, autolift: document.documentElement.classList.contains('mco-autolift'),
+          btns: [...cb.querySelectorAll('.nav-btn')].map((x) => [Math.round(x.getBoundingClientRect().width), Math.round(x.getBoundingClientRect().height)]) };
+      });
+      probe(`v1 ${at}: bottom control bar docked [${b.rect}], --tabbar-h ${b.tabbar} = its height, buttons ≥ 44px, autolift on`,
+        b.rect[3] === b.vh && b.rect[0] === 0 && b.tabbar === Math.round(b.rect[3] - b.rect[1]) + 'px' &&
+          b.btns.every(([x, y]) => x >= 44 && y >= 44) && b.autolift, JSON.stringify(b));
+      // The safe area: the bar's bottom padding is max(0.4rem, env(safe-area-inset-bottom)).
+      const safe = await p.evaluate(() => {
+        const cb = document.querySelector('.mco-controlbar');
+        const probeEl = document.createElement('div');
+        probeEl.style.cssText = 'position:fixed;padding-bottom:env(safe-area-inset-bottom, 0px)';
+        document.body.appendChild(probeEl);
+        const env = parseFloat(getComputedStyle(probeEl).paddingBottom); probeEl.remove();
+        return { env, pad: parseFloat(getComputedStyle(cb).paddingBottom), rule: [...document.styleSheets].some((ss) => { try { return [...ss.cssRules].some((r) => /mco-controlbar/.test(r.cssText) && /safe-area-inset-bottom/.test(r.cssText)); } catch { return false; } }) };
+      });
+      probe(`v1 ${at}: control bar pads for the bottom safe area (env ${safe.env}px here, padding ${safe.pad}px)`, safe.rule && safe.pad >= safe.env, JSON.stringify(safe));
+      await p.click('#btn-rail-menu');
+      await p.waitForTimeout(250);
+      const dd = await p.evaluate(() => ({ bottom: Math.round(document.getElementById('nav-drawer').getBoundingClientRect().bottom),
+        cbTop: Math.round(document.querySelector('.mco-controlbar').getBoundingClientRect().top),
+        cbInert: !!document.querySelector('.mco-controlbar').closest('[inert]') }));
+      probe(`v1 ${at}: the ☰ drawer stops at the control bar (${dd.bottom} vs ${dd.cbTop}) and the bar stays live`, Math.abs(dd.bottom - dd.cbTop) <= 1 && !dd.cbInert, JSON.stringify(dd));
+      await p.keyboard.press('Escape');
+      await p.waitForTimeout(200);
+      await p.evaluate(() => MCO.showToast('probe', 5000, { announce: false }));
+      await p.waitForTimeout(300);
+      const t = await p.evaluate(() => ({ toast: Math.round(document.querySelector('.mco-toast').getBoundingClientRect().bottom),
+        cbTop: Math.round(document.querySelector('.mco-controlbar').getBoundingClientRect().top) }));
+      probe(`v1 ${at}: the toast clears the control bar (bottom ${t.toast} ≤ ${t.cbTop})`, t.toast <= t.cbTop, JSON.stringify(t));
+      // The keyboard: .kb-open, the bar hides, --tabbar-h drops to 0.
+      await p.focus('#kb-field');
+      await keyboard(p, 300);
+      await p.waitForTimeout(250);
+      const k = await p.evaluate(() => ({ open: document.documentElement.classList.contains('kb-open'), inset: getComputedStyle(document.documentElement).getPropertyValue('--kb-inset').trim(),
+        vvh: getComputedStyle(document.documentElement).getPropertyValue('--vv-h').trim(),
+        shown: document.querySelector('.mco-controlbar').getClientRects().length > 0, tabbar: getComputedStyle(document.documentElement).getPropertyValue('--tabbar-h').trim() }));
+      probe(`v1 ${at}: keyboard up (vv −300px): .kb-open, --kb-inset ${k.inset}, --vv-h ${k.vvh}, control bar hidden, --tabbar-h ${k.tabbar}`,
+        k.open && k.inset === '300px' && !k.shown && k.tabbar === '0px', JSON.stringify(k));
+      await ctx.close();
+    }
+
+    // 4. K7: focus the drawer's search field at 390×664, the keyboard
+    //    resizes the window to 390×374 (now "landscape"), then a real
+    //    landscape size: the drawer stays open, the bar doesn't flip, the
+    //    field stays above the keyboard line. Then the hold lifts.
+    {
+      const { ctx, p } = await open(390, 664);
+      await p.click('#btn-search-toggle');
+      await p.waitForTimeout(300);
+      const before = await p.evaluate(() => ({ focus: document.activeElement.id, folded: document.querySelector('.mco-navbar').classList.contains('is-folded') }));
+      await p.setViewportSize({ width: 390, height: 374 });
+      await p.waitForTimeout(500);
+      const k1 = await p.evaluate(() => {
+        const i = document.getElementById('demo-search').getBoundingClientRect(), nav = document.querySelector('.mco-navbar').getBoundingClientRect();
+        return { focus: document.activeElement.id, open: document.getElementById('nav-drawer').classList.contains('is-open'),
+          folded: document.querySelector('.mco-navbar').classList.contains('is-folded'), rail: MCO.viewport.isRail(),
+          hold: document.documentElement.classList.contains('mco-bar-hold'), navW: Math.round(nav.width), navH: Math.round(nav.height),
+          field: [Math.round(i.top), Math.round(i.bottom)], vh: innerHeight };
+      });
+      probe(`v1 K7 390×664→390×374 with the search field focused: drawer open, bar still folded (${k1.navW}×${k1.navH}), not the rail, field at ${k1.field} within ${k1.vh}`,
+        before.focus === 'demo-search' && k1.focus === 'demo-search' && k1.open && k1.folded && !k1.rail && k1.hold && k1.navH <= 64 && k1.field[1] <= k1.vh, JSON.stringify({ before, k1 }));
+      await p.setViewportSize({ width: 844, height: 390 });
+      await p.waitForTimeout(500);
+      const k2 = await p.evaluate(() => {
+        const i = document.getElementById('demo-search').getBoundingClientRect();
+        return { focus: document.activeElement.id, open: document.getElementById('nav-drawer').classList.contains('is-open'),
+          folded: document.querySelector('.mco-navbar').classList.contains('is-folded'), rail: MCO.viewport.isRail(), field: [Math.round(i.top), Math.round(i.bottom)], vh: innerHeight };
+      });
+      probe(`v1 K7 then 844×390, still typing: drawer open, bar held folded, field at ${k2.field} within ${k2.vh}`,
+        k2.focus === 'demo-search' && k2.open && k2.folded && !k2.rail && k2.field[1] <= k2.vh, JSON.stringify(k2));
+      // Typing ends: the hold lifts, the rail takes over, the fold re-measures.
+      await p.keyboard.press('Escape');   // drawer closes, focus to the search button
+      await p.waitForTimeout(400);
+      const k3 = await p.evaluate(() => ({ rail: MCO.viewport.isRail(), hold: document.documentElement.classList.contains('mco-bar-hold'),
+        folded: document.querySelector('.mco-navbar').classList.contains('is-folded'),
+        x: Math.round(document.querySelector('.mco-navbar').getBoundingClientRect().left) }));
+      probe(`v1 K7 typing over: the hold lifts, the rail takes the right edge (x ${k3.x}), not folded`, k3.rail && !k3.hold && !k3.folded && k3.x > 400, JSON.stringify(k3));
+      await p.setViewportSize({ width: 390, height: 664 });
+      await p.waitForTimeout(500);
+      const k4 = await p.evaluate(() => ({ rail: MCO.viewport.isRail(), folded: document.querySelector('.mco-navbar').classList.contains('is-folded'),
+        h: Math.round(document.querySelector('.mco-navbar').getBoundingClientRect().height) }));
+      probe(`v1 K7 back to portrait: folded one row (${k4.h}px)`, !k4.rail && k4.folded && k4.h <= 64, JSON.stringify(k4));
+      // The keyboard alone (no resize: iOS) holds too, and a search list keeps above it.
+      await p.click('#btn-search-toggle');
+      await p.waitForTimeout(250);
+      await keyboard(p, 330);
+      await p.keyboard.type('a');
+      await p.waitForTimeout(300);
+      const k5 = await p.evaluate(() => {
+        const l = document.getElementById('demo-search-list').getBoundingClientRect(), vv = window.visualViewport;
+        const d = document.getElementById('nav-drawer').getBoundingClientRect();
+        return { listBottom: Math.round(l.bottom), line: Math.round(vv.offsetTop + vv.height), drawerBottom: Math.round(d.bottom), kb: document.documentElement.classList.contains('kb-open') };
+      });
+      probe(`v1 keyboard up: the search list ends above the keyboard line (${k5.listBottom} ≤ ${k5.line}), the drawer stops at it (${k5.drawerBottom})`,
+        k5.kb && k5.listBottom <= k5.line && Math.abs(k5.drawerBottom - k5.line) <= 1, JSON.stringify(k5));
+      await ctx.close();
+    }
+    // The fold is still deterministic after a hold: 1440 fresh vs 1440 after typing at 390.
+    {
+      const { ctx, p } = await open(1440, 900, { touch: false });
+      const fresh = await p.evaluate(() => document.querySelector('.mco-navbar').classList.contains('is-folded'));
+      await ctx.close();
+      const t = await open(390, 664);
+      await t.p.click('#btn-search-toggle');
+      await t.p.waitForTimeout(200);
+      await t.p.setViewportSize({ width: 390, height: 374 });
+      await t.p.waitForTimeout(300);
+      await t.p.keyboard.press('Escape');
+      await t.p.setViewportSize({ width: 1440, height: 900 });
+      await t.p.waitForTimeout(600);
+      const after = await t.p.evaluate(() => ({ folded: document.querySelector('.mco-navbar').classList.contains('is-folded'),
+        h: Math.round(document.querySelector('.mco-navbar').getBoundingClientRect().height) }));
+      probe(`v1 fold after a hold matches a fresh load at 1440 (fresh ${fresh}, after ${after.folded}, ${after.h}px)`, after.folded === fresh && after.h <= 64, JSON.stringify({ fresh, after }));
+      await t.ctx.close();
+    }
+
+    // 5. The legend: in the drawer on compact with a Legend button on the
+    //    map, floating above compact.
+    for (const [w, h, touch] of [[390, 844, true], [750, 342, true], [1440, 900, false]]) {
+      const { ctx, p } = await open(w, h, { touch });
+      const at = `${w}×${h}`;
+      const l = await p.evaluate(() => {
+        const panel = document.getElementById('legend-panel'), btn = document.querySelector('.mco-legend-btn');
+        const wrap = document.getElementById('map-wrap').getBoundingClientRect(), br = btn.getBoundingClientRect();
+        return { inDrawer: !!panel.closest('.mco-nav-drawer'), btnShown: !btn.hidden && br.width > 0, btnInMap: br.left >= wrap.left && br.right <= wrap.right && br.top >= wrap.top && br.bottom <= wrap.bottom,
+          btnName: btn.textContent.trim(), btnSize: [Math.round(br.width), Math.round(br.height)], floating: getComputedStyle(panel).position };
+      });
+      if (w <= 640 || h <= 560) {
+        await p.evaluate(() => document.getElementById('map-wrap').scrollIntoView({ block: 'center' }));
+        await p.waitForTimeout(200);
+        await p.click('.mco-legend-btn');
+        await p.waitForTimeout(300);
+        const o = await p.evaluate(() => {
+          const panel = document.getElementById('legend-panel'), dr = document.getElementById('nav-drawer').getBoundingClientRect(), pr = panel.getBoundingClientRect();
+          return { open: document.getElementById('nav-drawer').classList.contains('is-open'), focusIn: panel.contains(document.activeElement),
+            expanded: document.getElementById('legend-toggle').getAttribute('aria-expanded'), visible: pr.top >= dr.top - 1 && pr.top < dr.bottom };
+        });
+        probe(`v1 ${at}: legend in the ☰ drawer; a "${l.btnName}" button (${l.btnSize}) on the map opens the drawer at it, expanded, focus in it`,
+          l.inDrawer && l.btnShown && l.btnInMap && l.btnName === 'Legend' && l.btnSize[1] >= 40 && o.open && o.focusIn && o.expanded === 'true' && o.visible, JSON.stringify({ l, o }));
+        const lb = (await new AxeBuilder({ page: p }).analyze()).violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+        probe(`v1 ${at}: axe with the legend open in the drawer: no serious/critical`, lb.length === 0, lb.map((v) => v.id).join(', '));
+        await p.keyboard.press('Escape');
+        await p.waitForTimeout(200);
+        const back = await p.evaluate(() => document.activeElement.classList.contains('mco-legend-btn'));
+        probe(`v1 ${at}: closing returns focus to the Legend button`, back, String(back));
+      } else {
+        probe(`v1 ${at}: legend floats on the map, no Legend button`, !l.inDrawer && !l.btnShown && l.floating === 'absolute', JSON.stringify(l));
+      }
+      await ctx.close();
+    }
+
+    // 6. ← / → step the date, with every exemption.
+    {
+      const { ctx, p } = await open(1440, 900, { touch: false });
+      const day = () => p.textContent('#date-readout');
+      const press = async (key, mods) => { if (mods) await p.keyboard.press(`${mods}+${key}`); else await p.keyboard.press(key); await p.waitForTimeout(60); return day(); };
+      const kbd = await p.evaluate(() => [document.getElementById('step-prev').getAttribute('aria-keyshortcuts'), document.getElementById('step-next').getAttribute('aria-keyshortcuts')]);
+      probe(`v1 arrows: prev/next carry aria-keyshortcuts (${kbd})`, kbd[0] === 'ArrowLeft' && kbd[1] === 'ArrowRight', JSON.stringify(kbd));
+      await p.evaluate(() => { document.activeElement.blur(); });
+      const d0 = await day();
+      const d1 = await press('ArrowLeft');
+      const d2 = await press('ArrowRight');
+      probe(`v1 arrows: ← steps back (${d0} → ${d1}), → forward (${d2})`, d1 !== d0 && d2 === d0, JSON.stringify([d0, d1, d2]));
+      const atToday = await press('ArrowRight');
+      probe('v1 arrows: → at today does nothing (canStep)', atToday === d0, atToday);
+      await press('ArrowLeft');
+      const base = await day();
+      const cases = [];
+      // Modifiers as dispatched events: a real Meta+← is the browser's Back in WebKit.
+      for (const m of ['shiftKey', 'ctrlKey', 'altKey', 'metaKey']) {
+        await p.evaluate((k) => document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true, [k]: true })), m);
+        await p.waitForTimeout(60);
+        cases.push([`${m.replace('Key', '')}+←`, await day()]);
+      }
+      await p.focus('#kb-field'); cases.push(['text field', await press('ArrowLeft')]);
+      await p.focus('#units-select').catch(() => {});
+      await p.evaluate(() => { const r = document.querySelector('#units-seg input:checked'); if (r && r.getClientRects().length) r.focus(); });
+      const radioBefore = await p.evaluate(() => (document.querySelector('#units-seg input:checked') || {}).value);
+      cases.push(['radio (keyboard)', await press('ArrowRight')]);
+      const radioAfter = await p.evaluate(() => (document.querySelector('#units-seg input:checked') || {}).value);
+      await p.evaluate(() => {
+        const s = document.createElement('div'); s.id = 'probe-slider'; s.setAttribute('role', 'slider'); s.tabIndex = 0;
+        s.setAttribute('aria-label', 'Probe slider'); s.setAttribute('aria-valuenow', '1'); document.getElementById('main').appendChild(s);
+        const r = document.createElement('input'); r.type = 'range'; r.id = 'probe-range'; r.setAttribute('aria-label', 'Probe range'); document.getElementById('main').appendChild(r);
+      });
+      await p.focus('#probe-slider'); cases.push(['role=slider', await press('ArrowLeft')]);
+      await p.focus('#probe-range'); cases.push(['input range', await press('ArrowLeft')]);
+      await p.click('#btn-modal'); await p.waitForTimeout(200);
+      cases.push(['open dialog', await press('ArrowLeft')]);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+      await p.click('#btn-drawer'); await p.waitForTimeout(350);
+      cases.push(['blocking drawer', await press('ArrowLeft')]);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(350);
+      const unchanged = cases.filter(([, d]) => d !== base);
+      probe(`v1 arrows keep their meaning: ${cases.map(([k]) => k).join(', ')}`, unchanged.length === 0 && radioAfter !== radioBefore,
+        JSON.stringify({ base, unchanged, radioBefore, radioAfter }));
+      // The map: Tab-reached focus pans, pointer focus steps until ↑/↓.
+      await p.waitForFunction(() => !!document.querySelector('#map .maplibregl-canvas'), null, { timeout: 20000 }).catch(() => {});
+      await p.evaluate(() => document.getElementById('map-wrap').scrollIntoView({ block: 'center' }));
+      await p.evaluate(() => { document.getElementById('legend-toggle').focus(); });
+      await p.keyboard.press('Shift+Tab');   // back onto the map canvas, by keyboard
+      const onMap = await p.evaluate(() => !!document.activeElement.closest('.maplibregl-map'));
+      const m0 = await day();
+      const m1 = await press('ArrowLeft');
+      probe(`v1 arrows: on a map reached by Tab, ← pans (date ${m0} → ${m1})`, onMap && m1 === m0, JSON.stringify({ onMap, m0, m1 }));
+      const box = await p.locator('#map .maplibregl-canvas').boundingBox();
+      if (box) await p.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await p.waitForTimeout(100);
+      const m2 = await day();
+      const m3 = await press('ArrowLeft');
+      await press('ArrowUp');
+      const m4 = await press('ArrowLeft');
+      probe(`v1 arrows: on a map focused by a click, ← steps (${m2} → ${m3}); after ↑ it pans again (${m4})`,
+        !!box && m3 !== m2 && m4 === m3, JSON.stringify({ box: !!box, m2, m3, m4 }));
+      // A radio a pointer focused steps the date.
+      const rv = p.locator('#units-seg label.seg-btn').first();
+      let rp = null;
+      if (await rv.isVisible()) {
+        await rv.click();
+        const r0 = await day(); const r1 = await press('ArrowLeft');
+        rp = [r0, r1];
+      }
+      probe('v1 arrows: a radio focused by a click steps the date', !rp || rp[0] !== rp[1], JSON.stringify(rp));
+      // The finer visible stepper wins: an hour stepper made beside the day ones.
+      const fine = await p.evaluate(() => {
+        let hours = 0;
+        const box = document.createElement('div');
+        box.innerHTML = '<button type="button" class="nav-btn mco-step" id="probe-hp" aria-label="Previous hour">‹</button><button type="button" class="nav-btn mco-step" id="probe-hn" aria-label="Next hour">›</button>';
+        document.getElementById('main').prepend(box);
+        const st = MCO.initStepper({ prev: box.children[0], next: box.children[1], onStep: (d) => { hours += d; }, arrowKeys: true, unit: 'hour' });
+        document.activeElement.blur();
+        window.__probeHours = () => hours;
+        window.__probeHourStep = st;
+        return true;
+      });
+      const f0 = await day();
+      await press('ArrowLeft');
+      const f1 = await day();
+      const hrs = await p.evaluate(() => window.__probeHours());
+      await p.evaluate(() => { window.__probeHourStep.destroy(); });
+      await press('ArrowLeft');
+      const f2 = await day();
+      probe(`v1 arrows: the finer visible stepper (hour) takes ← (${hrs} h, day ${f0} → ${f1}); destroyed, the day takes it (${f2})`,
+        fine && hrs === -1 && f1 === f0 && f2 !== f1, JSON.stringify({ hrs, f0, f1, f2 }));
+      await ctx.close();
+      // ?kbd=off: no stepping, no aria-keyshortcuts.
+      const off = await open(1440, 900, { touch: false, qs: '&kbd=off' });
+      const o0 = await off.p.textContent('#date-readout');
+      await off.p.keyboard.press('ArrowLeft');
+      const o1 = await off.p.textContent('#date-readout');
+      const ok = await off.p.evaluate(() => document.getElementById('step-prev').hasAttribute('aria-keyshortcuts'));
+      probe('v1 arrows: ?kbd=off turns them off (no step, no aria-keyshortcuts)', o0 === o1 && !ok, JSON.stringify({ o0, o1, ok }));
+      await off.ctx.close();
+    }
+    await vb.close();
+  }
+
 /* Every engine in BROWSERS (default: chromium,webkit). WebKit is Safari's
    engine — the family's iPhone and iPad users — and differs in exactly the
    places this kit leans on: import maps, inert, :has(), Pointer Events. */
@@ -55,6 +475,14 @@ for (const engine of BROWSERS) {
   // Chromium: software WebGL so MapLibre draws headless. WebKit needs no flags.
   const browser = await ENGINES[engine].launch(engine === 'chromium'
     ? { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } : {});
+  if (process.env.PROBE_ONLY === 'v1') {
+    await v1Probes(engine, (label, ok, detail) => {
+      if (!ok) failed = true;
+      console[ok ? 'log' : 'error'](`[${engine} 1.0.0] ${ok ? 'OK' : 'FAIL'} — ${label}${ok ? '' : ' ' + detail}`);
+    });
+    await browser.close();
+    continue;
+  }
   const themes = ['dark', 'light', 'high-contrast'];
   const pages = ['/demo/', '/demo/colocation.html', '/exemplar/'];
   // Wide: everything shown. Narrow: past every shed in the ladder (labels, brand,
@@ -450,6 +878,10 @@ for (const engine of BROWSERS) {
     await pb.close();
   }
 
+  await v1Probes(engine, (label, ok, detail) => {
+    if (!ok) failed = true;
+    console[ok ? 'log' : 'error'](`[${engine} 1.0.0] ${ok ? 'OK' : 'FAIL'} — ${label}${ok ? '' : ' ' + detail}`);
+  });
 
   await browser.close();
 }

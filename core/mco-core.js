@@ -197,13 +197,49 @@
   var COMPACT_MQ = '(max-width: 640px), (max-height: 560px)';
   var _compactMq = window.matchMedia(COMPACT_MQ);
   var _touchMq = window.matchMedia('(hover: none)');
-  // The short-landscape rail (0.10.0): the landscape half of COMPACT_MQ.
+  // The short-landscape rail (0.10.0; at the RIGHT edge from 1.0.0): the
+  // landscape half of COMPACT_MQ.
   var RAIL_MQ = '(max-height: 560px) and (orientation: landscape)';
   var _railMq = window.matchMedia(RAIL_MQ);
   var _vpSubs = new Set();
+
+  /* K7 hold (1.0.0). A phone keyboard can turn a portrait viewport into a
+     short "landscape" one (390x664 becomes 390x374 in a browser that
+     resizes the layout viewport), which matches RAIL_MQ: the bar rebuilt
+     itself as the rail under the visitor's thumb, and the drawer holding the
+     field they were typing in closed. So while someone is typing (a text
+     field has focus on a touch screen, or MCO.keyboard reports a keyboard)
+     the bar does not ENTER the rail: html.mco-bar-hold switches the rail
+     CSS off and the folded bar stays as it was. The hold lifts when typing
+     ends; the rail then takes over and the fold is measured afresh, so a
+     hold never leaves a stale layout behind. Only that direction is held: a
+     viewport can stop matching RAIL_MQ only by a real rotation, which
+     rebuilds the bar as it always has. isRail() reports the bar as shown. */
+  var _kbOpen = false;
+  var _barHold = false;
+  var _railShown = _railMq.matches;
+  var _TEXT_TYPES = /^(text|search|email|url|tel|number|password)$/;
+  function _isTextField(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (el.isContentEditable) return true;
+    if (el.disabled || el.readOnly) return false;
+    if (el.tagName === 'TEXTAREA') return true;
+    return el.tagName === 'INPUT' && _TEXT_TYPES.test((el.getAttribute('type') || 'text').toLowerCase());
+  }
+  function _typing() {
+    return _kbOpen || (_touchMq.matches && _isTextField(document.activeElement));
+  }
+  function _evalHold() {
+    var hold = _railMq.matches && _typing() && (_barHold || !_railShown);
+    _barHold = hold;
+    _railShown = _railMq.matches && !hold;
+    document.documentElement.classList.toggle('mco-bar-hold', hold);
+    document.documentElement.classList.toggle('is-rail', _railShown);
+  }
   function _emitViewport() {
     document.documentElement.classList.toggle('is-compact', _compactMq.matches);
     document.documentElement.classList.toggle('is-touch', _touchMq.matches);
+    _evalHold();
     _vpSubs.forEach(function (fn) {
       try { fn(); } catch (e) { console.error(e); }
     });
@@ -213,17 +249,112 @@
   _railMq.addEventListener('change', _emitViewport);
   _emitViewport(); // re-stamp (the snippet did first paint) and notify
 
+  // Typing ended (focus left the field, the keyboard went down): lift a held
+  // rail and let every folded bar measure again. Checked a task later, so
+  // moving from one field to the next is not an end.
+  var _foldSubs = new Set();
+  var _wasTyping = false, _typingTimer = 0;
+  function _onTyping() {
+    clearTimeout(_typingTimer);
+    _typingTimer = setTimeout(function () {
+      var t = _typing();
+      if (t === _wasTyping) return;
+      _wasTyping = t;
+      if (t) return;
+      if (_barHold || _railShown !== _railMq.matches) _emitViewport();
+      _foldSubs.forEach(function (fn) { try { fn(); } catch (e) { console.error(e); } });
+    }, 0);
+  }
+  document.addEventListener('focusin', _onTyping, true);
+  document.addEventListener('focusout', _onTyping, true);
+
   MCO.viewport = {
     COMPACT_MQ: COMPACT_MQ,
     isCompact: function () { return _compactMq.matches; },
     isTouch: function () { return _touchMq.matches; },
     RAIL_MQ: RAIL_MQ,
-    isRail: function () { return _railMq.matches; },   // also compact
+    // The rail as SHOWN (1.0.0): RAIL_MQ, unless the K7 hold keeps the
+    // folded bar while someone types. Also compact.
+    isRail: function () { return _railShown; },
     // Subscribe to compact/touch/rail flips. Returns an unsubscribe function.
     onChange: function (fn) {
       _vpSubs.add(fn);
       return function () { _vpSubs.delete(fn); };
     },
+  };
+
+  /* ── Keyboard (1.0.0) ─────────────────────────────────────────────────────
+     Keeps bottom-docked surfaces above an on-screen keyboard, ported from
+     mesonet-dashboard (web/src/ui/layout/keyboard.ts, core/keyboardInset.ts),
+     names unchanged. iOS Safari shrinks the VISUAL viewport when the keyboard
+     opens but leaves the layout viewport (what position: fixed; bottom: 0
+     anchors to) as it was, so a fixed panel ends up under the keyboard. On
+     every visualViewport resize or scroll this publishes on <html>:
+       --kb-inset   px the keyboard covers (0 under KEYBOARD_MIN_PX: a toolbar
+                    showing or hiding is browser chrome, not a keyboard)
+       --vv-h       the visible height
+       .kb-open     while --kb-inset > 0
+     and fires 'mco:keyboard' ({detail: {open, inset}}) on document. The kit's
+     CSS lifts the nav drawer and drawers, shortens search lists, pads the
+     sheet body and hides the bottom control bar under .kb-open. MCO.ready()
+     starts it; start() is idempotent and returns stop(). Without
+     visualViewport (old browsers) nothing changes.
+       MCO.keyboard.isOpen()   MCO.keyboard.inset()   // current px
+       MCO.keyboard.keyboardInset(layoutH, vvH, vvOffsetTop)   // pure */
+  var KEYBOARD_MIN_PX = 80;
+  var _kbInset = -1, _kbOn = false;
+  function keyboardInset(layoutHeight, vvHeight, vvOffsetTop) {
+    var inset = Math.round(layoutHeight - vvHeight - vvOffsetTop);
+    return inset >= KEYBOARD_MIN_PX ? inset : 0;
+  }
+  // A search list open while the keyboard is up gets the room left between
+  // its top and the keyboard (--list-room; mco-theme.css under .kb-open).
+  function _sizeList(list) {
+    var vv = window.visualViewport;
+    if (!vv || !_kbOpen || list.hidden) { list.style.removeProperty('--list-room'); return; }
+    var room = vv.offsetTop + vv.height - list.getBoundingClientRect().top - 8;
+    list.style.setProperty('--list-room', Math.max(96, Math.round(room)) + 'px');
+  }
+  function _kbUpdate() {
+    var vv = window.visualViewport;
+    var root = document.documentElement;
+    // A pinch zoom shrinks the visual viewport too; that is not a keyboard
+    // (1.0.0, beyond the dashboard's helper: the control bar would hide).
+    var inset = vv.scale > 1.05 ? 0 : keyboardInset(root.clientHeight, vv.height, vv.offsetTop);
+    root.style.setProperty('--vv-h', Math.round(vv.height) + 'px');
+    Array.prototype.forEach.call(document.querySelectorAll('.mco-search-list'), _sizeList);
+    if (inset === _kbInset) return;
+    _kbInset = inset;
+    _kbOpen = inset > 0;
+    root.style.setProperty('--kb-inset', inset + 'px');
+    root.classList.toggle('kb-open', _kbOpen);
+    Array.prototype.forEach.call(document.querySelectorAll('.mco-search-list'), _sizeList);
+    document.dispatchEvent(new CustomEvent('mco:keyboard', { detail: { open: _kbOpen, inset: inset } }));
+    _onTyping();
+  }
+  MCO.keyboard = {
+    KEYBOARD_MIN_PX: KEYBOARD_MIN_PX,
+    keyboardInset: keyboardInset,
+    start: function () {
+      var vv = window.visualViewport;
+      if (!vv) return function () {};
+      if (!_kbOn) {
+        _kbOn = true;
+        vv.addEventListener('resize', _kbUpdate);
+        vv.addEventListener('scroll', _kbUpdate);
+        _kbUpdate();
+      }
+      return MCO.keyboard.stop;
+    },
+    stop: function () {
+      var vv = window.visualViewport;
+      if (!vv || !_kbOn) return;
+      _kbOn = false;
+      vv.removeEventListener('resize', _kbUpdate);
+      vv.removeEventListener('scroll', _kbUpdate);
+    },
+    isOpen: function () { return _kbOpen; },
+    inset: function () { return Math.max(0, _kbInset); },
   };
 
   /* ── Live-region plumbing (0.8.0) ──────────────────────────────────────────
@@ -911,6 +1042,7 @@
   var _readyP = new Promise(function (r) { _readyResolve = r; });
   MCO.ready = function () {
     document.documentElement.classList.remove('mco-booting');
+    MCO.keyboard.start();   // 1.0.0
     _readyResolve();
     return _readyP;
   };
@@ -919,11 +1051,14 @@
   /* ── Overlay metrics (0.9.0) ───────────────────────────────────────────────
      Layout measurements published as custom properties on <html>, so CSS can
      keep floating things clear of each other: --chrome-h (sticky navbar →
-     scroll-padding-top), --sheet-h (the open bottom sheet), --sheet-end (the
-     open end-docked sheet's width, 0.21.1), --tabbar-h. They
-     are layout metrics, not theme tokens (tokens.json lists them under
-     `metrics`). html.mco-autolift opts into lifting the toast and MapLibre's
-     bottom corners above --sheet-h + --tabbar-h (the default in 1.0.0).
+     scroll-padding-top), --sheet-h (a bottom-docked sheet; 0 from the kit's
+     sheet since 1.0.0, which is full height on compact), --sheet-end (the
+     open end-docked sheet's width, 0.21.1), --tabbar-h (the bottom control
+     bar, 1.0.0, or an app's own tab bar), --controlbar-h (the control bar
+     while it sits in the rail, 1.0.0). They are layout metrics, not theme
+     tokens (tokens.json lists them under `metrics`). html.mco-autolift opts
+     into lifting the toast and MapLibre's bottom corners above --sheet-h +
+     --tabbar-h; a page with a kit control bar turns it on (1.0.0).
        MCO.metrics.observe('--chrome-h', navbarEl)   // ResizeObserver; returns stop()
        MCO.metrics.set('--sheet-h', 212)             // px
        MCO.metrics.get('--sheet-h')                  // → 212 */
@@ -952,25 +1087,57 @@
      resting top and its container's top, less 8px. Its resting top is
      offsetTop, which transforms and `translate` don't move. A fixed element
      (no offsetParent) measures from the viewport. Without JS, CSS falls back
-     to the uncapped --overlay-bottom. */
+     to the uncapped --overlay-bottom.
+     A control group above it counts too (1.0.0): a MapLibre top corner
+     (zoom, fit) in the same container that overlaps the element across is
+     a ceiling, so the attribution under top-right zoom stops 8px below the
+     zoom group instead of riding over it (mesonet-explorer carried an
+     --attrib-lift-max override for exactly this). */
   var _LIFTED = '[data-autolift], .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right';
+  var _CEILINGS = '.maplibregl-ctrl-top-left, .maplibregl-ctrl-top-right';
   var _liftRO = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(function () { _clampLift(); }) : null;
   var _liftSeen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  function _observeLift(el) {
+    if (_liftRO && _liftSeen && !_liftSeen.has(el)) { _liftSeen.add(el); _liftRO.observe(el); }
+  }
+  // The lowest bottom (viewport px) of a non-empty top corner inside host
+  // that overlaps el across; -Infinity when there is none.
+  function _ceilingFor(el, host) {
+    var er = el.getBoundingClientRect(), best = -Infinity;
+    Array.prototype.forEach.call(host.querySelectorAll(_CEILINGS), function (c) {
+      if (!c.firstElementChild) return;
+      var cr = c.getBoundingClientRect();
+      if (!cr.height || cr.right <= er.left || cr.left >= er.right) return;
+      _observeLift(c);
+      best = Math.max(best, cr.bottom);
+    });
+    return best;
+  }
   function _clampLift() {
     var root = document.documentElement;
     if (!root.classList.contains('mco-autolift')) return;
     var lift = MCO.metrics.get('--sheet-h') + MCO.metrics.get('--tabbar-h');
     var els = document.querySelectorAll(_LIFTED), room = [], i;
     for (i = 0; i < els.length; i++) {
-      var el = els[i], top;
-      if (el.offsetParent) top = el.offsetTop;
-      else {
+      var el = els[i], top, r;
+      if (el.offsetParent) {
+        var host = el.offsetParent;
+        top = el.offsetTop;
+        r = Math.max(0, top - 8);
+        var ceil = _ceilingFor(el, host);
+        if (ceil > -Infinity) {
+          // Resting top in viewport px: the container's padding edge + offsetTop.
+          var hr = host.getBoundingClientRect();
+          r = Math.min(r, Math.max(0, hr.top + host.clientTop + top - ceil - 8));
+        }
+      } else {
         // Fixed: the viewport top, less whatever lift is applied right now.
         var t = (getComputedStyle(el).translate || '').split(' ')[1];
         top = el.getBoundingClientRect().top - (parseFloat(t) || 0) - MCO.metrics.get('--chrome-h');
+        r = Math.max(0, top - 8);
       }
-      room.push(Math.max(0, top - 8));
-      if (_liftRO && _liftSeen && !_liftSeen.has(el)) { _liftSeen.add(el); _liftRO.observe(el); }
+      room.push(r);
+      _observeLift(el);
     }
     for (i = 0; i < els.length; i++) els[i].style.setProperty('--lift', Math.round(Math.min(lift, room[i])) + 'px');
   }
@@ -1125,6 +1292,27 @@
   MCO.overlay.isBlocking = function () {
     return _blocking > 0 || !!document.querySelector('dialog[open]');
   };
+  // The chrome that stays live over a phone panel (1.0.0): the top bar and
+  // the bottom control bar.
+  function _chrome() {
+    return [document.querySelector('.mco-navbar'), document.querySelector('.mco-controlbar')].filter(Boolean);
+  }
+  // roots, less everything in keep: a root inside (or equal to) a kept
+  // element is dropped, and one that CONTAINS a kept element is replaced by
+  // its children, recursively, so a wrapper around the bar and the map
+  // still inerts the map. Live regions and the toast are never inerted.
+  function _withoutKeep(roots, keep) {
+    var out = [];
+    function add(n) {
+      if (!n || n.nodeType !== 1 || /^(SCRIPT|STYLE|TEMPLATE|LINK)$/.test(n.tagName)) return;
+      if (n.hasAttribute('aria-live') || n.classList.contains('mco-toast')) return;
+      if (keep.some(function (k) { return k.contains(n); })) return;   // n is (inside) a kept element
+      if (keep.some(function (k) { return n.contains(k); })) { Array.prototype.forEach.call(n.children, add); return; }
+      out.push(n);
+    }
+    Array.prototype.forEach.call(roots || [], add);
+    return out;
+  }
 
   /* ── Off-canvas drawer (0.9.0) ─────────────────────────────────────────────
      The sanctioned home for a control-dense bar on a phone (HOUSE-STYLE §3).
@@ -1262,9 +1450,12 @@
     };
   };
 
-  /* ── Short-landscape nav rail (0.10.0) ─────────────────────────────────────
-     The bar becomes a left rail on a landscape phone (.mco-navbar[data-rail],
-     markup in mco-theme.css §6); this wires its drawer. The same disclosure
+  /* ── Short-landscape nav rail (0.10.0; right edge 1.0.0) ───────────────────
+     The bar becomes a rail at the RIGHT edge of a landscape phone
+     (.mco-navbar[data-rail], markup in mco-theme.css §6): the whole bar on
+     its side, badge, ☰, the search button, then the time controls (a
+     .mco-controlbar sits at the foot of the rail). This wires its drawer,
+     which opens from the right, beside the rail. The same disclosure
      model as MCO.initDrawer: while open, everything beside the drawer and
      the rail is inert, Esc / the scrim / the toggle close it and focus
      returns to the toggle. Closed it is display:none, so nothing off-screen
@@ -1293,11 +1484,18 @@
      true there, and open() works in both modes. Plain data-rail (no value)
      is unchanged: a rail at short landscape, the normal bar elsewhere.
 
-     search: the bar's .mco-search-toggle in a compact bar, whose search
-     field lives in the drawer. A press opens the drawer on the input, and
+     search: the bar's .mco-search-toggle, last in .mco-rail, whose search
+     field lives in the drawer. It shows in the folded bar and (1.0.0) in the
+     rail. A press opens the drawer on the input, and
      focus comes back to the search button. Don't also hand that button to
      MCO.initSearchCollapse: in a compact bar ≤640px is always rail or
      drawer mode, so the field never collapses to an overlay.
+
+     K7 (1.0.0): while someone types (MCO.viewport's hold, above) the bar
+     does not flip into the rail, and a mode change does not close an open
+     drawer: it is re-anchored for the new mode instead, so the field keeps
+     its focus. The bottom control bar stays live beside an open drawer, as
+     the rail's own controls do.
 
      Focus on open (0.21.2): ☰ and open() with no element focus the drawer
      itself (tabindex=-1, named after ☰ while open), never its first field,
@@ -1320,10 +1518,17 @@
   var FOLD_H = 64;
   var _pcMq = window.matchMedia('(max-width: 640px) and (orientation: portrait), (max-width: 640px) and (height > 560px)');
   var _folding = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  // Typing in this bar (its drawer's search field) or with the keyboard up:
+  // the fold holds (K7, 1.0.0). A trial unfold would rebuild the drawer under
+  // the field; the end of typing measures again (_foldSubs).
+  function _foldHeld(bar) {
+    return _barHold || _kbOpen || (_touchMq.matches && _isTextField(document.activeElement) && bar.contains(document.activeElement));
+  }
   function _fold(bar) {
     var was = bar.classList.contains('is-folded');
     var next;
-    if (_railMq.matches) next = false;
+    if (_foldHeld(bar)) return;
+    if (_railShown) next = false;
     else if (_pcMq.matches) next = true;
     else {
       bar.classList.remove('is-folded');
@@ -1383,6 +1588,7 @@
     loadBarFonts();
     window.addEventListener('resize', later);
     _vpSubs.add(later);
+    _foldSubs.add(later);
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(later).observe(bar);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
     window.addEventListener('load', later);
@@ -1429,20 +1635,30 @@
         named.role = named.label = false;
       }
     }
+    function inertSet(m) {
+      var cbar = document.querySelector('.mco-controlbar');
+      return m === 'drawer'
+        ? MCO.overlay.siblingsOf(toggle, [drawer, scrim, cbar])
+        : MCO.overlay.siblingsOf(drawer, [toggle, scrim, cbar]);
+    }
     var ov = MCO.overlay({
       el: drawer,
       opener: function () { return toggle; },
       initialFocus: opts.initialFocus || drawer,
       // Rail: the rail column stays live beside the drawer. Drawer: only ☰
-      // does; the hot controls and the search button share its row.
-      inert: function () {
-        return openMode === 'drawer'
-          ? MCO.overlay.siblingsOf(toggle, [drawer, scrim])
-          : MCO.overlay.siblingsOf(drawer, [toggle, scrim]);
-      },
+      // does; the hot controls and the search button share its row. The
+      // bottom control bar (1.0.0) stays live in both, as part of the rail.
+      inert: function () { return inertSet(openMode); },
       fallbackFocus: toggle,
       onClose: function () { hide(); },
     });
+    // The drawer hangs under the bar (fixed, so measured, not assumed).
+    function anchor(m) {
+      if (m === 'drawer') {
+        drawer.style.setProperty('--nav-drawer-top',
+          Math.max(0, Math.round(bar.getBoundingClientRect().bottom)) + 'px');
+      }
+    }
     function setExpanded(v) {
       toggle.setAttribute('aria-expanded', String(v));
       if (search) search.toggle.setAttribute('aria-expanded', String(v));
@@ -1462,11 +1678,7 @@
       if (openState || !m) return;
       openState = true;
       openMode = m;
-      // The drawer hangs under the bar (fixed, so measured, not assumed).
-      if (m === 'drawer') {
-        drawer.style.setProperty('--nav-drawer-top',
-          Math.max(0, Math.round(bar.getBoundingClientRect().bottom)) + 'px');
-      }
+      anchor(m);
       // display flips with the class, so the target is focusable right away.
       drawer.classList.add('is-open');
       nameDrawer(true);
@@ -1487,7 +1699,18 @@
       else open(search.input || null, { opener: search.toggle });
     }
     function onMode() {
-      if (openState && mode() !== openMode) close({ restoreFocus: false });
+      if (!openState) return;
+      var m = mode();
+      if (m === openMode) { if (m === 'drawer') anchor(m); return; }
+      // K7 (1.0.0): never close the drawer under someone typing in it. Still
+      // a drawer in the new mode, it is re-anchored and keeps its focus.
+      if (m && _typing()) {
+        openMode = m;
+        anchor(m);
+        ov.setInert(inertSet(m));
+        return;
+      }
+      close({ restoreFocus: false });
     }
     var unsub = MCO.viewport.onChange(onMode);
     if (bar) bar.addEventListener('mco:fold', onMode);
@@ -1511,61 +1734,259 @@
     };
   };
 
-  /* ── Bottom sheet (0.9.0) ──────────────────────────────────────────────────
-     The detail surface on compact viewports, lifted from mesonet-explorer's
-     field-proven panel: on compact it docks at the bottom with peek/full
-     detents; above compact, it docks at the end edge, full height. There is
-     no dock option: MCO.viewport.isCompact() decides, live across resizes.
+  /* ── Bottom control bar (1.0.0) ────────────────────────────────────────────
+     The time controls of a map tool on a phone (Kyle, 2026-11-12: "time
+     controls only"): a date stepper, photos' direction. The app owns the
+     markup, a direct child of <body>; the kit owns where it sits and how
+     it behaves:
+       <div class="mco-controlbar" role="group" aria-label="Date">
+         <button class="nav-btn mco-step" aria-label="Previous day">‹</button>
+         <span class="mco-controlbar-readout" role="status">Nov 12</span>
+         <button class="nav-btn mco-step" aria-label="Next day">›</button>
+       </div>
+     - Wherever the compact bar is folded (a portrait phone; a tablet or a
+       window too narrow for the full bar), it docks at the bottom of the
+       screen, clear of the home indicator (safe-area-inset-bottom).
+     - In the rail (short landscape) it sits at the foot of the rail column
+       at the right edge, so the same controls are in the same place in
+       the bar. Above both it is hidden: the full bar carries the controls.
+     - Hidden while a keyboard is up (.kb-open, MCO.keyboard).
+     - Live while the station panel is open (the panel stops above it) and
+       while the ☰ drawer is open (the drawer stops above it too).
+     - Publishes --tabbar-h (its height while bottom-docked, else 0), so the
+       toast, MapLibre's bottom corners, [data-autolift] panels and the
+       station panel clear it, and --controlbar-h (its height while in the
+       rail, else 0), which the rail column stops above. It turns on
+       html.mco-autolift.
+     Core wires every .mco-controlbar present at load; call
+     MCO.initControlBar({bar}) for one added later. → {measure, destroy} */
+  MCO.initControlBar = function (opts) {
+    var bar = opts && opts.bar ? opts.bar : opts;
+    if (!bar || bar._mcoControlBar) return bar && bar._mcoControlBar;
+    document.documentElement.classList.add('mco-autolift');
+    var raf = 0;
+    function measure() {
+      raf = 0;
+      var r = bar.getBoundingClientRect();
+      var shown = r.height > 0 && r.width > 0;
+      var inRail = shown && r.height > r.width;   // a column at the right edge
+      MCO.metrics.set('--tabbar-h', shown && !inRail ? r.height : 0);
+      MCO.metrics.set('--controlbar-h', inRail ? r.height : 0);
+    }
+    function later() { if (!raf) raf = requestAnimationFrame(measure); }
+    measure();
+    var ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(later) : null;
+    if (ro) ro.observe(bar);
+    window.addEventListener('resize', later);
+    var unsub = MCO.viewport.onChange(later);
+    document.addEventListener('mco:keyboard', later);
+    document.addEventListener('mco:fold', later, true);
+    var api = {
+      measure: measure,
+      destroy: function () {
+        if (ro) ro.disconnect();
+        window.removeEventListener('resize', later);
+        unsub();
+        document.removeEventListener('mco:keyboard', later);
+        document.removeEventListener('mco:fold', later, true);
+        MCO.metrics.set('--tabbar-h', 0);
+        MCO.metrics.set('--controlbar-h', 0);
+        bar._mcoControlBar = null;
+      },
+    };
+    bar._mcoControlBar = api;
+    return api;
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('.mco-controlbar'), function (b) { MCO.initControlBar({ bar: b }); });
+
+  /* ── Legend in the drawer (1.0.0) ──────────────────────────────────────────
+     On a phone (MCO.viewport.isCompact()) a floating legend traps the map:
+     mco-snowpack-explorer's 549px one is taller than a 320x568 screen.
+     There it moves into a "Legend" group at the end of the ☰ drawer, as
+     mesonet-explorer's does, and a small "Legend" button takes its place on
+     the map, opening the drawer at that group. Above compact the floating
+     .mco-panel is unchanged (and the 0.21.2 height cap still applies).
+       var legend = MCO.initLegendDrawer({
+         panel: legendPanel,          // the floating .mco-panel
+         rail: rail,                  // MCO.initNavRail's handle
+         drawer: navDrawer,           // optional; default: the rail's .mco-nav-drawer
+         slot: null,                  // optional element in the drawer to hold it;
+                                      // default: a group the kit appends to the drawer
+         button: null,                // optional; default: a .nav-btn.mco-legend-btn the
+                                      // kit puts on the map where the panel sat
+         label: 'Legend',
+       });
+       → {isInDrawer, open, place, destroy}
+     The panel itself moves (its listeners, collapse and toggles come with
+     it), and back to where it was above compact. The button's name is its
+     visible label. open() expands a collapsed panel, opens the drawer with
+     focus on the panel's title, and returns focus to the button on close. */
+  var _legendSeq = 0;
+  MCO.initLegendDrawer = function (opts) {
+    var panel = opts.panel;
+    var rail = opts.rail;
+    var label = opts.label || 'Legend';
+    var drawer = opts.drawer || document.querySelector('.mco-nav-drawer');
+    var home = { parent: panel.parentNode, next: panel.nextSibling };
+    var made = { slot: !opts.slot, button: !opts.button };
+    var slot = opts.slot;
+    if (!slot) {
+      slot = document.createElement('section');
+      slot.className = 'mco-drawer-group mco-legend-slot';
+      slot.setAttribute('aria-label', label);
+      drawer.appendChild(slot);
+    }
+    var btn = opts.button;
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'nav-btn mco-legend-btn';
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+        '<path d="M9 6h11M9 12h11M9 18h11"/><rect x="3" y="4.5" width="3" height="3" rx="0.5"/><rect x="3" y="10.5" width="3" height="3" rx="0.5"/><rect x="3" y="16.5" width="3" height="3" rx="0.5"/></svg>';
+      btn.appendChild(document.createTextNode(label));
+      if (panel.hasAttribute('data-autolift')) btn.setAttribute('data-autolift', '');
+      home.parent.insertBefore(btn, panel);
+    }
+    if (!drawer.id) drawer.id = 'mco-nav-drawer-' + (++_legendSeq);
+    btn.setAttribute('aria-controls', drawer.id);
+    var inDrawer = false;
+    function title() {
+      var t = panel.querySelector('.mco-panel-title') || panel;
+      if (!t.hasAttribute('tabindex')) t.tabIndex = -1;
+      return t;
+    }
+    // The button takes the panel's corner as it sits on compact: the nearer
+    // of top/bottom and of left/right, at the panel's distance from that
+    // edge of its container. (Computed insets of a positioned box are all
+    // used px values, so they can't say which side anchors it.) A panel
+    // lifted by autolift is measured at rest.
+    function corner() {
+      if (!made.button) return;
+      var host = panel.offsetParent;
+      btn.style.top = btn.style.right = btn.style.bottom = btn.style.left = '';
+      if (!host || !panel.offsetWidth) { btn.style.left = btn.style.bottom = '0.75rem'; return; }
+      var top = panel.offsetTop, left = panel.offsetLeft;
+      var bottom = host.clientHeight - top - panel.offsetHeight;
+      var right = host.clientWidth - left - panel.offsetWidth;
+      if (bottom <= top) btn.style.bottom = Math.max(0, Math.round(bottom)) + 'px';
+      else btn.style.top = Math.max(0, Math.round(top)) + 'px';
+      if (left <= right) btn.style.left = Math.max(0, Math.round(left)) + 'px';
+      else btn.style.right = Math.max(0, Math.round(right)) + 'px';
+    }
+    function place() {
+      var want = MCO.viewport.isCompact();
+      if (want === inDrawer && panel.isConnected) { btn.hidden = !want; slot.hidden = !want; return; }
+      if (want) {
+        corner();
+        slot.appendChild(panel);
+        panel.classList.add('is-in-drawer');
+      } else {
+        var next = home.next && home.next.parentNode === home.parent ? home.next : null;
+        home.parent.insertBefore(panel, next);
+        panel.classList.remove('is-in-drawer');
+      }
+      inDrawer = want;
+      btn.hidden = !want;
+      slot.hidden = !want;
+    }
+    function open() {
+      if (!inDrawer) return;
+      var toggle = panel.querySelector('.mco-panel-toggle[aria-expanded="false"]');
+      if (toggle) toggle.click();
+      var t = title();
+      rail.open(t, { opener: btn });
+      // Bring the group to the top of the drawer, scrolling the drawer only.
+      var dr = drawer.getBoundingClientRect(), sr = slot.getBoundingClientRect();
+      drawer.scrollTop += sr.top - dr.top - 8;
+    }
+    btn.addEventListener('click', open);
+    var unsub = MCO.viewport.onChange(place);
+    place();
+    return {
+      isInDrawer: function () { return inDrawer; },
+      open: open,
+      place: place,
+      destroy: function () {
+        unsub();
+        btn.removeEventListener('click', open);
+        if (inDrawer) {
+          var next = home.next && home.next.parentNode === home.parent ? home.next : null;
+          home.parent.insertBefore(panel, next);
+          panel.classList.remove('is-in-drawer');
+          inDrawer = false;
+        }
+        if (made.button) btn.remove(); else btn.hidden = true;
+        if (made.slot) slot.remove(); else slot.hidden = true;
+      },
+    };
+  };
+
+  /* ── Station panel: MCO.initSheet (0.9.0; one state from 1.0.0) ────────────
+     The detail surface at every width. Above compact it docks at the end
+     edge, full height under the bar, and the map stays live beside it. On
+     compact (1.0.0) it is a full-height panel under the bar: from the bar's
+     bottom (the top, beside a rail) to the bottom of the screen, or the top
+     of the bottom control bar, and the whole width left of a rail. One
+     state, no peek, no drag, no grip; the bar and the control bar stay live,
+     and everything else is inert. There is no dock option:
+     MCO.viewport.isCompact() decides, live across resizes.
 
        <section class="mco-sheet" id="sheet" aria-labelledby="sheet-title" data-state="closed" hidden>
          <div class="mco-sheet-head">
-           <button class="mco-sheet-grip" aria-label="Expand details" aria-expanded="false"></button>
            <h2 class="mco-sheet-title" id="sheet-title" tabindex="-1">…</h2>
-           <button class="modal-close" data-close-sheet aria-label="Close">×</button>
+           <button class="modal-close" data-close-sheet aria-label="Close details">×</button>
          </div>
          <div class="mco-sheet-body">…</div>
        </section>
 
        var sheet = MCO.initSheet({
          sheet: el,
-         peekHeight: 'auto',   // 'auto' = head + the body's [data-peek] block, measured; or px
-         dismissible: true,    // drag below peek / Esc closes
-         publishMetric: true,  // --sheet-h on <html> (MCO.metrics) while bottom-docked
-         inertRoots: null,     // made inert in the FULL detent on compact (modal there);
+         publishMetric: true,  // --sheet-end (end-docked width) and --sheet-h (0) on <html>
+         inertRoots: null,     // made inert while open on compact (modal there);
                                // default: everything beside the sheet's ancestor chain.
-                               // An array, or (0.11.3) a function called each time. To
-                               // keep a <dialog> the sheet opens usable (a lightbox):
+                               // An array, or (0.11.3) a function called each time. The
+                               // bar and the control bar are taken out of it whatever
+                               // you pass (1.0.0). To keep a <dialog> the sheet opens
+                               // usable (a lightbox):
                                //   () => MCO.overlay.siblingsOf(el, [lightboxDialog])
-         onState: function (state) {},   // 'closed' | 'peek' | 'full'
+         onState: function (state) {},   // 'full' | 'closed' (never 'peek', 1.0.0)
        });
-       sheet.open('peek', { opener: dotButton });   // → {open, close, setState, state, destroy}
+       sheet.open({ opener: dotButton });   // → {open, close, setState, state, destroy}
 
-     - Drag: Pointer Events on the head only (the body scrolls). Release snaps
-       to the nearest detent; a fling over 0.5 px/ms goes to the next one; a
-       drag below peek dismisses. Instant under reduced motion.
-     - Keyboard twin of the drag (§5.8): the grip is a button — Enter/Space
-       steps peek ↔ full, ArrowUp/ArrowDown move between detents; aria-expanded
-       says which.
+     - The close button is required at every width: a visible 44px
+       [data-close-sheet] in .mco-sheet-head, top right (the kit styles it;
+       a console warning names a sheet without one). It is the only way to
+       close on a touch screen; Esc and Back (the app's history entry) close
+       it too.
+     - Deprecated shims (1.0.0, until 2.0): open('peek' | 'full', o),
+       setState('peek') and a peekHeight option are accepted. Every open is
+       the one state; state() is 'full' or 'closed'. A .mco-sheet-grip in
+       old markup is hidden and inert to the kit; data-peek means nothing.
      - Focus: open moves it to the title (tabindex=-1); close returns it to the
        opener, else the fallback (opts.fallbackFocus, e.g. the map canvas).
-     - Not modal at peek — the map stays usable; modal in full on compact.
-     - Height math uses 100dvh, never 100vh. --z-detail tier. */
+     - --sheet-h stays 0 (the panel is not a bottom strip), so autolift never
+       pushes the toast or a legend up under it. --z-detail tier. */
   MCO.initSheet = function (opts) {
     var sheet = opts.sheet;
-    var head = sheet.querySelector('.mco-sheet-head');
     var body = sheet.querySelector('.mco-sheet-body');
-    var grip = sheet.querySelector('.mco-sheet-grip');
-    var dismissible = opts.dismissible !== false;
     var publish = opts.publishMetric !== false;
     var state = 'closed';
     var hideTimer = null;
     var MS = 220;
+    if (!sheet.querySelector('.mco-sheet-head [data-close-sheet]')) {
+      console.warn('MCO.initSheet: no close button. Since 1.0.0 every .mco-sheet-head needs a visible ' +
+        '[data-close-sheet] button (44px, top right) at every width.', sheet);
+    }
 
-    function bottomDocked() { return MCO.viewport.isCompact(); }
+    function compact() { return MCO.viewport.isCompact(); }
     function inertRoots() {
-      if (!(bottomDocked() && state === 'full')) return [];
-      if (typeof opts.inertRoots === 'function') return opts.inertRoots();
-      return opts.inertRoots || MCO.overlay.siblingsOf(sheet);
+      if (state === 'closed' || !compact()) return [];
+      var r = typeof opts.inertRoots === 'function' ? opts.inertRoots()
+        : opts.inertRoots || MCO.overlay.siblingsOf(sheet);
+      // The bar and the control bar stay live over the panel (1.0.0), even
+      // when the app names its own roots: search in the bar swaps the
+      // station, the time controls keep working.
+      return _withoutKeep(r, _chrome());
     }
     var ov = MCO.overlay({
       el: sheet,
@@ -1575,57 +1996,49 @@
       onClose: function () { finishClose(); },
     });
 
-    // End-docked, the sheet hangs under the navbar wherever it is (0.21.1):
-    // --chrome-h is only published for a sticky bar, and an in-flow bar
-    // covered the sheet's head. --sheet-end is the width it covers, so the
-    // right-hand map controls can step clear of it (mco-theme.css).
-    var navbar = document.querySelector('.mco-navbar');
+    // The panel hangs under the navbar wherever it is (0.21.1): --chrome-h is
+    // only published for a sticky bar, and an in-flow bar covered the head.
+    // Beside the rail there is nothing above it. --sheet-end is the width an
+    // end-docked panel covers, so the right-hand map controls can step clear
+    // of it (mco-theme.css).
+    function topNow() {
+      var bar = document.querySelector('.mco-navbar');
+      if (!bar || !bar.getClientRects().length) return MCO.metrics.get('--chrome-h');
+      if (bar.hasAttribute('data-rail') && MCO.viewport.isRail()) return 0;
+      return Math.max(0, Math.round(bar.getBoundingClientRect().bottom));
+    }
     function metric() {
       var shown = state !== 'closed';
-      if (shown && !bottomDocked() && navbar) {
-        sheet.style.setProperty('--sheet-top', Math.max(0, Math.round(navbar.getBoundingClientRect().bottom)) + 'px');
-      }
+      if (shown) sheet.style.setProperty('--sheet-top', topNow() + 'px');
       if (!publish) return;
-      MCO.metrics.set('--sheet-h', shown && bottomDocked() ? sheet.getBoundingClientRect().height : 0);
-      MCO.metrics.set('--sheet-end', shown && !bottomDocked() ? sheet.getBoundingClientRect().width : 0);
+      MCO.metrics.set('--sheet-h', 0);
+      MCO.metrics.set('--sheet-end', shown && !compact() ? sheet.getBoundingClientRect().width : 0);
     }
     function onResize() { if (state !== 'closed') metric(); }
     window.addEventListener('resize', onResize);
-    function syncPeek() {
-      if (opts.peekHeight != null && opts.peekHeight !== 'auto') {
-        sheet.style.setProperty('--sheet-peek-h', opts.peekHeight + 'px');
-        return;
-      }
-      var mark = body && body.querySelector('[data-peek]');
-      var need = mark ? mark.getBoundingClientRect().bottom - body.getBoundingClientRect().top : 0;
-      sheet.style.setProperty('--sheet-peek-h', Math.round(head.offsetHeight + Math.max(0, need) + 12) + 'px');
-    }
-    function apply(next) {
-      state = next;
-      sheet.dataset.state = next;
-      if (grip) {
-        grip.setAttribute('aria-expanded', String(next === 'full'));
-        grip.setAttribute('aria-label', next === 'full' ? 'Collapse details' : 'Expand details');
-      }
-      if (next === 'peek') syncPeek();
+    function apply() {
+      state = 'full';
+      sheet.dataset.state = 'full';
       if (ov.isOpen()) ov.setInert(inertRoots());
       metric();
-      setTimeout(metric, MCO.reducedMotion() ? 0 : MS + 20);   // max-height animates
-      if (opts.onState) opts.onState(next);
+      setTimeout(metric, MCO.reducedMotion() ? 0 : MS + 20);
+      if (opts.onState) opts.onState('full');
     }
+    // open(o) — or, deprecated, open('peek' | 'full', o).
     function open(st, o) {
-      st = st === 'full' || !bottomDocked() ? 'full' : 'peek';
+      if (st && typeof st === 'object') { o = st; st = null; }
       clearTimeout(hideTimer);
       var wasOpen = state !== 'closed';
       sheet.hidden = false;
+      sheet.classList.remove('is-leaving');
       if (!wasOpen) {
         sheet.classList.add('is-entering');
         void sheet.offsetWidth;
         requestAnimationFrame(function () { sheet.classList.remove('is-entering'); });
       }
-      apply(st);
+      apply();
       if (!wasOpen) { ov.open({ opener: o && o.opener }); ov.setInert(inertRoots()); }
-      else if (o && o.focus !== false) {
+      else if (!o || o.focus !== false) {
         var t = sheet.querySelector('.mco-sheet-title');
         if (t) t.focus({ preventScroll: true });
       }
@@ -1635,7 +2048,6 @@
       sheet.classList.add('is-leaving');
       state = 'closed';
       sheet.dataset.state = 'closed';
-      if (grip) grip.setAttribute('aria-expanded', 'false');
       metric();
       clearTimeout(hideTimer);
       hideTimer = setTimeout(function () {
@@ -1649,71 +2061,18 @@
       if (state === 'closed') return;
       ov.close({ restoreFocus: !o || o.restoreFocus !== false });
     }
+    // 'closed' closes; anything else ('full', or the deprecated 'peek') opens.
     function setState(s) {
       if (s === 'closed') { close(); return; }
-      if (state === 'closed') { open(s); return; }
-      apply(s === 'full' || !bottomDocked() ? 'full' : 'peek');
-    }
-
-    // Grip: the keyboard twin of the drag.
-    function onGrip() { setState(state === 'full' ? 'peek' : 'full'); }
-    function onGripKey(e) {
-      if (e.key === 'ArrowUp') { e.preventDefault(); setState('full'); }
-      else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (state === 'full') setState('peek');
-        else if (dismissible) close();
-      }
+      if (state === 'closed') open();
     }
     function onClick(e) { if (e.target.closest('[data-close-sheet]')) close(); }
 
-    // Drag on the head; the body keeps its own scrolling.
-    var drag = null;
-    function onDown(e) {
-      if (!bottomDocked() || e.target.closest('[data-close-sheet]')) return;
-      // No pointer capture yet: capturing on pointerdown retargets a TAP's
-      // click away from the grip button. Capture once it is really a drag.
-      drag = { y0: e.clientY, t0: performance.now(), h: sheet.offsetHeight, moved: false, id: e.pointerId };
-    }
-    function onMove(e) {
-      if (!drag) return;
-      var dy = e.clientY - drag.y0;
-      if (!drag.moved && Math.abs(dy) > 3) {
-        drag.moved = true;
-        try { head.setPointerCapture(drag.id); } catch (err) {}
-        sheet.style.transition = 'none';
-      }
-      if (!drag.moved) return;
-      if (dy < -24 && state === 'peek') { apply('full'); drag.y0 = e.clientY; }
-      sheet.style.transform = 'translateY(' + Math.max(0, dy) + 'px)';
-    }
-    function onUp(e) {
-      if (!drag) return;
-      var d = drag; drag = null;
-      var dy = e.clientY - d.y0;
-      var v = dy / Math.max(1, performance.now() - d.t0);    // px/ms
-      sheet.style.transition = '';
-      sheet.style.transform = '';
-      if (!d.moved) return;                                  // a tap: the grip's click handles it
-      if (dy > Math.min(96, d.h * 0.3) || v > 0.5) {
-        if (state === 'full' && dy < d.h * 0.6 && v <= 1.2) apply('peek');
-        else if (dismissible) close();
-        else apply('peek');
-      } else if (v < -0.5) {
-        apply('full');
-      }
-    }
-
-    if (grip) { grip.addEventListener('click', onGrip); grip.addEventListener('keydown', onGripKey); }
     sheet.addEventListener('click', onClick);
-    head.addEventListener('pointerdown', onDown);
-    head.addEventListener('pointermove', onMove);
-    head.addEventListener('pointerup', onUp);
-    head.addEventListener('pointercancel', onUp);
     sheet.addEventListener('transitionend', function (e) { if (e.target === sheet) metric(); });
+    // A flip re-applies the open state (and tells onState, as before 1.0.0).
     var unsub = MCO.viewport.onChange(function () {
-      if (state === 'closed') { metric(); return; }
-      if (!bottomDocked()) apply('full'); else apply(state);
+      if (state === 'closed') metric(); else apply();
     });
 
     return {
@@ -1723,12 +2082,7 @@
         close({ restoreFocus: false });
         unsub();
         window.removeEventListener('resize', onResize);
-        if (grip) { grip.removeEventListener('click', onGrip); grip.removeEventListener('keydown', onGripKey); }
         sheet.removeEventListener('click', onClick);
-        head.removeEventListener('pointerdown', onDown);
-        head.removeEventListener('pointermove', onMove);
-        head.removeEventListener('pointerup', onUp);
-        head.removeEventListener('pointercancel', onUp);
       },
     };
   };
@@ -1779,15 +2133,109 @@
     };
   };
 
-  /* ── Stepper (0.9.0) ───────────────────────────────────────────────────────
+  /* ── Stepper (0.9.0; arrow keys 1.0.0) ─────────────────────────────────────
      Prev/next buttons for a date or hour:
        var step = MCO.initStepper({ prev, next,
          onStep: function (d) { date = MCO.shiftDate(date, d); render(); },
-         canStep: function (d) { return d < 0 ? date > MIN : date < MAX; } });
+         canStep: function (d) { return d < 0 ? date > MIN : date < MAX; },
+         arrowKeys: true,      // 1.0.0: ← / → step it too (default false)
+         unit: 'day' });       // 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' | ms
      Click and Enter/Space step once; a held pointer repeats (400 ms, then
      every 80 ms — a steady rate, no acceleration). Buttons are disabled at
      the bounds (refresh() after outside changes). Pair with a role=status
-     readout of the new value. Buttons: .nav-btn.mco-step. */
+     readout of the new value. Buttons: .nav-btn.mco-step.
+
+     ← / → (1.0.0, Kyle 2026-11-13: every date stepper in the family). With
+     arrowKeys, the left and right arrow keys step it from anywhere on the
+     page, and its buttons carry aria-keyshortcuts="ArrowLeft" / "ArrowRight".
+     ONE stepper takes the keys: of the arrowKeys steppers whose buttons are
+     showing, the finest unit wins (an hour stepper beside a day stepper),
+     then the first made. So two copies of one date stepper (the bar's and
+     the drawer's) are safe, and an app whose arrows should drive the day,
+     not the hour, leaves arrowKeys off the hour stepper. Arrows keep their
+     own meaning, and nothing steps, when:
+       - a modifier is held (Shift, Ctrl, Alt, Meta), or a handler already
+         took the key (preventDefault: a sheet that steps stations, a frame
+         stepper);
+       - focus is in a field (input, select, textarea, contenteditable) or a
+         video, or in a radio group, slider, spinbutton, listbox, tablist,
+         menu, menubar, grid, tree, treegrid or toolbar (role or native);
+         a radio a pointer just clicked steps, one reached by keyboard
+         moves its choice;
+       - a dialog or a blocking overlay is open (MCO.overlay.isBlocking());
+       - focus is on a map that the keyboard reached (Tab): its arrows pan.
+         On a map a pointer focused, ← / → step until ↑ / ↓, + / − or Tab
+         show the visitor is on the keyboard after all;
+       - the URL carries ?kbd=off (WCAG 2.1.4; the app's "/" too);
+       - canStep says no.
+     The info modal's help should say so ("step one day with ‹ and › or the
+     ← and → keys; on a map you reached with Tab, the arrows pan it"). */
+  var UNIT_MS = { second: 1e3, minute: 6e4, hour: 3.6e6, day: 8.64e7, week: 6.048e8, month: 2.6298e9, year: 3.15576e10 };
+  var _arrowSteppers = [];
+  var _arrowOn = false;
+  var _ptrAt = -Infinity, _ptrFocused = null;
+  var _ARROW_OWNERS = '[role="radiogroup"],[role="radio"],[role="slider"],[role="spinbutton"],[role="listbox"],' +
+    '[role="tablist"],[role="menu"],[role="menubar"],[role="grid"],[role="tree"],[role="treegrid"],[role="toolbar"]';
+  function _kbdOff() { return MCO.getParamLower('kbd') === 'off'; }
+  function _shown(el) { return !!el && el.getClientRects().length > 0 && !el.closest('[inert]'); }
+  function _arrowTarget() {
+    var best = null;
+    _arrowSteppers.forEach(function (s) {
+      if (!_shown(s.prev) && !_shown(s.next)) return;
+      if (!best || s.unit < best.unit) best = s;
+    });
+    return best;
+  }
+  function _byPointer(t) { return !!_ptrFocused && (_ptrFocused === t || _ptrFocused.contains(t)); }
+  function _arrowDelta(e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return 0;
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return 0;
+    if (MCO.overlay.isBlocking() || _kbdOff()) return 0;
+    return e.key === 'ArrowLeft' ? -1 : 1;
+  }
+  function _arrowStep(e, d) {
+    var s = _arrowTarget();
+    if (!s || !s.canStep(d)) return false;
+    e.preventDefault();
+    s.step(d);
+    return true;
+  }
+  function _installArrows() {
+    if (_arrowOn) return;
+    _arrowOn = true;
+    // Focus a click, tap or pen gave is a pointer user's; Tab and assistive
+    // technology fire no pointerdown. A key that moves focus (↓ in a radio
+    // group) is the keyboard's.
+    document.addEventListener('pointerdown', function (e) {
+      if (e.isTrusted && e.pointerType) _ptrAt = e.timeStamp;
+    }, true);
+    document.addEventListener('focusin', function (e) {
+      _ptrFocused = e.timeStamp - _ptrAt < 1000 ? e.target : null;
+    }, true);
+    document.addEventListener('keydown', function (e) {
+      _ptrAt = -Infinity;
+      if (['Tab', 'ArrowUp', 'ArrowDown', '+', '-', '='].indexOf(e.key) !== -1) _ptrFocused = null;
+      // A map a pointer focused: take ← / → before MapLibre's handler (below
+      // the map's container) can pan.
+      var t = e.target;
+      if (!t || t.nodeType !== 1 || !t.closest('.maplibregl-map') || !_byPointer(t)) return;
+      var d = _arrowDelta(e);
+      if (d && _arrowStep(e, d)) e.stopPropagation();
+    }, true);
+    window.addEventListener('keydown', function (e) {
+      var d = _arrowDelta(e);
+      if (!d) return;
+      var t = e.target;
+      if (t && t.nodeType === 1) {
+        var radio = t.tagName === 'INPUT' && t.type === 'radio';
+        if (radio ? !_byPointer(t) : /^(INPUT|TEXTAREA|SELECT|VIDEO|AUDIO)$/.test(t.tagName) || t.isContentEditable) return;
+        if (!radio && t.closest(_ARROW_OWNERS)) return;
+        if (t.closest('.maplibregl-map')) return;   // the capture handler's call
+      }
+      _arrowStep(e, d);
+    });
+  }
+
   MCO.initStepper = function (opts) {
     var canStep = opts.canStep || function () { return true; };
     var repeat = opts.repeat !== false;
@@ -1833,7 +2281,29 @@
     wire(opts.prev, -1);
     wire(opts.next, 1);
     refresh();
-    return { refresh: refresh };
+    var entry = null;
+    if (opts.arrowKeys) {
+      var u = opts.unit == null ? 'day' : opts.unit;
+      entry = { prev: opts.prev, next: opts.next, canStep: canStep, step: step,
+        unit: typeof u === 'number' ? u : UNIT_MS[u] || UNIT_MS.day };
+      _arrowSteppers.push(entry);
+      if (!_kbdOff()) {
+        if (opts.prev) opts.prev.setAttribute('aria-keyshortcuts', 'ArrowLeft');
+        if (opts.next) opts.next.setAttribute('aria-keyshortcuts', 'ArrowRight');
+      }
+      _installArrows();
+    }
+    return {
+      refresh: refresh,
+      // 1.0.0: stop answering ← / → (the buttons keep working).
+      destroy: function () {
+        if (!entry) return;
+        _arrowSteppers = _arrowSteppers.filter(function (s) { return s !== entry; });
+        if (opts.prev) opts.prev.removeAttribute('aria-keyshortcuts');
+        if (opts.next) opts.next.removeAttribute('aria-keyshortcuts');
+        entry = null;
+      },
+    };
   };
 
   // Chips and other multi-selects: a copy of arr with v added or removed.
@@ -1960,7 +2430,9 @@
     return { open: open, close: function () { dialog.close(); }, intro: maybeIntro };
   };
 
-  /* ── Over-map panel height cap (0.21.2, a stopgap until 1.0.0) ──────────────
+  /* ── Over-map panel height cap (0.21.2) ─────────────────────────────────────
+     On a phone a legend belongs in the ☰ drawer (MCO.initLegendDrawer, 1.0.0);
+     this cap still guards every floating panel at every width.
      A bottom-anchored .mco-panel (a legend) grows upward, and one taller than
      its map pushed its own head, collapse toggle included, off the top of
      the screen or under the bar, where nothing could close it. Core watches
@@ -2437,6 +2909,7 @@
         n.textContent = note;
         list.appendChild(n);
       }
+      _sizeList(list);   // under the keyboard: the room above it (1.0.0)
       syncActive();
     }
     function syncActive() {
@@ -2598,7 +3071,7 @@
   // The URL for params: a clean pathname (no '?') when params is empty, so an
   // all-defaults view has a tidy URL. keepHash carries the current #fragment
   // over (a tab kept in the hash); without it the hash is dropped, as before
-  // 0.8.0 — the default flips to keeping it in 1.0.0.
+  // 0.8.0. (Flipping that default is left for a later MAJOR: not in 1.0.0.)
   function urlFor(params, opts) {
     var qs = new URLSearchParams(params).toString();
     return location.pathname + (qs ? '?' + qs : '') + (opts && opts.keepHash ? location.hash : '');

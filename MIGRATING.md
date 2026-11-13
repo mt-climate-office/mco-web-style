@@ -439,7 +439,8 @@ No snippet changes, so **no CSP hash changes**. Pass 1 is a tag bump.
   landscape). Wrap `.brand`, `.controls` and `.nav-meta` in
   `.mco-nav-drawer`, then add `.mco-rail` with a menu button and up to three
   hot controls, a scrim, and `MCO.initNavRail`. Update the `/` shortcut to
-  check `rail.isRail()` first.
+  check `rail.isRail()` first. (Since 1.0.0 the rail is at the right edge
+  and time controls go in a `.mco-controlbar`: see *0.21.2 → 1.0.0*.)
   - **photos** replaces its app-local block: `.rail` → `.mco-rail`,
     `.nav-drawer` → `.mco-nav-drawer`, and its drawer JS →
     `MCO.initNavRail`.
@@ -519,7 +520,220 @@ the CSP are unchanged. Autolift now caps each lifted element at the top of
 its container. When the room runs out (the rail with the sheet open), a
 capped panel and the capped attribution both stop at the top and can
 overlap there, so collapse a tall corner panel in rail mode
-(`MCO.viewport.isRail()`).
+(`MCO.viewport.isRail()`). (Since 1.0.0 the station panel is full height on
+compact and the legend moves into the drawer there, so this no longer
+arises; the lift also stops under a control group above.)
+
+## Re-pointing an existing consumer: 0.21.2 → 1.0.0
+
+A MAJOR: the phone layout (CHANGELOG `[1.0.0]` has the full migration list).
+An app on 0.21.2 markup keeps working on 1.0.0, because every renamed call
+has a shim, but it is not *right* until these steps are done. One commit
+per step keeps the review readable. Work in a worktree from `origin/main`,
+test against the 1.0.0 files served from a kit checkout before the tag
+exists, and pin `@1.0.0` with the hashes from README § SRI.
+
+**What did not change:** `map/mco-map.js`, `map/cog-protocol.js`,
+`palette/mco-palette.js`, `places/mco-places.js`, `summary/mco-summary.js`
+and the anti-flash snippet are byte-identical to 0.21.2: their SRI hashes
+and your CSP's anti-flash `sha256` stay. `theme/mco-theme.css`,
+`core/mco-core.js` and `photos/mco-photos.js` have new hashes.
+
+### Step 1. Pins
+
+Bump every kit URL from `@0.21.2` to `@1.0.0`: the `<link>` and `<script>`
+tags, the font and favicon links, and any kit URL your JavaScript builds
+(`KIT_ASSETS` in explorer, photos and snowpack `app.js`, and the
+dashboard's `web/test/kit.ts`). Swap the integrity of the three changed
+files only.
+
+### Step 2. The station panel: one state, a close button
+
+```html
+<!-- before (0.21.x) -->
+<div class="mco-sheet-head">
+  <button type="button" class="mco-sheet-grip" aria-label="Expand details" aria-expanded="false"></button>
+  <h2 class="mco-sheet-title" id="sheet-title" tabindex="-1">Station</h2>
+  <button type="button" class="modal-close" data-close-sheet aria-label="Close details">×</button>
+</div>
+<div class="mco-sheet-body"><p class="lead" data-peek>…</p>…</div>
+
+<!-- after (1.0.0) -->
+<div class="mco-sheet-head">
+  <h2 class="mco-sheet-title" id="sheet-title" tabindex="-1">Station</h2>
+  <button type="button" class="modal-close" data-close-sheet aria-label="Close station details">×</button>
+</div>
+<div class="mco-sheet-body"><p class="lead">…</p>…</div>
+```
+
+```js
+// before
+sheet.open('peek', { opener });
+if (sheet.state() === 'peek') sheet.setState('peek');
+MCO.initSheet({ sheet: el, peekHeight: 'auto', … });
+// after
+sheet.open({ opener });
+// (delete the peek branch: state() is 'full' or 'closed')
+MCO.initSheet({ sheet: el, … });
+```
+
+- Delete the grip, every `data-peek`, `peekHeight`, `--sheet-peek-h`, and
+  app CSS on `.mco-sheet[data-state="peek"]` or a compact `max-height` for
+  the panel (explorer's half-height rules): on compact the kit's panel is
+  full height under the bar, and an app `max-height` leaves an inert strip
+  of map under it.
+- Keep (or add) the `[data-close-sheet]` button: it is required at every
+  width and is the only close on a touch screen. The kit sizes it 44×44.
+- `inertRoots`: still honoured, but the kit now takes `.mco-navbar` and
+  `.mco-controlbar` out of it. Keep a lightbox `<dialog>` out of it as
+  before (photos, maintenance).
+- Picking another station on a phone now takes the close button first
+  (Kyle accepted the extra tap); search in the bar still swaps the station
+  with the panel open, because the bar stays live.
+- Tests: a ready selector of `.mco-sheet[data-state="peek"]` becomes
+  `[data-state="full"]`; delete grip and drag checks; check the panel rect
+  is the viewport less the bar on compact and the navbar is not inert
+  (`tools/verify/family-audit.mjs` does both).
+
+### Step 3. The rail is at the right edge
+
+- **Nothing to add** for the rail itself: `data-rail="compact"`,
+  `.mco-rail`, `.mco-nav-drawer` and `MCO.initNavRail` are unchanged, and
+  the search button you pass as `search: {toggle, input}` now also shows in
+  the rail (badge, ☰, search, time controls, top to bottom).
+- **Delete** app CSS written for a LEFT rail: `padding-left:
+  var(--rail-inset)`, `left: var(--rail-inset)`, a left offset for map
+  controls or panels in landscape. The body is padded on the right now, so
+  the map ends at the rail and its right-hand controls sit just left of
+  it. Zoom stays top right, on the map.
+- **Keep** `isRail()` / `RAIL_MQ` checks: they are real APIs. `isRail()`
+  is false while the K7 hold keeps the folded bar (someone typing).
+- A select hot control (status, maintenance `.mode-select`) still doesn't
+  fit the 56 px column: keep hiding it in the rail; the drawer carries it.
+- Tests: delete "56px rail at the left" checks; check the rail at the right
+  edge, its buttons ≥ 44 px on touch, and ☰ opening the drawer beside it.
+
+### Step 4. Time controls go in the bottom control bar
+
+Only apps with time controls (photos: date stepper + direction; snowpack:
+date stepper; explorer: date / hour steppers in Hourly and Daily). Status,
+maintenance and UMRB have none and add no control bar.
+
+```html
+<!-- before: the date stepper as hot controls in the top bar -->
+<div class="mco-rail">
+  <button type="button" class="nav-btn icon-only" id="btn-menu" aria-label="Menu" …>☰</button>
+  <button type="button" class="nav-btn icon-only mco-step" id="btn-rail-prev" aria-label="Previous day">‹</button>
+  <p class="rail-readout" id="rail-readout"></p>
+  <button type="button" class="nav-btn icon-only mco-step" id="btn-rail-next" aria-label="Next day">›</button>
+  <button type="button" class="nav-btn icon-only mco-search-toggle" …>🔍</button>
+</div>
+
+<!-- after: the top bar keeps badge, (a mode select,) search, ☰ -->
+<div class="mco-rail">
+  <button type="button" class="nav-btn icon-only" id="btn-menu" aria-label="Menu" …>☰</button>
+  <button type="button" class="nav-btn icon-only mco-search-toggle" …>🔍</button>
+</div>
+…
+</header>
+<!-- a direct child of <body>, anywhere after the bar -->
+<div class="mco-controlbar" role="group" aria-label="Date">
+  <button type="button" class="nav-btn icon-only mco-step" id="btn-rail-prev" aria-label="Previous day">‹</button>
+  <p class="mco-controlbar-readout" id="rail-readout"></p>
+  <button type="button" class="nav-btn icon-only mco-step" id="btn-rail-next" aria-label="Next day">›</button>
+</div>
+```
+
+- Nothing to call: core wires every `.mco-controlbar` present at load
+  (`MCO.initControlBar({bar})` for one added later). Keep the ids, so the
+  existing `MCO.initStepper` calls are unchanged.
+- The kit docks it at the bottom wherever the bar folds, at the foot of the
+  rail in landscape, hides it on a full bar and under a keyboard, and
+  publishes `--tabbar-h`. It turns on `html.mco-autolift` (snowpack,
+  photos and explorer have it already): mark bottom-corner panels
+  `data-autolift` so they clear the bar.
+- Delete app CSS that styled the readout in the folded bar or the rail
+  (`.rail-readout` media queries and `.is-folded` rules). A scrolling page
+  adds `body { padding-bottom: var(--tabbar-h); }`.
+- photos: the direction cycle button moves into the control bar too (it was
+  the interim portrait hot control in the top bar). Desktop keeps its
+  select.
+
+### Step 5. ← / → step the date
+
+```js
+// before
+MCO.initStepper({ prev, next, onStep, canStep });
+// after: every date stepper, both copies (bar and drawer) of the same date
+MCO.initStepper({ prev, next, onStep, canStep, arrowKeys: true, unit: 'day' });
+// photos (kit helper)
+MCO.photos.initPhotoControls({ …, arrowKeys: true });
+```
+
+- Delete an app's own ←/→ date handler (snowpack's uncommitted one is what
+  the kit now does) and any hand-set `aria-keyshortcuts` on date steppers:
+  the kit sets them. A handler that should win (photos stepping stations in
+  its sheet, snowpack's animation frames) keeps calling `preventDefault()`;
+  the kit stands down for it.
+- explorer: give the date stepper `unit: 'day'` and the hour stepper
+  `unit: 'hour'`, both `arrowKeys: true`. The kit drives the finest one
+  showing: the hour in Hourly, the date in Daily. Leave `arrowKeys` off the
+  hour stepper instead if the arrows should always drive the date; log the
+  choice in the PR.
+- Info modal, *How to use it*: "step one day at a time with ‹ and › or the
+  ← and → keys. If you reach the map with Tab, the arrow keys pan it; after
+  a click, ← and → change the day and ↑ and ↓ pan." And say `?kbd=off` turns
+  these keys off with `/`.
+
+### Step 6. The legend goes in the drawer on a phone
+
+status, maintenance, UMRB and snowpack (explorer's legend is already a
+drawer group):
+
+```js
+const rail = MCO.initNavRail({ … });
+MCO.initLegendDrawer({ panel: document.getElementById('legend'), rail });
+```
+
+- No markup: the kit appends a "Legend" group to the ☰ drawer and puts a
+  Legend button where the panel sat. Above compact the panel floats as
+  before. Delete app CSS that fought the legend on compact (collapsing it in
+  the rail, height caps); the 0.21.2 cap still guards desktop.
+
+### Step 7. Keyboard
+
+`MCO.keyboard` starts in `MCO.ready()`: `--kb-inset`, `--vv-h` and
+`.kb-open`, with the dashboard's names. The kit's drawers, search lists,
+panel body and control bar use them.
+
+- dashboard: delete `web/src/ui/layout/keyboard.ts` and
+  `web/src/core/keyboardInset.ts` (and their test), and the
+  `initKeyboardInset()` call in `main.ts`; its CSS on `.kb-open`,
+  `--kb-inset` and `--vv-h` keeps working unchanged. Add `MCO.keyboard` to
+  `types/mco.d.ts`.
+- Map tools: app rules like `.mco-nav-drawer .mco-search-list { max-height:
+  50dvh }` can go (the kit keeps a list above the keyboard).
+
+### Step 8. explorer: drop the attribution override
+
+The kit's autolift now stops under a MapLibre control group above (zoom
+over the attribution). Delete the `--attrib-lift-max` rule in `index.html`
+(the `html.mco-autolift #map .maplibregl-ctrl-bottom-right` override) and
+the ResizeObserver that publishes it in `app.js`.
+
+### Step 9. Verify
+
+- The repo's own suite, and from the kit checkout:
+  `node tools/verify/family-audit.mjs --only <app> --url <app>=http://127.0.0.1:<port>/`
+  against the branch served locally (its 1.0.0 checks: rail at the right
+  edge, panel rect and live bar, panel header identical at 1440, 768 and
+  390, the control bar, the drawer holding the desktop bar's labels in
+  order), `axe-matrix.mjs` and `keyboard.mjs`, in Chromium and WebKit, at
+  320×568, 390×844, 750×342, 844×390, 768×1024 and 1440×900.
+- `node tools/conformance.mjs <repo>`: the three 1.0.0 checks (close
+  button, no grip / `data-peek` / `open('peek')`, no left-rail CSS).
+- Emulation shows no real on-screen keyboard and no iOS zoom: say so in the
+  PR, and leave the phone check to Kyle.
 
 ## Kit-deferred pieces (keep app-local; do NOT extract)
 

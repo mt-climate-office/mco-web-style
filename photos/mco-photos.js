@@ -858,7 +858,9 @@
                                          // sets the views and the first date
          date: dateInput,                // <input type="date"> with a <label>
          time: timeSelect,               // <select> with a <label>
-         steppers: [{prev, next}],       // optional day steppers (.nav-btn.mco-step)
+         steppers: [{prev, next}],       // optional day steppers (.nav-btn.mco-step);
+                                         // {prev, next, arrowKeys} per pair (1.0.0)
+         arrowKeys: false,               // 1.0.0: ← / → step the day (MCO.initStepper)
          views: {group, select},         // .seg-btns.is-radio <fieldset> with a
                                          // <legend>, and its fallback <select>
          mq,                             // the views' fallback query (default 1060)
@@ -1098,6 +1100,8 @@
     steppers = pairs.map(function (p) {
       return MCO.initStepper({
         prev: p.prev, next: p.next, canStep: canStep,
+        // ← / → step the day (core 1.0.0): per pair, or for all with opts.arrowKeys.
+        arrowKeys: p.arrowKeys != null ? p.arrowKeys : !!opts.arrowKeys, unit: 'day',
         onStep: function (d) {
           var rolls = [];
           applyDate(MCO.shiftDate(state.date, d), rolls);

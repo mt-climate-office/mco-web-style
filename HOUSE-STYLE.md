@@ -208,7 +208,7 @@ hero numbers), line heights from `--lh-tight` / `--lh-body`, weights from
 `--fw-regular` … `--fw-bold`, and padding and gaps from `--space-1` …
 `--space-7` (0.25 → 2rem, with `--space-2` = 0.4rem, the house rhythm). New app
 CSS uses them instead of literal rems. They are theme-invariant, so they live
-in `:root` only. The kit's own rules adopt them in 1.0.0.
+in `:root` only. The kit's own rules adopt them in a later MAJOR (not 1.0.0, which was kept to the phone layout).
 
 **Theming.** Three themes: `dark` (default), `light`, `high-contrast`, switched
 by `data-theme` on `<html>`. The high-contrast theme is a first-class citizen
@@ -282,6 +282,32 @@ and on a phone it is one row too (the compact drawer, below).
 The lockup is 12 px title / 11 px subtitle (0.10.0). Don't shrink it to buy
 a row: shed controls into a drawer or the rail instead.
 
+**One interface at every width** (Kyle, 2026-11-12: "consistency across
+interfaces is important to me"). Only size and docking change between a
+phone, a tablet and a desktop; the controls, their labels, their order and
+the station panel's header do not. This table is the reference every app
+and every kit change is checked against (`tools/verify/family-audit.mjs`
+asserts the drawer and panel rows across 390, 768 and 1440):
+
+| Pattern | Phone (compact) | Tablet | Desktop |
+|---|---|---|---|
+| Bar | Always folded: badge, hot controls, search, ☰ right. Short landscape: the same bar on its side, a rail at the right edge | Folded when it won't fit, same folded layout | Full bar |
+| Time controls | Bottom control bar (portrait); the foot of the rail (landscape) | Bottom control bar wherever the bar folds | In the full bar |
+| ☰ drawer | Right, under the bar (beside the rail in landscape); focus on the drawer, not search | Same | n/a |
+| Station panel | Full height under the bar, map hidden, bar live | Side-docked at the end edge, map live | Same as tablet |
+| Panel header | Title + 44 px close button, top right; no grip | Identical | Identical |
+| Legend | A "Legend" group in the ☰ drawer, a Legend button on the map | Floating panel | Floating panel |
+| Dashboard picker | Full height under the bar | Left drawer | Inline left drawer |
+| Picker internals | Search pinned above a scrolling list; bar live | Identical | Identical |
+| Keyboard handling | `MCO.keyboard` on | On (iPad keyboard) | On (no-op without a keyboard) |
+| ← / → | Step the date (`MCO.initStepper` `arrowKeys`) | Same | Same |
+
+The phone rule is the compact rule, `width ≤ 640px or height ≤ 560px`, for
+every app, so a short, wide desktop window gets the phone layout. Accepted
+exceptions: photos keeps a direction `<select>` on desktop where phones
+get the cycle button; the dashboard's Download, dates and About sheets, and
+its picker opening from the left, where its trigger sits.
+
 **Glass panels** (`.mco-panel`): floating surfaces over the map (legend,
 filters). Head + collapsible body; wire with `MCO.initCollapsible`.
 **Legibility never depends on the blur** (0.10.0): `--glass` is near-opaque
@@ -305,8 +331,8 @@ controls must use a tier.
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
-| compact, not short landscape — and any width where the bar would wrap (0.21.1) | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, logo · hot controls · search · ☰; the rest in a right drawer |
-| height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px left column; also compact |
+| compact, not short landscape — and any width where the bar would wrap (0.21.1) | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, logo · hot controls · search · ☰; the rest in a right drawer; the time controls in the **bottom control bar** (1.0.0) |
+| height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px column at the **right** edge (1.0.0; the left until then): badge, ☰, search, time controls; also compact |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
 its name must carry a permanent `aria-label`** — otherwise the button becomes
@@ -337,8 +363,9 @@ animates by default and then removes collapsed content from the tab order.
 **Compact** is `(max-width: 640px), (max-height: 560px)` — note the height
 clause: a short landscape phone is compact too. This string exists in exactly
 two places (CSS §6 comment and `MCO.viewport.COMPACT_MQ`) and they must stay in
-sync. Compact drives JS decisions: bottom sheet instead of anchored popup,
-panel auto-collapse, control relocation into a drawer.
+sync. Compact drives JS decisions: the full-height station panel instead of an
+anchored popup, panel auto-collapse, the legend and the bar's controls
+moving into the ☰ drawer.
 
 **First-paint hold** (0.9.0). The anti-flash snippet adds `html.mco-booting`.
 Until the app calls `MCO.ready()`, `[data-hold]` elements keep their layout
@@ -354,10 +381,10 @@ flash a wrong state (a default view before URL state is applied). Never hold
 |---|---|---|---|
 | Info, gallery, lightbox | native `<dialog>` + `MCO.initInfoModal` | yes (top layer) | always first |
 | Flyout: search list, menu | `MCO.initSearchBox` | no | 2 |
-| Bottom sheet, full detent (compact) | `MCO.initSheet` | yes: rest of page inert | 3 |
+| Station panel on compact (full height, 1.0.0) | `MCO.initSheet` | yes: rest of page inert, the bar and the control bar live | 3 |
 | Off-canvas drawer | `MCO.initDrawer` (`.mco-drawer`) | yes on compact: rest inert | 4 |
-| Nav drawer (rail, compact drawer) | `MCO.initNavRail` (`.mco-nav-drawer`) | yes: rest inert, ☰ live | 4 |
-| Sheet at peek / end-docked; **station detail at every width** | `MCO.initSheet` | no; the map stays usable | 5 |
+| Nav drawer (rail, compact drawer) | `MCO.initNavRail` (`.mco-nav-drawer`) | yes: rest inert, ☰ (and the rail, the control bar) live | 4 |
+| Station panel end-docked (above compact); **station detail at every width** | `MCO.initSheet` | no; the map stays usable | 5 |
 | Map popup, non-station features only (a reservation, a county) | `MCO.map.popupContent` | no | 6 |
 | Cursor tooltip | `MCO.map.initCursorTooltip` | decoration (`aria-hidden`) | n/a |
 
@@ -368,7 +395,8 @@ roots are reference-counted, and live regions and the toast are never inerted.
 Single-key shortcuts check `MCO.overlay.isBlocking()` and stand down.
 
 **Station detail is `MCO.initSheet` at every width** (0.21.0): end-docked
-above compact, a bottom sheet on compact. A station never opens an anchored
+above compact, a full-height panel under the bar on compact (1.0.0). A
+station never opens an anchored
 popup; popups remain for non-station features. **`?station=` always opens
 the sheet via `MCO.map.flyToAndOpen`, and Back closes it** (push on the first
 open from a no-detail state, replace while it stays open; §4).
@@ -376,16 +404,57 @@ open from a no-detail state, replace while it stays open; §4).
 **Mobile patterns** (kit components since 0.9.0, after mesonet-explorer):
 - Off-canvas drawer: `.mco-drawer` + `MCO.initDrawer({modal: 'compact'})`,
   off-canvas with `.mco-scrim` on compact and a docked column above it.
-- Bottom sheet for detail panels: `.mco-sheet` + `MCO.initSheet`, with peek
-  and full detents, drag on the head, and the grip button as the keyboard
-  twin. It publishes `--sheet-h`. With `html.mco-autolift` the toast and
-  MapLibre's bottom corners clear it (opt-in until 1.0.0). **An app panel
-  that shares a bottom corner (a legend) takes `data-autolift`** (0.13.0) and
-  lifts with it; otherwise the corner's attribution rides up over the panel.
-  Before turning on `mco-autolift`, mark every bottom-docked panel. The lift
-  stops 8px below the top of the element's container (0.13.1), so in the
-  short-landscape rail a tall panel should collapse rather than ride up.
-  Station detail opens here at every width (above).
+- **The station panel** (`.mco-sheet` + `MCO.initSheet`; one state from
+  1.0.0, Kyle 2026-11-12). Above compact it docks at the end edge, full
+  height under the bar, and the map stays live beside it. **On compact it is
+  a full-height panel under the bar**: from the bar's bottom (the top, beside
+  the rail) to the bottom of the screen or the top of the bottom control
+  bar, the whole width left of the rail. No peek, no drag, no grip. The bar
+  and the control bar stay live (search in the bar swaps the station without
+  closing), and everything else is inert, even when the app passes its own
+  `inertRoots`. Picking another marker takes one tap on the close button
+  first, which Kyle accepted. **The header is the same at every width**: the
+  title, then a visible 44 px `[data-close-sheet]` button at the top right
+  (the kit styles it and warns in the console when it is missing). It
+  publishes `--sheet-end` end-docked and keeps `--sheet-h` at 0, so autolift
+  never pushes a toast up under it. `open('peek')` and `setState('peek')`
+  are deprecated aliases for open until 2.0; `state()` is `'full'` or
+  `'closed'`.
+- **The bottom control bar** (`.mco-controlbar`, 1.0.0): the time controls
+  of a map tool on a phone (a date stepper; photos' direction), and nothing
+  else (Kyle: "time controls only"). The app owns the markup, a direct child
+  of `<body>`; the kit docks it at the bottom wherever the bar is folded,
+  clear of the home indicator, at the foot of the rail in short landscape,
+  and hides it above that and while a keyboard is up. It publishes
+  `--tabbar-h`, which the toast, MapLibre's bottom corners, `[data-autolift]`
+  panels, the ☰ drawer and the station panel clear, and it turns on
+  `html.mco-autolift`. It stays live under the station panel and beside an
+  open drawer, as the top bar does. Status, maintenance and UMRB have no
+  time controls and no control bar.
+- **Autolift** (`html.mco-autolift`, opt-in, on wherever there is a control
+  bar): the toast and MapLibre's bottom corners clear `--sheet-h +
+  --tabbar-h`. **An app panel that shares a bottom corner (a legend) takes
+  `data-autolift`** (0.13.0) and lifts with it; otherwise the corner's
+  attribution rides up over the panel. Before turning on `mco-autolift`,
+  mark every bottom-docked panel. The lift stops 8px below the top of the
+  element's container (0.13.1) or, from 1.0.0, below a MapLibre control
+  group above it on the same side (zoom over the attribution), so no app
+  needs its own cap.
+- **Legends on a phone go in the drawer** (1.0.0, `MCO.initLegendDrawer`):
+  on compact the floating `.mco-panel` moves into a "Legend" group at the
+  end of the ☰ drawer, as mesonet-explorer's does, and a small "Legend"
+  button takes its corner on the map, opening the drawer at that group.
+  Above compact it floats as before, under the 0.21.2 height cap.
+- **`MCO.keyboard`** (1.0.0, after mesonet-dashboard): started by
+  `MCO.ready()`, it publishes `--kb-inset`, `--vv-h` and `.kb-open` from the
+  visual viewport (a change under 80 px is browser chrome, not a keyboard).
+  Under `.kb-open` the ☰ drawer and drawers stop above the keyboard, a search
+  list keeps to the room above it, the station panel's body pads for it and
+  the control bar hides. **While someone types the bar does not flip** (K7):
+  a text field in use on a touch screen, or a keyboard up, holds the folded
+  bar where a resize would make it the rail (`html.mco-bar-hold`), and a mode
+  change never closes a drawer under the field. The hold lifts when typing
+  ends, and the fold is measured again.
 - Full-viewport apps use `100dvh` (never `100vh`) and `overflow: hidden` on body.
 - **Phone text fields are 16 px** (0.21.2): the kit sets it on touch ∧
   compact, because iOS zooms into a smaller field on focus. Tablets and
@@ -444,20 +513,33 @@ open from a no-detail state, replace while it stays open; §4).
   consumer that brought the option into the kit. The default stays
   viewport-`fixed`.
 
-**Short landscape: the rail** (0.10.0). A landscape phone (≈ 750×342) has
-width to spare and no height, and Montana's ≈ 1.75:1 fit is height-limited.
-Every pixel of a wrapped two-row bar costs map: photo-explorer's was 100 px,
-30% of the screen. Map apps opt in with `data-rail` on `.mco-navbar`: at
-`MCO.viewport.RAIL_MQ` (the landscape half of the compact query) the bar
-becomes a fixed 56 px rail at the left edge and the body is padded clear of
-it.
-- **The app picks the rail's contents.** `.mco-rail` holds the menu button
-  and one to three hot controls, such as a date stepper or a readout.
-- **Everything else** sits in `.mco-nav-drawer`, which is `display: contents`
-  outside rail mode, so the normal bar is unchanged.
+**Short landscape: the rail at the right edge** (0.10.0; right edge 1.0.0,
+Kyle 2026-11-12: "Right rail"). A landscape phone (≈ 750×342) has width to
+spare and no height, and Montana's ≈ 1.75:1 fit is height-limited. Every
+pixel of a wrapped two-row bar costs map: photo-explorer's was 100 px, 30%
+of the screen. Map apps opt in with `data-rail` on `.mco-navbar`: at
+`MCO.viewport.RAIL_MQ` (the landscape half of the compact query) the bar is
+**the whole bar turned on its side**, a fixed 56 px column at the right
+edge, clear of the right safe area, and the body is padded clear of it.
+- **Top to bottom:** the logo badge, ☰, the search button, then the time
+  controls: `.mco-rail`'s hot controls, then the `.mco-controlbar`, which
+  sits at the foot of the column. Every rail button is 44 px on touch.
+- **Everything else** sits in `.mco-nav-drawer`, which opens **from the
+  right, beside the rail**. It is `display: contents` outside rail mode, so
+  the normal bar is unchanged.
+- **The map's right-hand controls sit just left of the rail.** Zoom stays
+  top right in every app, on the map in both orientations, never in the
+  rail (Kyle: it would read as the time steppers). It stays at all: WCAG
+  2.1 SC 2.5.1 needs a single-pointer alternative to pinch, and fullscreen
+  lives there. The rail already covers the right safe area, so the corners
+  don't pad for it again.
+- **`--rail-inset`** is what the rail covers, a **right-hand** inset (it was
+  the left until 1.0.0): the end-side `.mco-drawer`, the station panel and
+  the toast's centre read it. It is unset, so 0, outside rail mode.
 - **`MCO.initNavRail`** wires the drawer with the drawer contract: focus in
-  on open, the rest of the page inert, Esc, the scrim or the toggle to
-  close, and focus back to the toggle.
+  on open, the rest of the page inert (the rail and the control bar stay
+  live), Esc, the scrim or the toggle to close, and focus back to the
+  toggle. `isRail()` and `RAIL_MQ` are real APIs, not shims.
 - **The app owns three hand-offs.** `/` checks `rail.isRail()` before
   `isCollapsed()` and opens the drawer on the search field. Choosing a
   search result closes it with `{restoreFocus: false}`. A drawer button that
@@ -466,11 +548,13 @@ it.
 - **Don't hide a drawer with `visibility`.** A child with its own transition
   flips a frame late, and `focus()` in the same task silently fails. The kit
   uses `display: none` plus `@starting-style`.
+- **The rail never takes over under a typing thumb** (K7, 1.0.0): see
+  `MCO.keyboard` above.
 
 **The one-row bar** (0.21.0; every width from 0.21.1). A full-viewport map
 tool's bar is **one row, ≤ 64 px, at every width** (Kyle, 2026-11-04): the
-rail at short landscape, and the compact bar wherever the full bar would
-wrap. It never wraps to a second row. The opt-in is `data-rail="compact"`
+rail (a column) at short landscape, and the compact bar wherever the full
+bar would wrap. It never wraps to a second row. The opt-in is `data-rail="compact"`
 on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
 `data-rail` still means the rail alone.
 - **Fold-to-fit** (0.21.1). The compact layout applies on portrait compact
@@ -484,12 +568,12 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
   (`order` / `flex-basis` at 1060 or 1400): the sheds still apply first, so
   the bar folds only when they are not enough.
 - **The row, left to right:** the logo badge (it always holds the left
-  edge), the rest of `.mco-rail` (one or two hot controls, in a row),
+  edge), the rest of `.mco-rail` (one hot control at most: a mode or variable
+  select; the time controls go in the bottom control bar, 1.0.0),
   `.mco-search-toggle` (the last child of `.mco-rail`), and ☰ (the first
   child of `.mco-rail`, moved to the right edge). The search button shows
-  wherever the bar folds, at any width (0.21.2). The same `.mco-rail` children make the
-  column at short landscape, where the search button hides because the
-  field sits in the drawer.
+  wherever the bar folds, at any width (0.21.2), and in the rail (1.0.0).
+  The same `.mco-rail` children make the column at short landscape.
 - **Everything in `.mco-nav-drawer`** (brand, `.controls`, `.nav-meta`)
   opens as a right drawer under the bar, from ☰. The kit undoes the bar's sheds
   there, so the lockup, button labels, the "Updated" word and
@@ -505,10 +589,23 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
   `MCO.initSearchCollapse`, because a compact bar never shows the overlay
   field. The `/` shortcut checks `rail.isRail() || rail.isDrawerMode()` and
   calls `rail.open(input)`.
-- **Hot controls** are actions the visitor repeats on the map, such as a
-  date stepper. They are at full control height (`--control-h`), and they
-  also exist in the drawer or the desktop bar, because `.mco-rail` is
-  hidden above compact.
+- **Hot controls** are actions the visitor repeats on the map. Time controls
+  (a date stepper, photos' direction) go in the **bottom control bar**
+  (1.0.0), which is the rail's foot in landscape; the top bar keeps at most
+  a mode or variable select. They are at full control height
+  (`--control-h`, 44 px in the control bar and the rail on touch), and they
+  also exist in the drawer or the desktop bar, because `.mco-rail` and the
+  control bar are hidden above compact.
+- **← / → step the date** (1.0.0, Kyle 2026-11-13) on every date stepper:
+  `MCO.initStepper({…, arrowKeys: true, unit: 'day'})`. One stepper takes
+  the keys: the finest-grained one showing (an hour stepper beside a day
+  stepper), so an app whose arrows should drive the day leaves `arrowKeys`
+  off its hour stepper. Fields, keyboard-reached radio groups, sliders,
+  listboxes, tablists, menus, grids, open dialogs and blocking overlays keep
+  their arrows; on the map the arrows step only when a pointer gave it
+  focus (Tab-reached focus pans); modifiers are ignored; `canStep` is
+  respected; `?kbd=off` turns them off with the `/` shortcut. The buttons
+  carry `aria-keyshortcuts`, and the info modal says so.
 
 The website and the station dashboard are not full-viewport map tools and
 keep their own recorded bar exceptions.
@@ -550,7 +647,8 @@ the URL must already be the complete view.
   extent) and `theme` only when it differs from `MCO.defaultTheme()` (0.19.0;
   the same as `MCO.osTheme()` unless the page sets `data-theme-default`).
 - Write the URL at most once per task. A hash that carries state (a tab) needs
-  `{keepHash: true}` on both writers until 1.0.0 makes it the default.
+  `{keepHash: true}` on both writers (a later MAJOR may make it the default;
+  1.0.0 did not).
 - `?kbd=off` is re-emitted by both writers and stays out of share links
   (§5.9).
 
@@ -743,6 +841,9 @@ themes.
    `?kbd=off`, disclose it in the info modal, and re-emit it on pushState so a
    user who needs it doesn't re-add it every visit — but exclude it from shared
    links (it's the sharer's input preference, not part of the view).
+   The kit's ← / → date stepping (`MCO.initStepper` `arrowKeys`, 1.0.0)
+   honours the same `?kbd=off`, so one opt-out covers every key the page
+   adds.
    *(mesonet-explorer)*
 10. **Contrast comments.** Any color that can't be a token (map strokes over a
     basemap) carries a one-line comment naming the surface it was measured
@@ -802,13 +903,13 @@ HydroMet and AgriMet draw the same, and the marker's fill is free for the
 data value. Networks are filters (chips) and detail text (the sheet, the
 tooltip, the sr-table twin), never a marker shape or ring. The palette's
 per-network `shape` and marker `color` are deprecated with
-`MCO.map.markerPaint` (kept working until 1.0.0); `label` is current.
+`MCO.map.markerPaint` (kept working until 2.0); `label` is current.
 
 **Station and cell categories** (0.21.1). They are app-local, like every
 other role. 0.21.0 proposed shared named sets kept off the tribal fill's
 orange/brown band. Kyle previewed them on the tools and kept the originals
 (2026-11-04). So `CATEGORY_SETS`, `categorySet()`, `RESERVED_HUE` and
-`isReservedHue()` are **deprecated**: they stay working until 1.0.0, and no
+`isReservedHue()` are **deprecated**: they stay working until 2.0, and no
 app adopts them. CI still measures them while they ship. The category rules
 that do hold:
 
@@ -900,7 +1001,7 @@ boundary needs an outline on light basemaps.
   with a `--dot-stroke` edge; `fill` carries the data value. Networks are
   filter chips and detail text. `MCO.map.markerPaint(network)` (the 0.9.0
   filled / hollow / ring shapes) and `colocatedHaloPaint` are deprecated and
-  keep working until 1.0.0. The selected station ring is
+  keep working until 2.0. The selected station ring is
   `MCO.map.selectionPaint()` (`--selection-ring` read at paint time, never a
   literal). Keyboard focus is `MCO.map.focusPaint()` (`--accent-line`,
   distinct from selection). Add an invisible `MCO.map.hitPaint()` layer
