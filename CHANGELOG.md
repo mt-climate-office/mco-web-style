@@ -207,9 +207,10 @@ control bar).
   whole, hittable, above the bar; every control shown or reachable by
   scrolling); the rail's 44 px badge; a dialog opened from the drawer.
   family-audit: the same panel, Legend-button and rail top-group checks on
-  every consumer; the label check skips `.mco-legend-slot` and reads a
-  declared `sidebar` (explorer) at 1440; the control-bar check runs only
-  where a bar is displayed.
+  every consumer; the label check skips `.mco-legend-slot`, reads a
+  declared `sidebar` (explorer) at 1440 and counts a phone's hot controls
+  in the folded bar as present; the control-bar check runs only where a
+  bar is displayed.
 - `tools/conformance.mjs`: a close button in `.mco-sheet-head`, no grip /
   `data-peek` / `open('peek')`, no left-rail app CSS.
 - `tools/check-tokens.mjs`: the three new metrics.

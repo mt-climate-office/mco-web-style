@@ -311,7 +311,12 @@ for (const [name, site] of Object.entries(SITES)) {
           const n = g ? groupName(g) || nameOf(el) : nameOf(el);
           if (n && out[out.length - 1] !== n) out.push(n);
         }
-        return out;
+        // A phone's hot controls live in the folded bar (HOUSE-STYLE §3), not
+        // necessarily in the drawer: they count as present, not in the order.
+        const hot = innerWidth <= 640 ? [...document.querySelectorAll('.mco-navbar .mco-rail > *')]
+          .filter((e) => vis(e) && e !== e.parentElement.firstElementChild && !e.classList.contains('mco-search-toggle'))
+          .flatMap((e) => (e.matches('button, select, input') ? [e] : [...e.querySelectorAll('button, select, input')])).map(nameOf).filter(Boolean) : [];
+        return { out, hot };
       }, site.sidebar || null);
       (results[name].labels ??= {})[v.id] = labels;
       if (v.id === 'm-dark') await page.keyboard.press('Escape');
@@ -352,9 +357,9 @@ for (const [name, site] of Object.entries(SITES)) {
   // 1.0.0: drawer at 390 vs desktop bar at 1440, same labels, same order.
   if (site.map) {
     const L = results[name].labels || {};
-    const a = L['d-dark'], b = L['m-dark'];
+    const a = L['d-dark'] && L['d-dark'].out, b = L['m-dark'] && L['m-dark'].out, hot = (L['m-dark'] && L['m-dark'].hot) || [];
     if (a && b && a.length >= 2) {
-      const missing = a.filter((x) => !b.includes(x)), extra = b.filter((x) => !a.includes(x));
+      const missing = a.filter((x) => !b.includes(x) && !hot.includes(x)), extra = b.filter((x) => !a.includes(x));
       const ca = a.filter((x) => b.includes(x)), cbb = b.filter((x) => a.includes(x));
       const ordered = ca.join('|') === cbb.join('|');
       check(name, 'x-width', 'drawer (390) holds the desktop bar\'s control labels in the same order',
