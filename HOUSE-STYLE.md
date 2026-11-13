@@ -387,6 +387,10 @@ open from a no-detail state, replace while it stays open; §4).
   short-landscape rail a tall panel should collapse rather than ride up.
   Station detail opens here at every width (above).
 - Full-viewport apps use `100dvh` (never `100vh`) and `overflow: hidden` on body.
+- **Phone text fields are 16 px** (0.21.2): the kit sets it on touch ∧
+  compact, because iOS zooms into a smaller field on focus. Tablets and
+  desktops keep the app's own size, so a full bar doesn't fold on them.
+  Don't shrink a field back under 16 px on a phone.
 - **`viewport-fit=cover` is required** for the safe-area insets in the kit CSS
   to be live — without the meta, `env()` silently resolves to 0 (two apps
   shipped exactly this bug). Use `max(1rem, env(safe-area-inset-*))` padding on
@@ -473,7 +477,8 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
   (a CSS query, so first paint is right) and, through `.is-folded`, at any
   width where the bar measured unfolded is taller than 64 px. Core sets it
   for every compact bar at load and keeps it live across resizes, font
-  loads and the bar's own size changes, and `'mco:fold'` fires on a change.
+  loads, the bar's own size changes and changes inside it (0.21.2), and
+  `'mco:fold'` fires on a change.
   So a tablet, or a desktop window too narrow for the app's controls, gets
   the ☰ bar rather than a second row. **Apps write no row swaps**
   (`order` / `flex-basis` at 1060 or 1400): the sheds still apply first, so
@@ -481,7 +486,8 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
 - **The row, left to right:** the logo badge (it always holds the left
   edge), the rest of `.mco-rail` (one or two hot controls, in a row),
   `.mco-search-toggle` (the last child of `.mco-rail`), and ☰ (the first
-  child of `.mco-rail`, moved to the right edge). The same `.mco-rail` children make the
+  child of `.mco-rail`, moved to the right edge). The search button shows
+  wherever the bar folds, at any width (0.21.2). The same `.mco-rail` children make the
   column at short landscape, where the search button hides because the
   field sits in the drawer.
 - **Everything in `.mco-nav-drawer`** (brand, `.controls`, `.nav-meta`)
@@ -491,8 +497,9 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
 - **`MCO.initNavRail`** runs both modes on one contract. While the drawer is
   open, the page and the rest of the bar are inert, and only ☰ stays live.
   Esc, the scrim or ☰ close it, and focus returns to the button that opened
-  it. `isDrawerMode()` tells the app which mode it is in, and `open()` works
-  in both.
+  it. ☰ focuses the drawer itself, never its first field (0.21.2): a
+  focused field raises a phone keyboard over the drawer. `isDrawerMode()`
+  tells the app which mode it is in, and `open()` works in both.
 - **Search:** pass `search: {toggle, input}`. The bar's search button then
   opens the drawer on the field. Don't also give that button to
   `MCO.initSearchCollapse`, because a compact bar never shows the overlay

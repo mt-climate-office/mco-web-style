@@ -110,6 +110,11 @@
     #map-wrap { position: relative; height: 440px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     #map { width: 100%; height: 100%; }
     #legend-panel { right: 0.75rem; bottom: 1.75rem; }
+    /* 0.21.2 height cap: a legend taller than its 220px frame. */
+    #tall-frame { position: relative; height: 220px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-raised); }
+    #tall-panel { left: 0.75rem; bottom: 0.75rem; min-width: 180px; }
+    .demo-tall-row .mco-legend-swatch { --swatch: var(--accent); }
+    .demo-tall-row { display: flex; align-items: center; gap: 0.5rem; min-height: 24px; font-size: 0.78rem; color: var(--text-secondary); }
     .demo-show-all { margin-top: 0.4rem; }
     #hover-target {
       border: 1px dashed var(--ctrl-border); border-radius: var(--radius-md);
@@ -346,6 +351,36 @@
     </div>
     <p id="map-note" role="status"></p>
     <p><a class="nav-btn" href="colocation.html">Colocated stations: badge, spider and station sheet</a></p>
+    <h3>A legend taller than its map (0.21.2)</h3>
+    <p>A bottom-anchored <code>.mco-panel</code> taller than the room over its map is capped there: it scrolls
+       inside and its head, with the collapse toggle, stays pinned in view. One that fits is untouched.</p>
+    <div id="tall-frame">
+      <aside class="mco-panel" id="tall-panel" aria-labelledby="tall-title">
+        <div class="mco-panel-head">
+          <h4 class="mco-panel-title" id="tall-title">Tall legend</h4>
+          <button type="button" class="mco-panel-toggle" id="tall-toggle"
+                  aria-controls="tall-body" aria-label="Collapse tall legend">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>
+          </button>
+        </div>
+        <div class="mco-panel-body" id="tall-body">
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 1</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 2</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 3</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 4</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 5</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 6</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 7</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 8</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 9</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 10</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 11</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 12</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 13</div>
+          <div class="demo-tall-row"><span class="mco-legend-swatch" aria-hidden="true"></span>Class 14</div>
+        </div>
+      </aside>
+    </div>
   </section>
 
   <section class="demo-section">
@@ -975,6 +1010,8 @@
     storageKey: 'mco-websty-demo-legend',
     autoCollapseOnCompact: true,
   });
+  // 0.21.2: the height cap, on a legend taller than its frame.
+  MCO.initCollapsible({ toggle: document.getElementById('tall-toggle'), body: document.getElementById('tall-body'), startCollapsed: false });
 
   /* ── Legend swatches track the overlay paints ────────────────────────── */
   function paintLegendSwatches() {

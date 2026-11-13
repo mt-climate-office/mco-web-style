@@ -8,6 +8,101 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [0.21.2] — 2026-11-13
+
+PATCH: theme and core. Map, cog, palette, photos, places, summary and the
+anti-flash snippet are byte-identical to 0.21.1, so their SRI hashes and
+every consumer's CSP hashes are unchanged. Four fixes from the 12 Nov 2026
+phone audit of production (findings K1, D1, K5 and K6), a fold that
+varied between loads, which the release canary found, and a legend cap.
+
+### Fixed
+- **☰ no longer focuses the search field** (K1). `MCO.initNavRail` opened
+  its drawer on the first focusable inside, which in every map tool is the
+  search field, so on a phone ☰ raised the keyboard over the drawer the
+  visitor had opened to browse. ☰, and `open()` with no element, now focus
+  the drawer itself (`tabindex="-1"`; while open it is `role="group"` named
+  after ☰, unless the markup gives it a role or name). The search button
+  and `open(input)` still focus the field, and an `initialFocus` option is
+  still honoured.
+- **Arrowing through a search list no longer moves the page** (D1).
+  `MCO.initSearchBox` kept the active option in view with
+  `scrollIntoView`, which also scrolls the page and every scrolling
+  ancestor: the field slid away from under the finger, or under the
+  keyboard. It now scrolls the listbox alone.
+- **Phone text fields are 16 px** (K5). iOS Safari zooms the page into a
+  field with text under 16 px when it takes focus, and the family's fields
+  ran 0.78–0.85rem. On a touch phone, `(hover: none)` and compact (≤ 640 px
+  wide or ≤ 560 px tall, the `COMPACT_MQ` rule), text, search, number,
+  date and time inputs, selects and textareas are 16 px, at a specificity
+  (0,2,2) that outranks the apps' own inline rules such as
+  `input[type="date"], select.time-select` and `.mode-select`. Phones
+  only: on a touch tablet or laptop the wider fields can fold a full bar
+  that fits today (mco-snowpack-explorer at 1440 px with touch in macOS
+  WebKit), so above compact nothing changes. Checkboxes, radios and ranges are unchanged,
+  and so is everything with a mouse.
+- **The folded bar above 640 px** (K6). `.mco-search-toggle` was shown only
+  ≤ 640 px, so a bar folded wider (a tablet, a narrow window) lost its
+  search button, and with it the auto margin that holds ☰ at the right
+  edge: at 768 px ☰ sat mid-bar. The search button now shows wherever the
+  bar is `.is-folded`; its field stays in the closed drawer.
+- **The fold is deterministic.** Fold-to-fit measures the bar unfolded on
+  every check, but folded, the bar's text sits in the closed drawer, and a
+  browser loads a web font only for text it renders. A bar measured before
+  its fonts arrived folded on the fallback font's widths, the faces it
+  needed never loaded, and every later check measured the fallback again:
+  the same page and width folded on some loads and not others
+  (mco-snowpack-explorer at 1440 px, mesonet-photo-explorer at 1024 px).
+  Core now loads the faces the bar's text uses (only those) and measures
+  again when they land or fail, so the state follows the bar's content
+  and width alone. Checks also run on a 100 ms timer beside the animation
+  frame (WebKit runs no frames while a page loads), on window load, and on
+  changes inside the bar (`hidden`, `class`, children, text; not while its
+  drawer is open), so a fold taken before an app's sheds runs again.
+- **A legend taller than its map can always be closed** (a stopgap until
+  1.0.0 moves the legend into the ☰ drawer on phones). A bottom-anchored
+  `.mco-panel` grows upward, and one taller than its map pushed its head,
+  with the collapse toggle, off the top of the screen or under the bar:
+  mco-snowpack-explorer's 549 px legend put its toggle at y = −36 at
+  320×568 and −236 at 750×340, and mesonet-umrb-build's 372 px one at −59
+  at 750×340. Core now caps such a panel to the room over its map (from
+  the container's top, or the bottom of a top bar over it, plus 8 px, to
+  the panel's own bottom, so app offsets, autolift and the landscape rail
+  are all measured, not assumed). A capped panel (`.is-capped`,
+  `--panel-max-h`) scrolls inside with `overscroll-behavior: contain`, and
+  its head stays pinned on `--bg-surface`. It takes `tabindex="0"` only if
+  nothing inside it can take focus. A panel that fits is not touched, at
+  any width. No consumer markup changes.
+- **`family-audit.mjs`:** adds 320×568 and 768×1024 touch views. On a
+  touch phone it checks text fields ≥ 16 px; at 768×1024 touch and 1440 it
+  checks the kit's 16 px rule is inert, so field sizes and the fold are the
+  app's own. In a folded touch bar it checks ☰ within 16 px of the right
+  edge, the search button shown, and ☰ focusing the drawer rather than a
+  text field. Its control count read the drawer's
+  `[data-open]`; the kit marks an open drawer `.is-open`.
+- **Legend probes.** `a11y-audit.mjs` checks the demo's new
+  taller-than-its-map legend at 1440 and 390 (touch): capped inside its
+  frame, scrolling, head pinned, toggle hit-testable, axe clean, and a
+  click collapses it. `family-audit.mjs` checks every map tool's expanded
+  legend the same way in each dark view.
+- **Fold determinism check.** `family-audit.mjs` loads each map tool
+  `--fold-repeats` times (default 3) at 1024, 1180 and 1440 px and fails
+  unless every load ends in the same state, folded exactly when the
+  unfolded bar is taller than 64 px.
+- **`canary-accept.json` entries can name `consumers`** to accept a move
+  in those consumers only. 0.21.2 accepts mco-snowpack-explorer's bar at
+  1440 px (`.nav-meta`, `.brand`, `.controls`): 0.21.1 kept that bar
+  folded where it fits (Chromium 10/10 loads, WebKit 3/10), and 0.21.2
+  shows the full bar on 10/10 loads in both engines.
+- `a11y-audit.mjs` runs its 0.21.2 probes in a fresh browser: Playwright
+  WebKit stops loading pages after enough visits in one browser (as in
+  `axe-matrix.mjs`).
+- **`a11y-audit.mjs`:** ArrowDown ×10 in a search list must leave the
+  page's `scrollY`, the field's position and any scrolling ancestor where
+  they were; the folded bar at 320, 390, 768 (touch) and 750×342 checks ☰
+  focus, 🔍 focus and ☰ at the right edge, with 16 px fields on the phone
+  sizes and the desktop size kept at 768 touch.
+
 ## [0.21.1] — 2026-11-04
 
 PATCH: theme, core, map and palette (comments only). Cog, photos, places,

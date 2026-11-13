@@ -1299,6 +1299,12 @@
      MCO.initSearchCollapse: in a compact bar ≤640px is always rail or
      drawer mode, so the field never collapses to an overlay.
 
+     Focus on open (0.21.2): ☰ and open() with no element focus the drawer
+     itself (tabindex=-1, named after ☰ while open), never its first field,
+     so a phone keyboard doesn't rise over a drawer opened to browse.
+     open(input) and the search button focus the field; an initialFocus
+     option still wins.
+
      App side: a "/" shortcut checks rail.isRail() || rail.isDrawerMode()
      first and calls rail.open(searchInput); choosing a search result closes
      with {restoreFocus: false} and hands the toggle to whatever opens next;
@@ -1309,8 +1315,8 @@
      measured unfolded, and folds when taller than FOLD_H. Never in the rail.
      Core watches every compact bar present at load (core loads at the end of
      <body>, so before first paint in practice); initNavRail watches its own.
-     Re-measured on resize, on the bar's own size changes and once web fonts
-     land; a change fires 'mco:fold' ({detail: {folded}}) on the bar. */
+     Re-measured on resize, on the bar's own size changes, on changes inside
+     it (0.21.2) and once web fonts land; a change fires 'mco:fold' ({detail: {folded}}) on the bar. */
   var FOLD_H = 64;
   var _pcMq = window.matchMedia('(max-width: 640px) and (orientation: portrait), (max-width: 640px) and (height > 560px)');
   var _folding = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
@@ -1329,15 +1335,64 @@
   function _watchFold(bar) {
     if (!bar || bar.getAttribute('data-rail') !== 'compact') return;
     if (_folding) { if (_folding.has(bar)) return; _folding.add(bar); }
-    var raf = 0;
+    var raf = 0, tid = 0;
     // Deferred a frame: refolding inside a ResizeObserver callback would
-    // resize what it observes and log a loop error.
-    function later() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; _fold(bar); }); }
-    _fold(bar);
+    // resize what it observes and log a loop error. A timer backs the frame
+    // up (0.21.2): WebKit runs no frames while a page is still loading, and
+    // the fold taken before fonts and sheds held until the first one (2.7 s
+    // on mco-snowpack-explorer), past the canary's measurement.
+    function later() {
+      if (raf) return;
+      raf = requestAnimationFrame(run);
+      tid = setTimeout(run, 100);
+    }
+    function run() {
+      if (!raf) return;
+      cancelAnimationFrame(raf); clearTimeout(tid);
+      raf = 0;
+      measure();
+    }
+    // The fold must be a function of the bar's content and width alone
+    // (0.21.2). Every measure trial-unfolds (_fold), but folded, the bar's
+    // text sits in the closed drawer, and a browser loads a web font only
+    // for text it renders: the faces the full bar needs never loaded, every
+    // trial measured fallback widths, and the same page folded on some loads
+    // and not others. So core loads the faces the bar's text uses (only
+    // those; a page that shows the full bar loads them anyway) and measures
+    // again when they land, or fail. Window load and changes inside the bar
+    // (an app's sheds, a segmented group swapped for its <select>) measure
+    // too. The bar's own class is _fold's, and an open drawer is left alone.
+    var fontsSeen = {};
+    function loadBarFonts() {
+      if (!document.fonts || !document.fonts.load) return;
+      var loads = [];
+      Array.prototype.forEach.call(bar.querySelectorAll('*'), function (el) {
+        var text = /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(el.tagName);
+        for (var n = el.firstChild; n && !text; n = n.nextSibling) text = n.nodeType === 3 && /\S/.test(n.nodeValue);
+        if (!text) return;
+        var cs = getComputedStyle(el);
+        var f = cs.fontStyle + ' ' + cs.fontWeight + ' 16px ' + cs.fontFamily;
+        if (fontsSeen[f]) return;
+        fontsSeen[f] = 1;
+        loads.push(document.fonts.load(f).catch(function () {}));
+      });
+      if (loads.length) Promise.all(loads).then(later);
+    }
+    function measure() { _fold(bar); }
+    measure();
+    loadBarFonts();
     window.addEventListener('resize', later);
     _vpSubs.add(later);
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(later).observe(bar);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
+    window.addEventListener('load', later);
+    if (typeof MutationObserver !== 'undefined') new MutationObserver(function (recs) {
+      if (bar.querySelector('.mco-nav-drawer.is-open')) return;
+      // Measured now, not a frame later: this runs before the browser paints,
+      // so content that would wrap the bar (live filters arriving) never shows
+      // as a second row. _fold's own class change on the bar is skipped.
+      for (var i = 0; i < recs.length; i++) if (recs[i].target !== bar) { loadBarFonts(); _fold(bar); return; }
+    }).observe(bar, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class'] });
   }
   Array.prototype.forEach.call(document.querySelectorAll('.mco-navbar[data-rail="compact"]'), _watchFold);
 
@@ -1357,10 +1412,27 @@
       return compactBar && bar.classList.contains('is-folded') && !MCO.viewport.isRail();
     }
     function mode() { return MCO.viewport.isRail() ? 'rail' : isDrawerMode() ? 'drawer' : null; }
+    // ☰ focuses the drawer itself, not its first field (0.21.2): on a phone
+    // a focused search field raises the keyboard over the drawer the visitor
+    // opened to browse. The search button and open(input) still focus the
+    // field; an explicit initialFocus is still honoured.
+    var named = { role: false, label: false };
+    function nameDrawer(on) {
+      if (on) {
+        named.role = !drawer.hasAttribute('role');
+        if (named.role) drawer.setAttribute('role', 'group');
+        named.label = !drawer.hasAttribute('aria-label') && !drawer.hasAttribute('aria-labelledby');
+        if (named.label) drawer.setAttribute('aria-label', toggle.getAttribute('aria-label') || 'Menu');
+      } else {
+        if (named.role) drawer.removeAttribute('role');
+        if (named.label) drawer.removeAttribute('aria-label');
+        named.role = named.label = false;
+      }
+    }
     var ov = MCO.overlay({
       el: drawer,
       opener: function () { return toggle; },
-      initialFocus: opts.initialFocus,
+      initialFocus: opts.initialFocus || drawer,
       // Rail: the rail column stays live beside the drawer. Drawer: only ☰
       // does; the hot controls and the search button share its row.
       inert: function () {
@@ -1380,6 +1452,7 @@
       openState = false;
       openMode = null;
       drawer.classList.remove('is-open');
+      nameDrawer(false);
       setExpanded(false);
       if (scrim) scrim.hidden = true;
       if (onChange) onChange(false);
@@ -1396,6 +1469,7 @@
       }
       // display flips with the class, so the target is focusable right away.
       drawer.classList.add('is-open');
+      nameDrawer(true);
       setExpanded(true);
       if (scrim) scrim.hidden = false;
       ov.open({ focus: !focusEl, opener: o && o.opener });
@@ -1886,6 +1960,83 @@
     return { open: open, close: function () { dialog.close(); }, intro: maybeIntro };
   };
 
+  /* ── Over-map panel height cap (0.21.2, a stopgap until 1.0.0) ──────────────
+     A bottom-anchored .mco-panel (a legend) grows upward, and one taller than
+     its map pushed its own head, collapse toggle included, off the top of
+     the screen or under the bar, where nothing could close it. Core watches
+     every .mco-panel present at load. When a bottom-anchored one would rise
+     past the top of the room it has (its container's top, or the bottom of
+     a top bar over it, whichever is lower, plus 8px),
+     it gets .is-capped and --panel-max-h: it scrolls inside, with its head
+     pinned (mco-theme.css). A panel that fits is never touched. If nothing
+     inside it can take focus, the capped panel takes tabindex=0 so a
+     keyboard can scroll it (WCAG 2.1.1). */
+  var PANEL_GAP = 8;
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+    'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  function _uncapPanel(panel) {
+    if (!panel.classList.contains('is-capped')) return;
+    panel.classList.remove('is-capped');
+    panel.style.removeProperty('--panel-max-h');
+    if (panel.hasAttribute('data-mco-cap-tab')) { panel.removeAttribute('tabindex'); panel.removeAttribute('data-mco-cap-tab'); }
+  }
+  function _capPanel(panel) {
+    var cs = getComputedStyle(panel);
+    if (cs.display === 'none' || cs.bottom === 'auto' || (cs.position !== 'absolute' && cs.position !== 'fixed')) {
+      _uncapPanel(panel);
+      return;
+    }
+    // The room is the container's, not the viewport's: a demo's map frame
+    // lower down a scrolling page is not short of room.
+    var host = cs.position === 'fixed' ? null : panel.offsetParent;
+    var top = host ? host.getBoundingClientRect().top : 0;
+    // A top bar over the container (a full-viewport tool's map under its
+    // bar). Not on a scrolling page, where a sticky bar only passes over it,
+    // nor the landscape rail, which runs beside it.
+    var bar = document.querySelector('.mco-navbar');
+    var scrolls = document.documentElement.scrollHeight > window.innerHeight + 1;
+    if (bar && !scrolls) {
+      var br = bar.getBoundingClientRect();
+      if (br.height < window.innerHeight / 2 && br.bottom > top) top = br.bottom;
+    }
+    var bottom = panel.getBoundingClientRect().bottom;
+    var room = Math.max(0, Math.floor(bottom - top - PANEL_GAP));
+    var natural = panel.scrollHeight + panel.offsetHeight - panel.clientHeight;
+    if (natural > room + 1) {
+      panel.style.setProperty('--panel-max-h', room + 'px');
+      panel.classList.add('is-capped');
+      if (!panel.hasAttribute('tabindex') && !panel.querySelector(FOCUSABLE)) {
+        panel.tabIndex = 0;
+        panel.setAttribute('data-mco-cap-tab', '');
+      }
+    } else {
+      _uncapPanel(panel);
+    }
+  }
+  function _watchPanel(panel) {
+    var raf = 0, tid = 0;
+    function run() {
+      if (!raf) return;
+      cancelAnimationFrame(raf); clearTimeout(tid);
+      raf = 0;
+      _capPanel(panel);
+    }
+    // A frame, backed by a timer: WebKit runs no frames while loading.
+    function later() { if (raf) return; raf = requestAnimationFrame(run); tid = setTimeout(run, 100); }
+    later();
+    window.addEventListener('resize', later);
+    window.addEventListener('load', later);
+    _vpSubs.add(later);
+    panel.addEventListener('transitionend', later);   // the collapse, an autolift
+    if (typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(later);
+      ro.observe(panel);
+      Array.prototype.forEach.call(panel.children, function (c) { ro.observe(c); });
+      if (panel.offsetParent) ro.observe(panel.offsetParent);
+    }
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.mco-panel'), _watchPanel);
+
   /* ── Collapsible panel ─────────────────────────────────────────────────────
      Wires a toggle button (gets aria-expanded) to a body element (gets
      [hidden]). Optional persistence and compact-viewport auto-collapse: on a
@@ -2296,7 +2447,13 @@
       var el = active >= 0 ? document.getElementById(optionId(active)) : null;
       if (isOpen && el) {
         input.setAttribute('aria-activedescendant', el.id);
-        el.scrollIntoView({ block: 'nearest' });
+        // Scroll the listbox only (0.21.2). scrollIntoView also scrolls every
+        // scrolling ancestor and the page, which on a phone dragged the field
+        // under the keyboard or out of a drawer.
+        var lr = list.getBoundingClientRect(), er = el.getBoundingClientRect();
+        var top = lr.top + list.clientTop, bottom = top + list.clientHeight;
+        if (er.top < top) list.scrollTop -= top - er.top;
+        else if (er.bottom > bottom) list.scrollTop += Math.min(er.bottom - bottom, er.top - top);
       } else {
         input.removeAttribute('aria-activedescendant');
       }

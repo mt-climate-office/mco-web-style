@@ -214,6 +214,57 @@ for (const engine of BROWSERS) {
     probe('places: a reservation lists the stations inside its boundary (loaded on the pick)',
       p3.title === 'Flathead Reservation' && p3.rows >= 1 && /on the Flathead Reservation/.test(p3.live), JSON.stringify(p3));
 
+    /* 0.21.2: arrowing through a long list scrolls the listbox only. It used
+       scrollIntoView, which also scrolled the page and every scrolling
+       ancestor, dragging the field away (on a phone, under the keyboard).
+       The page case puts the field low in the viewport so the list runs off
+       it; the ancestor case is a 200px scroller injected around a box. */
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    const listScroll = async (inputSel, listSel, scrollerSel) => {
+      const snap = () => page.evaluate(([i, l, s]) => {
+        const inp = document.querySelector(i), list = document.querySelector(l);
+        const a = document.getElementById(inp.getAttribute('aria-activedescendant') || '');
+        const ir = inp.getBoundingClientRect(), lr = list.getBoundingClientRect(), ar = a && a.getBoundingClientRect();
+        return { y: Math.round(scrollY), top: Math.round(ir.top), left: Math.round(ir.left),
+          sc: s ? Math.round(document.querySelector(s).scrollTop) : null, listTop: Math.round(list.scrollTop),
+          options: list.querySelectorAll('[role="option"]').length, shown: !!ar && ar.top >= lr.top - 1 && ar.bottom <= lr.bottom + 1 };
+      }, [inputSel, listSel, scrollerSel]);
+      const before = await snap();
+      for (let k = 0; k < 10; k++) await page.keyboard.press('ArrowDown');
+      await page.waitForTimeout(100);
+      const after = await snap();
+      return { ok: after.options > 10 && after.y === before.y && after.top === before.top && after.left === before.left &&
+        after.sc === before.sc && after.listTop > 0 && after.shown, before, after };
+    };
+    await page.evaluate(() => { document.getElementById('place-search').scrollIntoView({ block: 'end' }); scrollBy(0, 60); });
+    await page.focus('#place-search');
+    await page.keyboard.type('a');
+    await page.waitForTimeout(300);
+    const ls1 = await listScroll('#place-search', '#place-search-list', null);
+    probe('search list: ArrowDown ×10 scrolls the list only (page scrollY and the field stay put)', ls1.ok, JSON.stringify(ls1));
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => {
+      const box = document.createElement('div');
+      box.id = 'probe-scroller';
+      box.style.cssText = 'position:fixed;left:8px;top:80px;width:280px;height:200px;overflow:auto;z-index:9999';
+      box.innerHTML = '<div style="height:120px"></div><div class="mco-search"><input id="probe-in" type="search" class="mco-search-input" aria-label="Probe">' +
+        '<div class="mco-search-list" id="probe-list" hidden></div></div><div style="height:800px"></div>';
+      document.body.appendChild(box);
+      MCO.initSearchBox({ input: document.getElementById('probe-in'), listbox: document.getElementById('probe-list'), label: 'Probe', announce: false,
+        items: Array.from({ length: 40 }, (_, i) => ({ id: 'p' + i, label: 'Probe ' + String(i).padStart(2, '0') })) });
+      box.scrollTop = 60;
+    });
+    await page.focus('#probe-in');
+    await page.keyboard.type('probe');
+    await page.waitForTimeout(200);
+    const ls2 = await listScroll('#probe-in', '#probe-list', '#probe-scroller');
+    probe('search list in a scrolling ancestor: ArrowDown ×10 leaves the ancestor and the field put', ls2.ok, JSON.stringify(ls2));
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => { document.getElementById('probe-scroller').remove(); scrollTo(0, 0); });
+
     /* 0.17.0: MCO.summary.summarize. The sentence follows the readings and
        the units, and a change is announced once. */
     await page.keyboard.press('Escape');
@@ -302,6 +353,101 @@ for (const engine of BROWSERS) {
     }));
     probe('rail: Esc closes, focus returns to the menu, inert released', r2.focus === 'btn-rail-menu' && !r2.mainInert && !r2.shown, JSON.stringify(r2));
     await rctx.close();
+
+    // A fresh browser for the probes below: Playwright WebKit stops loading
+    // pages after enough visits in one browser (axe-matrix.mjs relaunches
+    // for the same reason).
+    const pb = await ENGINES[engine].launch(engine === 'chromium'
+      ? { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } : {});
+    /* 0.21.2: the folded bar on touch. ☰ focuses the drawer, not the search
+       field (which would raise a phone keyboard); 🔍 focuses the field.
+       Above 640px the folded bar still shows 🔍 with ☰ at the right edge.
+       Text fields are 16px on a touch phone (no iOS focus zoom), and only
+       there: a touch tablet keeps the desktop size, so its bar can't fold
+       on wider fields. */
+    for (const fv of [{ w: 320, h: 568 }, { w: 390, h: 844 }, { w: 768, h: 1024 }, { w: 750, h: 342 }]) {
+      const fctx = await pb.newContext({ viewport: { width: fv.w, height: fv.h }, hasTouch: true, isMobile: engine === 'chromium' });
+      const fp = await fctx.newPage();
+      await fp.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
+      await fp.waitForTimeout(1000);
+      const at = `${fv.w}×${fv.h}`;
+      const bar = await fp.evaluate(() => {
+        const nav = document.querySelector('.mco-navbar'), menu = document.getElementById('btn-rail-menu');
+        const st = document.getElementById('btn-search-toggle');
+        const small = [...document.querySelectorAll('input, select, textarea')]
+          .filter((e) => !/^(hidden|checkbox|radio|range|button|submit|reset|color|file|image)$/.test(e.type))
+          .filter((e) => getComputedStyle(e).fontSize !== '16px').map((e) => e.id || e.tagName);
+        const sixteen = [...document.querySelectorAll('input, select, textarea')]
+          .filter((e) => !/^(hidden|checkbox|radio|range|button|submit|reset|color|file|image)$/.test(e.type))
+          .filter((e) => getComputedStyle(e).fontSize === '16px').map((e) => e.id || e.tagName);
+        return { folded: nav.classList.contains('is-folded'), h: Math.round(nav.getBoundingClientRect().height),
+          gap: Math.round(document.documentElement.clientWidth - menu.getBoundingClientRect().right),
+          toggle: st.getClientRects().length > 0, small, sixteen };
+      });
+      const phone = fv.w <= 640 || fv.h <= 560;
+      if (phone) probe(`${at} touch: text fields and selects are 16px`, bar.small.length === 0, JSON.stringify(bar.small));
+      else probe(`${at} touch (tablet): text fields keep their desktop size`, bar.sixteen.length === 0, JSON.stringify(bar.sixteen));
+      if (fv.h > 560) {
+        probe(`${at}: folded bar, one row ≤ 64px, ☰ within 16px of the right edge, 🔍 visible`,
+          bar.folded && bar.h <= 64 && bar.gap <= 16 && bar.toggle, JSON.stringify(bar));
+      }
+      await fp.click('#btn-rail-menu');
+      await fp.waitForTimeout(300);
+      const m1 = await fp.evaluate(() => ({ focus: document.activeElement.id, tag: document.activeElement.tagName,
+        name: document.getElementById('nav-drawer').getAttribute('aria-label') }));
+      probe(`${at}: ☰ focuses the named drawer, not a field`, m1.focus === 'nav-drawer' && !!m1.name, JSON.stringify(m1));
+      await fp.keyboard.press('Escape');
+      await fp.waitForTimeout(300);
+      if (bar.toggle) {
+        await fp.click('#btn-search-toggle');
+        await fp.waitForTimeout(300);
+        const m2 = await fp.evaluate(() => document.activeElement.id);
+        probe(`${at}: 🔍 opens the drawer on the search field`, m2 === 'demo-search', m2);
+        await fp.keyboard.press('Escape');
+      }
+      await fctx.close();
+    }
+    /* 0.21.2: a legend taller than its map is capped to the room over it,
+       its toggle stays reachable, and a click on it collapses the panel. The
+       demo's own legend fits and must stay untouched. */
+    for (const lv of [{ w: 1440, h: 900, touch: false }, { w: 390, h: 844, touch: true }]) {
+      const lctx = await pb.newContext({ viewport: { width: lv.w, height: lv.h }, hasTouch: lv.touch, isMobile: lv.touch && engine === 'chromium' });
+      const lp = await lctx.newPage();
+      await lp.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
+      await lp.evaluate(() => document.getElementById('tall-frame').scrollIntoView({ block: 'center' }));
+      await lp.waitForTimeout(600);
+      const at = `${lv.w}×${lv.h}`;
+      const t1 = await lp.evaluate(() => {
+        const p = document.getElementById('tall-panel'), f = document.getElementById('tall-frame'), t = document.getElementById('tall-toggle');
+        const pr = p.getBoundingClientRect(), fr = f.getBoundingClientRect(), tr = t.getBoundingClientRect();
+        const hit = document.elementFromPoint(tr.left + tr.width / 2, tr.top + tr.height / 2);
+        return { capped: p.classList.contains('is-capped'), inFrame: pr.top >= fr.top - 1 && pr.bottom <= fr.bottom + 1,
+          hit: !!hit && (hit === t || t.contains(hit)), scrolls: p.scrollHeight > p.clientHeight,
+          headPinned: getComputedStyle(p.querySelector('.mco-panel-head')).position === 'sticky',
+          demoLegendUntouched: !document.getElementById('legend-panel').classList.contains('is-capped') };
+      });
+      probe(`${at}: a legend taller than its map is capped inside it, scrolls, head pinned, toggle hittable; a legend that fits is untouched`,
+        t1.capped && t1.inFrame && t1.hit && t1.scrolls && t1.headPinned && t1.demoLegendUntouched, JSON.stringify(t1));
+      const lbad = (await new AxeBuilder({ page: lp }).include('#tall-frame').analyze()).violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+      probe(`${at}: axe: the capped legend has no serious/critical violations`, lbad.length === 0, lbad.map((v) => v.id).join(', '));
+      await lp.click('#tall-toggle');
+      // The collapse animates, then the panel shrinks and the cap lifts.
+      await lp.waitForFunction(() => !document.getElementById('tall-panel').classList.contains('is-capped'), null, { timeout: 3000 }).catch(() => {});
+      const t2 = await lp.evaluate(() => ({ expanded: document.getElementById('tall-toggle').getAttribute('aria-expanded'),
+        capped: document.getElementById('tall-panel').classList.contains('is-capped') }));
+      probe(`${at}: the pinned toggle collapses the capped legend, and the cap lifts`, t2.expanded === 'false' && !t2.capped, JSON.stringify(t2));
+      await lctx.close();
+    }
+    {
+      const mctx = await pb.newContext({ viewport: { width: 390, height: 844 } });
+      const mp = await mctx.newPage();
+      await mp.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
+      await mp.waitForTimeout(500);
+      const fs = await mp.evaluate(() => getComputedStyle(document.getElementById('demo-search')).fontSize);
+      probe('390×844 without touch: the search field keeps its desktop size', fs !== '16px', fs);
+      await mctx.close();
+    }
+    await pb.close();
   }
 
 

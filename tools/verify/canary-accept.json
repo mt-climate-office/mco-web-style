@@ -1,5 +1,5 @@
 {
-  "$comment": "Downstream changes the NEXT kit release makes on purpose (see CHANGELOG [Unreleased] / the release being cut). The canary reports geometry moves on these selectors at these widths as expected instead of failing. Empty this list after each release is tagged. maxPixels (percent) lets an accepted move explain a pixel diff up to that size, but only when nothing unaccepted moved.",
+  "$comment": "Downstream changes the NEXT kit release makes on purpose (see CHANGELOG [Unreleased] / the release being cut). The canary reports geometry moves on these selectors at these widths as expected instead of failing. Empty this list after each release is tagged. maxPixels (percent) lets an accepted move explain a pixel diff up to that size, but only when nothing unaccepted moved. An entry with `consumers` applies to those consumers only (0.21.2).",
   "accept": [
     {
       "selector": ".maplibregl-ctrl-top-right",
@@ -44,6 +44,39 @@
       ],
       "maxPixels": 1.5,
       "why": "0.10.0: pushed right by the wider lockup (#37)"
+    },
+    {
+      "selector": ".nav-meta",
+      "widths": [
+        1440
+      ],
+      "consumers": [
+        "mco-snowpack-explorer"
+      ],
+      "maxPixels": 1.0,
+      "why": "0.21.2: deterministic fold. mco-snowpack-explorer's full bar fits at 1440 (unfolded 54px, both engines), but 0.21.1 measured it before its fonts loaded and kept it folded (Chromium 10/10 loads folded, WebKit 3/10, Linux CI WebKit varied); 0.21.2 shows the full bar on 10/10 loads in both engines, with normal, delayed and blocked fonts."
+    },
+    {
+      "selector": ".brand",
+      "widths": [
+        1440
+      ],
+      "consumers": [
+        "mco-snowpack-explorer"
+      ],
+      "maxPixels": 1.0,
+      "why": "0.21.2: deterministic fold. mco-snowpack-explorer's full bar fits at 1440 (unfolded 54px, both engines), but 0.21.1 measured it before its fonts loaded and kept it folded (Chromium 10/10 loads folded, WebKit 3/10, Linux CI WebKit varied); 0.21.2 shows the full bar on 10/10 loads in both engines, with normal, delayed and blocked fonts."
+    },
+    {
+      "selector": ".controls",
+      "widths": [
+        1440
+      ],
+      "consumers": [
+        "mco-snowpack-explorer"
+      ],
+      "maxPixels": 1.0,
+      "why": "0.21.2: deterministic fold. mco-snowpack-explorer's full bar fits at 1440 (unfolded 54px, both engines), but 0.21.1 measured it before its fonts loaded and kept it folded (Chromium 10/10 loads folded, WebKit 3/10, Linux CI WebKit varied); 0.21.2 shows the full bar on 10/10 loads in both engines, with normal, delayed and blocked fonts."
     }
   ]
 }

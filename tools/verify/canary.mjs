@@ -84,7 +84,10 @@ const OUT = resolve(opt('out', './canary-out'));
 // selectors at these widths are reported as expected, not as regressions.
 // [{ "selector": ".mco-panel", "widths": [390], "why": "0.9.0 touch targets" }]
 const ACCEPT = opt('accept') ? JSON.parse(readFileSync(resolve(opt('accept')), 'utf8')).accept || [] : [];
-const accepted = (sel, width) => ACCEPT.find((x) => x.selector === sel && (!x.widths || x.widths.includes(width)));
+// An entry may name `consumers` (repo directory names) to accept a move in
+// those consumers only (0.21.2); without it, it applies to every consumer.
+const accepted = (sel, width, name) => ACCEPT.find((x) => x.selector === sel && (!x.widths || x.widths.includes(width)) &&
+  (!x.consumers || x.consumers.includes(name)));
 mkdirSync(OUT, { recursive: true });
 
 const pw = await load('playwright');
@@ -339,7 +342,7 @@ for (const c of consumers) {
         if (!k.geom[sel]) gone.push(`${sel} missing`);
         else if (differs(b.geom[sel], k.geom[sel])) {
           const msg = `${sel} ${b.geom[sel].join(',')}→${k.geom[sel].join(',')}`;
-          const ok = accepted(sel, width);
+          const ok = accepted(sel, width, c.name);
           if (ok) { expected.push(`${msg} (${ok.why})`); pxAllow = Math.max(pxAllow, ok.maxPixels || 0); } else moved.push(msg);
         }
       }
