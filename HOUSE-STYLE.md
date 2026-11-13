@@ -430,7 +430,11 @@ open from a no-detail state, replace while it stays open; §4).
   panels, the ☰ drawer and the station panel clear, and it turns on
   `html.mco-autolift`. It stays live under the station panel and beside an
   open drawer, as the top bar does. Status, maintenance and UMRB have no
-  time controls and no control bar.
+  time controls and no control bar. **In the rail it never covers the top
+  group** (badge, ☰, search): short of room its readouts go first, then it
+  scrolls in its own area with shadows at the scrolled edges, so no app
+  hand-tunes it. Write a readout in parts (`<span>`s) and it breaks between
+  them, never inside one. The end-docked panel stops above it too.
 - **Autolift** (`html.mco-autolift`, opt-in, on wherever there is a control
   bar): the toast and MapLibre's bottom corners clear `--sheet-h +
   --tabbar-h`. **An app panel that shares a bottom corner (a legend) takes
@@ -443,7 +447,13 @@ open from a no-detail state, replace while it stays open; §4).
 - **Legends on a phone go in the drawer** (1.0.0, `MCO.initLegendDrawer`):
   on compact the floating `.mco-panel` moves into a "Legend" group at the
   end of the ☰ drawer, as mesonet-explorer's does, and a small "Legend"
-  button takes its corner on the map, opening the drawer at that group.
+  button takes its corner on the map, opening the drawer at that group. The
+  button keeps clear of the map's bottom-corner controls (the attribution,
+  a scale) as they appear and wrap, so no app positions it.
+- **A dialog opened from inside a drawer or panel works** (1.0.0): while a
+  modal `<dialog>` is open the overlay lifts its inert roots around it, and
+  focus returns into the drawer when it closes. Don't close the drawer
+  first just to open a dialog.
   Above compact it floats as before, under the 0.21.2 height cap.
 - **`MCO.keyboard`** (1.0.0, after mesonet-dashboard): started by
   `MCO.ready()`, it publishes `--kb-inset`, `--vv-h` and `.kb-open` from the

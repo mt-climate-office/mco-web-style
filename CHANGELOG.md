@@ -77,6 +77,43 @@ is in MIGRATING.md, *0.21.2 → 1.0.0*.
     mesonet-explorer's `--attrib-lift-max` override is no longer needed.
 11. **The rail drawer undoes the bar's stamp sheds** (`.refresh-word`,
     `.refresh-status`) as the folded drawer already did.
+12. **The end-docked panel stops above a docked control bar** too
+    (`.mco-sheet { bottom: var(--tabbar-h) }` at every width; a tablet whose
+    bar folds docks the control bar under it).
+13. **The rail badge is 44 px on touch**, as ☰ and search are.
+14. **`MCO.keyboard` also starts at load**, not only in `MCO.ready()`.
+
+### Fixed in the release candidate (review of the seven consumer PRs)
+- **The panel ran under the control bar above compact.** At 768×1024 the
+  end-docked panel ended at 1024 while the control bar covered 966–1024
+  (mesonet-photo-explorer); it now ends at 966.
+- **The Legend button covered the attribution** on portrait phones: its
+  corner was taken once, before MapLibre's attribution existed (18 px over
+  it at 390×844 in maintenance and umrb). It now tracks the map's
+  bottom-corner controls (attribution, scale, anything MapLibre or an app
+  puts there) as they appear, wrap, resize or lift, and its insets don't
+  animate. It lifts with autolift over a control bar.
+- **A search list ran under the keyboard** in short landscape (the room had
+  a 96 px floor: 194 px vs a 162 px keyboard line at 750×342). The list now
+  keeps to the room under its field, at least one 44 px option, and opens
+  upward (`.is-above`) when there is less room under the field than over
+  it. A keyboard that opened before the app called `MCO.ready()` went
+  unseen; `MCO.keyboard` now starts at load.
+- **The rail's control bar could cover its top group** (photos at 568×320:
+  the search button half under a 192 px bar). Core measures the top group
+  into `--rail-top-h`; the bar takes at most the rest of the screen. Short
+  of room the readouts go first (`.is-tight`, visually hidden, still read),
+  then the bar scrolls (`.is-scroll`, with shadows at the scrolled edges).
+  The bar's content sits at its foot with `safe` alignment, so its first
+  control never scrolls out of reach. A readout written in parts (spans)
+  breaks between them, never inside one, and stacks them in the rail in
+  the UI face (from mesonet-photo-explorer).
+- **A dialog opened from inside the ☰ drawer was inert** (snowpack's
+  "About this data" in the legend, once the legend moved into the drawer):
+  the drawer had inerted the page around it, dialog included. While a modal
+  `<dialog>` is open, the overlay's inert roots on its ancestor chain are
+  lifted (a modal dialog inerts the rest itself), focus goes into it, and
+  they return when it closes; focus goes back into the drawer.
 
 ### Added
 - **The bottom control bar** (`.mco-controlbar`, `MCO.initControlBar`):
@@ -162,6 +199,17 @@ control bar).
   under a keyboard; the drawer at 390 holding the desktop bar's control
   labels in the same order (a segmented group counts by its name, matching
   its fallback select).
+- Round 2 probes (both engines): the end-docked panel against the control
+  bar at 768×1024; the Legend button against the map's bottom-corner
+  controls at 320×568, 390×844 and 844×390; a search list above a 180 /
+  260 px keyboard at 750×342, 844×390 and 320×568; the rail with 2-, 3- and
+  4-button control bars at 568×320, 667×375, 750×342 and 844×390 (top group
+  whole, hittable, above the bar; every control shown or reachable by
+  scrolling); the rail's 44 px badge; a dialog opened from the drawer.
+  family-audit: the same panel, Legend-button and rail top-group checks on
+  every consumer; the label check skips `.mco-legend-slot` and reads a
+  declared `sidebar` (explorer) at 1440; the control-bar check runs only
+  where a bar is displayed.
 - `tools/conformance.mjs`: a close button in `.mco-sheet-head`, no grip /
   `data-peek` / `open('peek')`, no left-rail app CSS.
 - `tools/check-tokens.mjs`: the three new metrics.

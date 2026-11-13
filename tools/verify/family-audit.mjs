@@ -29,7 +29,9 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 
 const SITES = {
-  explorer:    { url: 'https://mesonet.climate.umt.edu/explorer/',    station: 'station', map: true },
+  // sidebar: where the desktop controls live when not in the bar (the label
+  // consistency check reads it at 1440 instead of the bar, 1.0.0).
+  explorer:    { url: 'https://mesonet.climate.umt.edu/explorer/',    station: 'station', map: true, sidebar: '#sidebar' },
   // bar: not a map tool, but its navbar keeps the control-height rule (0.21.1);
   // the section track is the control (its links sit inside it, as .seg-btn do).
   dashboard:   { url: 'https://mesonet.climate.umt.edu/dash/next/',   station: 's',       map: false, bar: '.dash-sections' },
@@ -207,10 +209,15 @@ for (const [name, site] of Object.entries(SITES)) {
         if (!nav) return null;
         const nr = nav.getBoundingClientRect();
         const cb = document.querySelector('body > .mco-controlbar');
-        const btns = [...nav.querySelectorAll('.mco-rail button'), ...(cb ? cb.querySelectorAll('button') : [])]
+        const btns = [nav.querySelector(':scope > .logo-link'), ...nav.querySelectorAll('.mco-rail button'), ...(cb ? cb.querySelectorAll('button') : [])].filter(Boolean)
           .filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect())
           .map((q) => [Math.round(q.width), Math.round(q.height), Math.round(q.top), Math.round(q.bottom)]);
-        return { rail: !!window.MCO && MCO.viewport.isRail(), x: Math.round(nr.left), w: Math.round(nr.width),
+        // The top group (badge, ☰, search) whole, hittable, and above the control bar (1.0.0 round 2).
+        const cbTop = cb && cb.getClientRects().length ? cb.getBoundingClientRect().top : innerHeight;
+        const top = [nav.querySelector(':scope > .logo-link'), nav.querySelector('.mco-rail > :first-child'), nav.querySelector('.mco-rail > .mco-search-toggle')].filter(Boolean).map((e) => {
+          const q = e.getBoundingClientRect(), hit = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+          return { ok: !!hit && (hit === e || e.contains(hit)) && q.bottom <= cbTop + 0.5 && q.top >= 0, b: Math.round(q.bottom) }; });
+        return { top, cbTop: Math.round(cbTop), rail: !!window.MCO && MCO.viewport.isRail(), x: Math.round(nr.left), w: Math.round(nr.width),
           gap: Math.round(document.documentElement.clientWidth - nr.right), vh: innerHeight, btns,
           search: !!nav.querySelector('.mco-rail > .mco-search-toggle') && nav.querySelector('.mco-rail > .mco-search-toggle').getClientRects().length > 0 };
       });
@@ -218,6 +225,8 @@ for (const [name, site] of Object.entries(SITES)) {
       if (r) {
         check(name, v.id, 'rail buttons ≥ 44px and on screen', r.btns.length ? r.btns.every(([w, h, t, b]) => w >= 44 && h >= 44 && t >= 0 && b <= r.vh) : null, r.btns.map((b) => b.slice(0, 2).join('×')).join(' '));
         check(name, v.id, 'rail shows the search button', r.search);
+        check(name, v.id, 'rail top group (badge, ☰, search) whole, hittable, above the control bar', r.top.length >= 2 ? r.top.every((t) => t.ok) : null,
+          `bottoms=${r.top.map((t) => t.b)} bar=${r.cbTop}`);
         await page.locator('.mco-navbar .mco-rail > :first-child').first().click().catch(() => {});
         await page.waitForTimeout(400);
         const d = await page.evaluate(() => {
@@ -230,13 +239,26 @@ for (const [name, site] of Object.entries(SITES)) {
         await page.keyboard.press('Escape');
       }
     }
+    // 1.0.0 round 2: on compact, a Legend button (MCO.initLegendDrawer) never
+    // overlaps the map's bottom-corner controls (attribution, scale).
+    if (site.map && phone && valid) {
+      const lb = await page.evaluate(() => {
+        const b = document.querySelector('.mco-legend-btn');
+        if (!b || !b.getClientRects().length) return null;
+        const r = b.getBoundingClientRect();
+        return [...document.querySelectorAll('.maplibregl-ctrl-bottom-left > *, .maplibregl-ctrl-bottom-right > *')].map((c) => c.getBoundingClientRect())
+          .filter((c) => c.height && c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top).length;
+      });
+      if (lb !== null) check(name, v.id, 'Legend button clear of the map\'s bottom-corner controls', lb === 0, `${lb} overlap(s)`);
+    }
     // 1.0.0: the bottom control bar (where an app has one), on a portrait
     // phone: docked at the bottom, --tabbar-h = its height, hidden under a
     // keyboard (visualViewport.height reduced by 300px).
     if (site.map && phone && v.h > v.w && valid) {
       const b = await page.evaluate(() => {
         const cb = document.querySelector('body > .mco-controlbar');
-        if (!cb) return null;
+        // An app may hide its bar by design in a mode (explorer's Latest).
+        if (!cb || !cb.getClientRects().length) return null;
         const r = cb.getBoundingClientRect();
         return { bottom: Math.round(r.bottom), h: Math.round(r.height), vh: innerHeight,
           tabbar: getComputedStyle(document.documentElement).getPropertyValue('--tabbar-h').trim() };
@@ -267,8 +289,9 @@ for (const [name, site] of Object.entries(SITES)) {
         await page.locator('.mco-navbar .mco-rail > :first-child').first().click().catch(() => {});
         await page.waitForTimeout(400);
       }
-      const labels = await page.evaluate(() => {
-        const dr = document.querySelector('.mco-nav-drawer');
+      const labels = await page.evaluate((side) => {
+        const dr = (side && document.querySelector(side) && document.querySelector(side).getClientRects().length && innerWidth > 1000
+          ? document.querySelector(side) : null) || document.querySelector('.mco-nav-drawer');
         if (!dr) return null;
         const vis = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
         const nameOf = (el) => (el.getAttribute('aria-label') || (el.labels && el.labels[0] && el.labels[0].textContent) ||
@@ -279,6 +302,9 @@ for (const [name, site] of Object.entries(SITES)) {
           (g.getAttribute('aria-labelledby') || '').split(' ').map((id) => document.getElementById(id)?.textContent || '').join(' ') || '').replace(/\s+/g, ' ').trim();
         const out = [];
         for (const el of dr.querySelectorAll('button, a[href], select, input:not([type=hidden])')) {
+          // The legend group MCO.initLegendDrawer adds on a phone is the map's
+          // legend, not the bar's controls (1.0.0 round 2).
+          if (el.closest('.mco-legend-slot')) continue;
           const g = el.closest('.seg-btns');
           if (!(g ? vis(g) : vis(el))) continue;
           if (!g && el.type === 'radio') continue;
@@ -286,7 +312,7 @@ for (const [name, site] of Object.entries(SITES)) {
           if (n && out[out.length - 1] !== n) out.push(n);
         }
         return out;
-      });
+      }, site.sidebar || null);
       (results[name].labels ??= {})[v.id] = labels;
       if (v.id === 'm-dark') await page.keyboard.press('Escape');
     }
@@ -405,10 +431,14 @@ for (const [name, site] of Object.entries(SITES)) {
         return { compact: !!window.MCO && MCO.viewport.isCompact(), rail, state: sh.dataset.state,
           rect: [sr.left, sr.top, sr.right, sr.bottom].map(Math.round),
           want: [0, rail ? 0 : Math.round(nr.bottom), rail ? Math.round(nr.left) : document.documentElement.clientWidth, cr && !rail ? Math.round(cr.top) : innerHeight],
+          barTop: cr && !rail ? Math.round(cr.top) : null,
           navInert: !!nav.closest('[inert]'), grip: !!sh.querySelector('.mco-sheet-grip') && sh.querySelector('.mco-sheet-grip').getClientRects().length > 0,
           close: xr ? [Math.round(xr.width), Math.round(xr.height), Math.round(sr.right - xr.right), Math.round(xr.top - sr.top)] : null,
           title: !!t && (!xr || t.getBoundingClientRect().right <= xr.left + 1) };
       });
+      if (!s.compact && s.barTop != null) {
+        check(name, v.id, 'end-docked panel ends at the control bar', Math.abs(s.rect[3] - s.barTop) <= 1, `panel bottom=${s.rect[3]} bar top=${s.barTop}`);
+      }
       if (s.compact) {
         check(name, v.id, 'station panel = viewport less the bar(s), one state', s.rect.every((n, i) => Math.abs(n - s.want[i]) <= 1) && s.state !== 'peek',
           `rect=${s.rect} want=${s.want} state=${s.state}`);

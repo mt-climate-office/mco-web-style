@@ -721,6 +721,19 @@ over the attribution). Delete the `--attrib-lift-max` rule in `index.html`
 (the `html.mco-autolift #map .maplibregl-ctrl-bottom-right` override) and
 the ResizeObserver that publishes it in `app.js`.
 
+### Step 8b. Overrides 1.0.0 now covers (delete them)
+
+- photos: the readout `kit-override`s (`#rail-readout { white-space:
+  normal }` and its spans, the rail readout font / `display: block` spans,
+  `#controlbar { justify-content: safe flex-end }`). Keep the readout's
+  parts as `<span>`s.
+- snowpack: `#detail-sheet { bottom: var(--tabbar-h) }`, and closing the
+  drawer before the legend's "About this data" dialog opens.
+- status: `#map-container > .mco-legend-btn { bottom: var(--legend-bottom) !important }`.
+- explorer: hand-dropping a stepper from the rail in Hourly; both steppers
+  can sit in the control bar (readouts drop, then it scrolls).
+- Any app rule sizing the rail's badge.
+
 ### Step 9. Verify
 
 - The repo's own suite, and from the kit checkout:

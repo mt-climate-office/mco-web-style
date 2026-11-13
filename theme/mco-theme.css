@@ -1267,13 +1267,16 @@ a.nav-btn { text-decoration: none; }
    the map controls. */
 .mco-sheet {
   position: fixed; z-index: var(--z-detail);
-  top: var(--sheet-top, var(--chrome-h, 0px)); bottom: 0; right: 0;
+  /* Above the bottom control bar wherever it is docked (1.0.0): a folded
+     tablet bar docks it under an end-docked panel too. */
+  top: var(--sheet-top, var(--chrome-h, 0px)); bottom: var(--tabbar-h, 0px); right: 0;
   width: min(var(--sheet-w, 360px), 40vw);
   display: flex; flex-direction: column;
   background: var(--bg-surface);
   border-left: 1px solid var(--border);
   box-shadow: var(--shadow);
-  padding-bottom: env(safe-area-inset-bottom);
+  /* The control bar under it already clears the home indicator. */
+  padding-bottom: max(0px, env(safe-area-inset-bottom) - var(--tabbar-h, 0px));
   transform: none;
   transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
 }
@@ -1300,8 +1303,6 @@ a.nav-btn { text-decoration: none; }
   top: var(--sheet-top, var(--chrome-h, 0px)); bottom: var(--tabbar-h, 0px);
   left: 0; right: var(--rail-inset, 0px); width: auto;
   border-left: 0; border-top: 1px solid var(--border);
-  /* The control bar under it already clears the home indicator. */
-  padding-bottom: max(0px, env(safe-area-inset-bottom) - var(--tabbar-h, 0px));
 }
 .is-compact .mco-sheet.is-entering, .is-compact .mco-sheet.is-leaving { transform: translateY(100%); }
 .is-compact .mco-sheet-head { padding-left: max(var(--space-4), env(safe-area-inset-left)); }
@@ -1553,15 +1554,36 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
     display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.35rem;
     position: fixed; left: auto; right: 0; bottom: 0; top: auto;
     width: calc(var(--rail-w, 56px) + env(safe-area-inset-right));
-    max-height: 60dvh; overflow-y: auto; scrollbar-width: none;
+    /* Never over the rail's top group (badge, ☰, search): core measures it
+       into --rail-top-h. What doesn't fit scrolls here (.is-scroll). */
+    max-height: calc(100dvh - var(--rail-top-h, 9.5rem)); overflow-y: auto; scrollbar-width: none;
+    justify-content: safe flex-end;
     padding: 0.35rem max(6px, env(safe-area-inset-right)) max(0.4rem, env(safe-area-inset-bottom)) 6px;
     border-top: 0; border-left: 1px solid var(--border); box-shadow: none;
   }
-  :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .nav-btn { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
-  :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .mco-controlbar-readout {
-    max-width: 100%; text-align: center; white-space: normal; overflow-wrap: anywhere;
-    font-size: var(--fs-xs); line-height: var(--lh-tight);
+  /* Short of room the readouts go first (visually: still read), then the
+     column scrolls, with shadows at the scrolled edges as the affordance. */
+  :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar.is-tight .mco-controlbar-readout {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
   }
+  :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar.is-scroll {
+    justify-content: flex-start;
+    background:
+      linear-gradient(var(--bg-surface) 40%, transparent) top / 100% 20px no-repeat local,
+      linear-gradient(transparent, var(--bg-surface) 60%) bottom / 100% 20px no-repeat local,
+      radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--text-primary) 45%, transparent), transparent) top / 100% 10px no-repeat scroll,
+      radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--text-primary) 45%, transparent), transparent) bottom / 100% 10px no-repeat scroll,
+      var(--bg-surface);
+  }
+  :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .nav-btn { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
+  /* In the 44px column a readout stacks its parts (spans), each whole, in
+     the UI face (mono splits "12:00 PM"); from mesonet-photo-explorer. */
+  :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .mco-controlbar-readout {
+    max-width: 100%; text-align: center; white-space: normal; overflow-wrap: normal;
+    font: var(--fw-medium) 0.66rem/1.25 var(--font-ui); color: var(--text-secondary);
+  }
+  :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .mco-controlbar-readout > span { display: block; }
 }
 /* The drawer slides in from the right in both modes. */
 @starting-style {
@@ -1571,6 +1593,8 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
 @media (max-height: 560px) and (orientation: landscape) and (hover: none) {
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] .mco-rail .nav-btn,
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .nav-btn { width: 44px; min-width: 44px; min-height: 44px; }
+  /* The badge matches (1.0.0): one 44px column. */
+  :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] > .logo-link .logo-img { width: 44px; height: 44px; }
 }
 
 /* Compact nav drawer (0.21.0) — opt-in: .mco-navbar[data-rail="compact"] +
@@ -1718,6 +1742,11 @@ body:has(> .mco-navbar[data-rail="compact"].is-folded) > .mco-controlbar { displ
   font-family: var(--font-mono); font-size: var(--fs-md); font-variant-numeric: tabular-nums;
   color: var(--text-primary); text-align: center; white-space: nowrap; min-width: 0;
 }
+/* A readout in parts ("Nov 12," "2026," "12:00 PM" as spans) may break
+   between them, never inside one, so a long one fits beside four buttons
+   at 320px (from mesonet-photo-explorer). */
+.mco-controlbar-readout:has(> span) { white-space: normal; }
+.mco-controlbar-readout > span { white-space: nowrap; }
 @media (hover: none) {
   .mco-controlbar .nav-btn, .mco-controlbar .mco-chip { min-height: 44px; }
   .mco-controlbar .nav-btn.mco-step, .mco-controlbar .nav-btn.icon-only { min-width: 44px; }
@@ -1731,12 +1760,17 @@ body:has(> .mco-navbar[data-rail="compact"].is-folded) > .mco-controlbar { displ
    keyboard keeps to the room above it (--list-room, measured by core; the
    visible height as a fallback), so every option can be reached. */
 .kb-open .mco-search-list { max-height: min(340px, var(--list-room, calc(var(--vv-h, 100dvh) / 2))); }
+/* Too little room under the field and more over it: the list opens upward. */
+.kb-open .mco-search-list.is-above { top: auto; bottom: calc(100% + 4px); }
 
 /* Legend in the drawer (1.0.0) — MCO.initLegendDrawer. On compact the
    floating legend moves into a "Legend" group in the ☰ drawer and loses its
    glass; a small "Legend" button holds its corner on the map. */
 .mco-legend-btn {
   position: absolute; z-index: var(--z-map-panel);
+  /* Core places it (it steps over the map's bottom-corner controls): its
+     insets never animate, or a measure reads it mid-move. */
+  transition-property: background-color, border-color, color, translate;
   background: var(--glass);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--shadow);

@@ -307,13 +307,25 @@
     var inset = Math.round(layoutHeight - vvHeight - vvOffsetTop);
     return inset >= KEYBOARD_MIN_PX ? inset : 0;
   }
-  // A search list open while the keyboard is up gets the room left between
-  // its top and the keyboard (--list-room; mco-theme.css under .kb-open).
+  // A search list open while the keyboard is up keeps to the room between
+  // its field and the keyboard line (--list-room; mco-theme.css under
+  // .kb-open), never under the keyboard. With less than one option's room
+  // there (44px + padding) and more over the field, it opens upward
+  // (.is-above) into that room instead. At least one 44px option shows.
+  var LIST_MIN = 52;
   function _sizeList(list) {
     var vv = window.visualViewport;
-    if (!vv || !_kbOpen || list.hidden) { list.style.removeProperty('--list-room'); return; }
-    var room = vv.offsetTop + vv.height - list.getBoundingClientRect().top - 8;
-    list.style.setProperty('--list-room', Math.max(96, Math.round(room)) + 'px');
+    if (!vv || !_kbOpen || list.hidden) {
+      list.style.removeProperty('--list-room');
+      list.classList.remove('is-above');
+      return;
+    }
+    var field = (list.parentElement || list).getBoundingClientRect();
+    var below = vv.offsetTop + vv.height - field.bottom - 4 - 8;
+    var above = field.top - vv.offsetTop - 4 - 8;
+    var up = below < LIST_MIN && above > below;
+    list.classList.toggle('is-above', up);
+    list.style.setProperty('--list-room', Math.max(44, Math.floor(up ? above : below)) + 'px');
   }
   function _kbUpdate() {
     var vv = window.visualViewport;
@@ -356,6 +368,10 @@
     isOpen: function () { return _kbOpen; },
     inset: function () { return Math.max(0, _kbInset); },
   };
+  // Started at load as well as by MCO.ready() (1.0.0 round 2): an app that
+  // calls ready() after its data arrives left a keyboard opened before that
+  // unseen, and a search list took its no-keyboard height.
+  MCO.keyboard.start();
 
   /* ── Live-region plumbing (0.8.0) ──────────────────────────────────────────
      Two defects every hand-made region shared (found by mesonet-dashboard):
@@ -1292,6 +1308,40 @@
   MCO.overlay.isBlocking = function () {
     return _blocking > 0 || !!document.querySelector('dialog[open]');
   };
+  /* A modal <dialog> opened from inside an open drawer or panel (1.0.0
+     round 2): the overlay had made the rest of the page inert, the dialog
+     included, so it opened unusable (mco-snowpack-explorer's "About this
+     data" in the legend, once the legend lived in the ☰ drawer). A modal
+     dialog makes everything outside it inert itself, so while one is open
+     the overlay's inert roots on its ancestor chain are lifted, and put
+     back when it closes. Focus goes into the dialog (its close button, as
+     MCO.initInfoModal does), and the browser returns it to the opener in
+     the drawer on close. */
+  var _dlgLifted = new Map();   // dialog -> [roots lifted for it]
+  function _syncDialogs() {
+    Array.prototype.forEach.call(document.querySelectorAll('dialog'), function (d) {
+      if (d.open && !_dlgLifted.has(d)) {
+        var lifted = [];
+        for (var n = d; n && n !== document.documentElement; n = n.parentElement) {
+          if (_inertCount.has(n) && n.inert) { n.inert = false; lifted.push(n); }
+        }
+        if (!lifted.length) return;
+        _dlgLifted.set(d, lifted);
+        if (!d.contains(document.activeElement)) {
+          var t = d.querySelector('[autofocus], .modal-close, [data-close-modal]') || d;
+          if (t === d && !d.hasAttribute('tabindex')) d.tabIndex = -1;
+          t.focus();
+        }
+      } else if (!d.open && _dlgLifted.has(d)) {
+        _dlgLifted.get(d).forEach(function (n) { if (_inertCount.has(n)) n.inert = true; });
+        _dlgLifted.delete(d);
+      }
+    });
+  }
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver(_syncDialogs).observe(document.documentElement,
+      { subtree: true, attributes: true, attributeFilter: ['open'] });
+  }
   // The chrome that stays live over a phone panel (1.0.0): the top bar and
   // the bottom control bar.
   function _chrome() {
@@ -1765,8 +1815,38 @@
     if (!bar || bar._mcoControlBar) return bar && bar._mcoControlBar;
     document.documentElement.classList.add('mco-autolift');
     var raf = 0;
+    // In the rail (1.0.0 round 2): the control bar never covers the rail's
+    // top group. --rail-top-h is what that group needs (badge, ☰, search
+    // and any hot controls, at full size); the bar's max-height is the rest
+    // of the screen. Short of room, the readouts go first (.is-tight,
+    // visually hidden, still read), then the bar scrolls (.is-scroll, with
+    // edge shadows as the affordance).
+    function railTop() {
+      var nav = document.querySelector('body > .mco-navbar[data-rail]');
+      if (!nav || !_railShown) return 0;
+      var cs = getComputedStyle(nav), rail = nav.querySelector('.mco-rail');
+      var logo = nav.querySelector(':scope > .logo-link');
+      var h = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0), n = 0;
+      if (logo && logo.getClientRects().length) { h += logo.offsetHeight; n++; }
+      if (rail && rail.getClientRects().length) { h += rail.scrollHeight; n++; }
+      return Math.ceil(h + (parseFloat(cs.rowGap) || 0) * Math.max(0, n - 1));
+    }
+    function fit() {
+      var top = railTop();
+      if (!top) {
+        bar.classList.remove('is-tight', 'is-scroll');
+        document.documentElement.style.removeProperty('--rail-top-h');
+        return;
+      }
+      document.documentElement.style.setProperty('--rail-top-h', top + 'px');
+      var room = window.innerHeight - top;
+      bar.classList.remove('is-tight', 'is-scroll');
+      if (bar.scrollHeight > room) bar.classList.add('is-tight');
+      if (bar.scrollHeight > room) bar.classList.add('is-scroll');
+    }
     function measure() {
       raf = 0;
+      fit();
       var r = bar.getBoundingClientRect();
       var shown = r.height > 0 && r.width > 0;
       var inRail = shown && r.height > r.width;   // a column at the right edge
@@ -1844,7 +1924,8 @@
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
         '<path d="M9 6h11M9 12h11M9 18h11"/><rect x="3" y="4.5" width="3" height="3" rx="0.5"/><rect x="3" y="10.5" width="3" height="3" rx="0.5"/><rect x="3" y="16.5" width="3" height="3" rx="0.5"/></svg>';
       btn.appendChild(document.createTextNode(label));
-      if (panel.hasAttribute('data-autolift')) btn.setAttribute('data-autolift', '');
+      // Lifts with the map's corners over a bottom control bar (autolift).
+      btn.setAttribute('data-autolift', '');
       home.parent.insertBefore(btn, panel);
     }
     if (!drawer.id) drawer.id = 'mco-nav-drawer-' + (++_legendSeq);
@@ -1860,18 +1941,66 @@
     // edge of its container. (Computed insets of a positioned box are all
     // used px values, so they can't say which side anchors it.) A panel
     // lifted by autolift is measured at rest.
+    var base = null;   // the panel's corner: {v, y, h, x}
     function corner() {
       if (!made.button) return;
       var host = panel.offsetParent;
-      btn.style.top = btn.style.right = btn.style.bottom = btn.style.left = '';
-      if (!host || !panel.offsetWidth) { btn.style.left = btn.style.bottom = '0.75rem'; return; }
+      if (!host || !panel.offsetWidth) { base = base || { v: 'bottom', y: 12, h: 'left', x: 12 }; track(); return; }
       var top = panel.offsetTop, left = panel.offsetLeft;
       var bottom = host.clientHeight - top - panel.offsetHeight;
       var right = host.clientWidth - left - panel.offsetWidth;
-      if (bottom <= top) btn.style.bottom = Math.max(0, Math.round(bottom)) + 'px';
-      else btn.style.top = Math.max(0, Math.round(top)) + 'px';
-      if (left <= right) btn.style.left = Math.max(0, Math.round(left)) + 'px';
-      else btn.style.right = Math.max(0, Math.round(right)) + 'px';
+      base = { v: bottom <= top ? 'bottom' : 'top', y: Math.max(0, Math.round(Math.min(bottom, top))),
+        h: left <= right ? 'left' : 'right', x: Math.max(0, Math.round(Math.min(left, right))) };
+      track();
+    }
+    // Keep clear of the map's own bottom-corner controls (1.0.0 round 2):
+    // the attribution, a scale, whatever MapLibre or the app puts in a
+    // .maplibregl-ctrl-bottom-* corner, as they appear, wrap or resize, and
+    // as autolift moves them. Measured live, so a corner lifted over the
+    // control bar and the button lifted with it compare in place.
+    var trackRaf = 0, trackTid = 0;
+    function track() {
+      cancelAnimationFrame(trackRaf); clearTimeout(trackTid);
+      trackRaf = trackTid = 0;
+      if (!made.button || !base) return;
+      btn.style.top = btn.style.right = btn.style.bottom = btn.style.left = '';
+      btn.style[base.h] = base.x + 'px';
+      btn.style[base.v] = base.y + 'px';
+      if (btn.hidden || base.v !== 'bottom' || !btn.offsetParent) return;
+      var host = btn.offsetParent, br = btn.getBoundingClientRect(), push = 0;
+      Array.prototype.forEach.call(host.querySelectorAll('.maplibregl-ctrl-bottom-left > *, .maplibregl-ctrl-bottom-right > *'), function (c) {
+        var cr = c.getBoundingClientRect();
+        if (!cr.height || cr.right <= br.left || cr.left >= br.right) return;
+        if (br.bottom > cr.top - 8 && br.top < cr.bottom) push = Math.max(push, br.bottom - cr.top + 8);
+      });
+      if (push) btn.style.bottom = Math.round(base.y + push) + 'px';
+    }
+    // A frame, backed by a timer: WebKit runs no frames while a page loads.
+    function retrack() {
+      if (trackRaf || trackTid) return;
+      trackRaf = requestAnimationFrame(track);
+      trackTid = setTimeout(track, 100);
+    }
+    var trackRO = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(retrack) : null;
+    var watched = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+    function watchCorners() {
+      var host = btn.parentElement;
+      if (!host || !trackRO) return;
+      Array.prototype.forEach.call(host.querySelectorAll('.maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right'), function (c) {
+        if (watched && watched.has(c)) return;
+        if (watched) watched.add(c);
+        trackRO.observe(c);
+      });
+    }
+    var trackMO = typeof MutationObserver !== 'undefined' ? new MutationObserver(function () { watchCorners(); retrack(); }) : null;
+    if (made.button && trackMO) {
+      // Corners and their controls arrive after the map loads.
+      trackMO.observe(btn.parentElement, { childList: true, subtree: true });
+      btn.parentElement.addEventListener('transitionend', retrack);
+      window.addEventListener('resize', retrack);
+      window.addEventListener('load', retrack);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(retrack);
+      watchCorners();
     }
     function place() {
       var want = MCO.viewport.isCompact();
@@ -1888,6 +2017,7 @@
       inDrawer = want;
       btn.hidden = !want;
       slot.hidden = !want;
+      retrack();
     }
     function open() {
       if (!inDrawer) return;
@@ -1908,6 +2038,9 @@
       place: place,
       destroy: function () {
         unsub();
+        if (trackMO) trackMO.disconnect();
+        if (trackRO) trackRO.disconnect();
+        window.removeEventListener('resize', retrack);
         btn.removeEventListener('click', open);
         if (inDrawer) {
           var next = home.next && home.next.parentNode === home.parent ? home.next : null;

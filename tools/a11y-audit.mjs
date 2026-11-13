@@ -461,6 +461,105 @@ const port = server.address().port;
       probe('v1 arrows: ?kbd=off turns them off (no step, no aria-keyshortcuts)', o0 === o1 && !ok, JSON.stringify({ o0, o1, ok }));
       await off.ctx.close();
     }
+
+    // ── Round 2 (1.0.0 RC review): the defects the consumer PRs found. ──
+    // R1. Above compact a docked control bar sits under the end-docked panel.
+    {
+      const { ctx, p } = await open(768, 1024);
+      await p.evaluate(() => { scrollTo(0, 0); document.getElementById('btn-sheet').click(); });
+      await p.waitForTimeout(400);
+      const r = await p.evaluate(() => { const s = document.getElementById('demo-sheet').getBoundingClientRect(), c = document.querySelector('.mco-controlbar').getBoundingClientRect();
+        return { compact: MCO.viewport.isCompact(), sheetBottom: Math.round(s.bottom), cbarTop: Math.round(c.top), cbarH: Math.round(c.height),
+          live: !document.querySelector('.mco-controlbar').closest('[inert]') }; });
+      probe(`r2 768×1024: the end-docked panel ends at the control bar (${r.sheetBottom} vs ${r.cbarTop}), the bar live`,
+        !r.compact && r.cbarH > 0 && Math.abs(r.sheetBottom - r.cbarTop) <= 1 && r.live, JSON.stringify(r));
+      await ctx.close();
+    }
+    // R2. The Legend button never overlaps the map's bottom-corner controls.
+    for (const [w, h] of [[320, 568], [390, 844], [844, 390]]) {
+      const { ctx, p } = await open(w, h, { wait: 2500 });
+      await p.evaluate(() => document.getElementById('map-wrap').scrollIntoView({ block: 'center' }));
+      await p.waitForFunction(() => !!document.querySelector('#map .maplibregl-ctrl-attrib'), null, { timeout: 20000 }).catch(() => {});
+      await p.waitForTimeout(600);
+      const r = await p.evaluate(() => {
+        const b = document.querySelector('.mco-legend-btn').getBoundingClientRect();
+        const hits = [...document.querySelectorAll('#map .maplibregl-ctrl-bottom-left > *, #map .maplibregl-ctrl-bottom-right > *')].map((c) => c.getBoundingClientRect())
+          .filter((c) => c.height && c.left < b.right && c.right > b.left && c.top < b.bottom && c.bottom > b.top).length;
+        return { btn: [b.left, b.top, b.right, b.bottom].map(Math.round), hits, ctrls: document.querySelectorAll('#map .maplibregl-ctrl-bottom-right > *').length };
+      });
+      probe(`r2 ${w}×${h}: the Legend button clears the map's bottom-corner controls (${r.hits} overlaps)`, r.ctrls > 0 && r.hits === 0, JSON.stringify(r));
+      await ctx.close();
+    }
+    // R3. A search list never runs under the keyboard; one 44px option shows.
+    for (const [w, h, kb] of [[750, 342, 180], [844, 390, 180], [320, 568, 260]]) {
+      const { ctx, p } = await open(w, h);
+      await p.click('#btn-search-toggle'); await p.waitForTimeout(200);
+      await keyboard(p, kb);
+      await p.keyboard.type('a'); await p.waitForTimeout(300);
+      const r = await p.evaluate(() => { const l = document.getElementById('demo-search-list').getBoundingClientRect(); const o = document.querySelector('#demo-search-list .mco-search-option');
+        return { top: Math.round(l.top), bottom: Math.round(l.bottom), line: Math.round(visualViewport.offsetTop + visualViewport.height), h: Math.round(l.height), opt: o ? Math.round(o.getBoundingClientRect().height) : 0 }; });
+      probe(`r2 ${w}×${h}, ${kb}px keyboard: the search list ends above the keyboard line (${r.bottom} ≤ ${r.line}) and shows an option (${r.h}px)`,
+        r.bottom <= r.line && r.top >= 0 && r.h >= 44, JSON.stringify(r));
+      await ctx.close();
+    }
+    // R4. The rail never lets its control bar cover the top group, with 2, 3
+    //     and 4 control-bar buttons; what doesn't fit scrolls in the bar.
+    for (const [w, h] of [[568, 320], [667, 375], [750, 342], [844, 390]]) {
+      for (const n of [2, 3, 4]) {
+        const { ctx, p } = await open(w, h);
+        await p.evaluate((n) => {
+          const cb = document.querySelector('.mco-controlbar');
+          for (let i = 2; i < n; i++) {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'nav-btn mco-step'; b.setAttribute('aria-label', 'Probe ' + i); b.textContent = '·';
+            cb.appendChild(b);
+          }
+          window.dispatchEvent(new Event('resize'));
+        }, n);
+        await p.waitForTimeout(400);
+        const r = await p.evaluate(() => {
+          const nav = document.querySelector('.mco-navbar'), cb = document.querySelector('.mco-controlbar'), cr = cb.getBoundingClientRect();
+          const top = [nav.querySelector('.logo-link'), document.getElementById('btn-rail-menu'), document.getElementById('btn-search-toggle')].map((e) => {
+            const q = e.getBoundingClientRect(), hit = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+            return { b: Math.round(q.bottom), w: Math.round(q.width), h: Math.round(q.height), hit: !!hit && (hit === e || e.contains(hit)) }; });
+          const btns = [...cb.querySelectorAll('.nav-btn')].map((b) => b.getBoundingClientRect());
+          const allShown = btns.every((q) => q.top >= cr.top - 1 && q.bottom <= cr.bottom + 1);
+          return { top, cbarTop: Math.round(cr.top), cbarBottom: Math.round(cr.bottom), vh: innerHeight, scrolls: cb.scrollHeight > cb.clientHeight + 1,
+            cls: cb.className, allShown, btnH: btns.map((q) => Math.round(q.height)) };
+        });
+        const topOk = r.top.every((t) => t.hit && t.b <= r.cbarTop && t.w >= 44 && t.h >= 44);
+        const reach = r.allShown || (r.scrolls && /is-scroll/.test(r.cls));
+        probe(`r2 ${w}×${h}, ${n}-button control bar: rail top group whole and hittable (bottom ${Math.max(...r.top.map((t) => t.b))} ≤ bar ${r.cbarTop}), every control ${r.allShown ? 'shown' : 'reachable by scrolling'} (${r.cls.replace('mco-controlbar', '').trim() || 'fits'})`,
+          topOk && reach && r.cbarBottom === r.vh && r.btnH.every((x) => x >= 44), JSON.stringify(r));
+        await ctx.close();
+      }
+    }
+    // R5 is in the rail probe above (every rail item, the badge included, 44px);
+    // checked here on the badge alone, at both landscape sizes.
+    for (const [w, h] of [[750, 342], [844, 390]]) {
+      const { ctx, p } = await open(w, h);
+      const r = await p.evaluate(() => [...document.querySelectorAll('.mco-navbar > .logo-link, .mco-navbar .mco-rail > *')].filter((e) => e.getClientRects().length)
+        .map((e) => [Math.round(e.getBoundingClientRect().width), Math.round(e.getBoundingClientRect().height)]));
+      probe(`r2 ${w}×${h}: rail badge, ☰ and search all 44×44 (${r.map((x) => x.join('×')).join(' ')})`, r.length >= 3 && r.every(([a, b]) => a === 44 && b === 44), JSON.stringify(r));
+      await ctx.close();
+    }
+    // R6. A dialog opened from inside the open ☰ drawer is usable, and focus
+    //     comes back into the drawer when it closes.
+    for (const [w, h] of [[390, 844], [750, 342]]) {
+      const { ctx, p } = await open(w, h);
+      await p.evaluate(() => { const bt = document.createElement('button'); bt.type = 'button'; bt.id = 'probe-dlg'; bt.className = 'nav-btn'; bt.textContent = 'About (probe)';
+        document.getElementById('nav-drawer').appendChild(bt); bt.addEventListener('click', () => document.getElementById('info-modal').showModal()); });
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      await p.click('#probe-dlg'); await p.waitForTimeout(300);
+      const a = await p.evaluate(() => { const d = document.getElementById('info-modal'); return { open: d.open, inert: !!d.closest('[inert]'), focusIn: d.contains(document.activeElement) }; });
+      const x = await p.locator('#info-modal [data-close-modal]').boundingBox();
+      if (x) await p.mouse.click(x.x + x.width / 2, x.y + x.height / 2);
+      await p.waitForTimeout(300);
+      const b = await p.evaluate(() => ({ open: document.getElementById('info-modal').open, drawerOpen: document.getElementById('nav-drawer').classList.contains('is-open'),
+        focusInDrawer: document.getElementById('nav-drawer').contains(document.activeElement), mainInert: document.getElementById('main').inert }));
+      probe(`r2 ${w}×${h}: a dialog opened from the ☰ drawer is live (not inert, focus in it), its close button closes it, focus back in the drawer, the page still inert behind the drawer`,
+        a.open && !a.inert && a.focusIn && !b.open && b.drawerOpen && b.focusInDrawer && b.mainInert, JSON.stringify({ a, b }));
+      await ctx.close();
+    }
     await vb.close();
   }
 
