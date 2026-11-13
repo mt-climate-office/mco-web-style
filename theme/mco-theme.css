@@ -427,6 +427,23 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
   outline: 2px solid var(--accent-line); outline-offset: 2px;
 }
 
+/* Phone text fields at 16px (0.21.2). iOS Safari zooms the page into any
+   field whose text is under 16px when it takes focus, and the family's bar
+   and drawer fields run 0.78–0.85rem. Phones only: touch AND compact, the
+   COMPACT_MQ rule (≤ 640px wide or ≤ 560px tall). On a touch tablet or
+   laptop the wider fields would widen a full bar enough to fold it, so
+   above compact nothing changes. Checkboxes, radios and ranges have no
+   text and are left alone. Specificity (0,2,2): html:root plus the :is()
+   list's strongest argument outranks app rules up to two classes, such as
+   input[type="date"], select.time-select or .mode-select, which load later
+   inline. Don't shrink a field back under 16px on a phone. */
+@media (hover: none) and (max-width: 640px), (hover: none) and (max-height: 560px) {
+  html:root :is(input:not([type]), input[type="text"], input[type="search"], input[type="email"],
+    input[type="url"], input[type="tel"], input[type="password"], input[type="number"],
+    input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"],
+    input[type="week"], select, textarea) { font-size: 16px; }
+}
+
 /* Skip link (WCAG 2.4.1): first focusable element on the page, jumps past the
    chrome. Markup in snippets/skip-link.html. */
 .mco-skip-link {
@@ -1012,6 +1029,19 @@ a.nav-btn { text-decoration: none; }
   transition: max-height var(--transition), opacity var(--transition);
 }
 .mco-panel-body.is-collapsing { max-height: 0; opacity: 0; }
+/* Height cap (0.21.2, a stopgap until 1.0.0). Core caps a bottom-anchored
+   panel that would rise past the room over its map, so its head, with the
+   collapse toggle, can always be reached: the panel scrolls inside and the
+   head stays pinned on an opaque surface. Set only when it doesn't fit, so
+   a panel that fits looks exactly as before. */
+.mco-panel.is-capped {
+  max-height: var(--panel-max-h);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.mco-panel.is-capped > .mco-panel-head {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--bg-surface);
+}
 
 /* Legend rows (0.8.0) — click to show/hide a category, wired by
    MCO.initLegendToggles. aria-pressed is the styling source of truth (§5.7):
@@ -1434,6 +1464,9 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
    .mco-scrim (--z-map-panel) dims the page below the rail (--z-chrome-top). */
 .mco-rail { display: none; }
 .mco-nav-drawer { display: contents; }
+/* ☰ focuses the open drawer itself (0.21.2); it hugs the viewport edge, so
+   the ring goes inside. */
+.mco-nav-drawer:focus-visible { outline-offset: -2px; }
 @media (max-height: 560px) and (orientation: landscape) {
   body:has(> .mco-navbar[data-rail]) {
     --rail-w: 56px;
@@ -1569,7 +1602,11 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
 .mco-navbar[data-rail="compact"].is-folded > .nav-divider { display: none; }
 .mco-navbar[data-rail="compact"].is-folded .mco-rail { display: contents; }
 .mco-navbar[data-rail="compact"].is-folded .mco-rail > :first-child { order: 1; }
-.mco-navbar[data-rail="compact"].is-folded .mco-rail > .mco-search-toggle { margin-left: auto; }
+/* The search button shows wherever the bar folds, not only ≤640px (0.21.2):
+   above 640px the plain .mco-search-toggle rule hid it, so nothing took the
+   auto margin and ☰ sat mid-bar. Its field is in the closed drawer, and the
+   button opens the drawer on it (MCO.initNavRail's search option). */
+.mco-navbar[data-rail="compact"].is-folded .mco-rail > .mco-search-toggle { display: flex; margin-left: auto; }
 
 .mco-navbar[data-rail="compact"].is-folded .mco-nav-drawer {
   display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;

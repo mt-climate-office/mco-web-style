@@ -25,10 +25,10 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.21.1/theme/mco-theme.css"
-      integrity="sha384-5AYcUgLLXlsD3HOobKS/jj+F5/NGNGtLFcidyU/qaiRWYN3AwClJa42Y4KaZXajf" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.21.1/core/mco-core.js"
-        integrity="sha384-IVSuG2tnzj62YG4bFD5PxINjGy6kxD7pIoNKV6D4mK97+1D9Edp0dwFcVcXCxsJR" crossorigin="anonymous"></script>
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.21.2/theme/mco-theme.css"
+      integrity="sha384-6b+8YTXHtiLQOLwPSXvqmgnA4QlUZ87oGCr9kwLwAHCTV+oDPCkM0IK6mve/4BeY" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.21.2/core/mco-core.js"
+        integrity="sha384-xNdr9/kMYOXBLa6aHuU637Nln0S73l6QjvB9Ld7vqCvwcqZ6wzs69YziKejo8M3w" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -126,7 +126,7 @@ A consumer's unit tests (vitest, `node:test`) use the same pinned bytes the
 page loads, not a copy. The kit has no package, so:
 
 1. Fetch the pinned files once, for example
-   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.21.1/core/mco-core.js`
+   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@0.21.2/core/mco-core.js`
    and `…@0.19.0/photos/mco-photos.js`, into a cache directory, and check
    each against the `integrity` hash your `index.html` pins (sha384, base64)
    before using it. A mismatch fails the run.
@@ -179,11 +179,11 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v0.21.1
+## SRI hashes — v0.21.2
 
 ```
-theme/mco-theme.css      sha384-5AYcUgLLXlsD3HOobKS/jj+F5/NGNGtLFcidyU/qaiRWYN3AwClJa42Y4KaZXajf
-core/mco-core.js         sha384-IVSuG2tnzj62YG4bFD5PxINjGy6kxD7pIoNKV6D4mK97+1D9Edp0dwFcVcXCxsJR
+theme/mco-theme.css      sha384-6b+8YTXHtiLQOLwPSXvqmgnA4QlUZ87oGCr9kwLwAHCTV+oDPCkM0IK6mve/4BeY
+core/mco-core.js         sha384-xNdr9/kMYOXBLa6aHuU637Nln0S73l6QjvB9Ld7vqCvwcqZ6wzs69YziKejo8M3w
 map/mco-map.js           sha384-8ZLN6Xhnts1kIMbDa9M+H05sYgu770WLohBOrch1nTafMd+HEM7PlrP0e4fCoRb8
 map/cog-protocol.js      sha384-9yj+drZu0fzoorpjvVuopXW7He6R73EklvzwXBRNgQIvCIunOVzdJXi0oVhvM2BW
 palette/mco-palette.js   sha384-bMyfpU5iEKAQiHDJZLqmCMt3sTGm+HBi2GIY7I9xLyV+JYrbGgHOX9+/XVXy8CYV
