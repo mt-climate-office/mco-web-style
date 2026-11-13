@@ -493,6 +493,8 @@ const port = server.address().port;
     // R3. A search list never runs under the keyboard; one 44px option shows.
     for (const [w, h, kb] of [[750, 342, 180], [844, 390, 180], [320, 568, 260]]) {
       const { ctx, p } = await open(w, h);
+      // The counties arrive with the map overlays: type once they are there.
+      await p.waitForFunction(() => /loaded from/.test(document.getElementById('map-note')?.textContent || ''), null, { timeout: 30000 }).catch(() => {});
       await p.click('#btn-search-toggle'); await p.waitForTimeout(200);
       await keyboard(p, kb);
       await p.keyboard.type('a'); await p.waitForTimeout(300);
@@ -558,6 +560,25 @@ const port = server.address().port;
         focusInDrawer: document.getElementById('nav-drawer').contains(document.activeElement), mainInert: document.getElementById('main').inert }));
       probe(`r2 ${w}×${h}: a dialog opened from the ☰ drawer is live (not inert, focus in it), its close button closes it, focus back in the drawer, the page still inert behind the drawer`,
         a.open && !a.inert && a.focusIn && !b.open && b.drawerOpen && b.focusInDrawer && b.mainInert, JSON.stringify({ a, b }));
+      await ctx.close();
+    }
+    // R6b. A NON-modal dialog (show()) opened from the drawer leaves the
+    //      page inert behind the drawer: only a modal dialog lifts the roots.
+    for (const [w, h] of [[390, 844], [750, 342]]) {
+      const { ctx, p } = await open(w, h);
+      await p.evaluate(() => {
+        const d = document.createElement('dialog'); d.id = 'probe-nm'; d.setAttribute('aria-label', 'Probe non-modal');
+        d.innerHTML = '<button type="button" id="probe-nm-x">Close</button>'; document.body.appendChild(d);
+        const bt = document.createElement('button'); bt.type = 'button'; bt.id = 'probe-nm-open'; bt.className = 'nav-btn'; bt.textContent = 'Note (probe)';
+        document.getElementById('nav-drawer').appendChild(bt); bt.addEventListener('click', () => d.show());
+      });
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      await p.click('#probe-nm-open'); await p.waitForTimeout(300);
+      const r = await p.evaluate(() => { const d = document.getElementById('probe-nm');
+        return { open: d.open, modal: d.matches(':modal'), dialogInert: !!d.closest('[inert]'), mainInert: document.getElementById('main').inert,
+          drawerOpen: document.getElementById('nav-drawer').classList.contains('is-open') }; });
+      probe(`r3 ${w}×${h}: a non-modal dialog opened from the ☰ drawer leaves the page inert behind the drawer (main inert ${r.mainInert}, dialog not lifted)`,
+        r.open && !r.modal && r.mainInert && r.dialogInert && r.drawerOpen, JSON.stringify(r));
       await ctx.close();
     }
     await vb.close();

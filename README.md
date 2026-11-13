@@ -28,7 +28,7 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
       href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.0.0/theme/mco-theme.css"
       integrity="sha384-BXqc+uDId7rVls9Yd+C1DE4heDuFKEWjgZ+7Zuuy0rCI8RosEzpzTblWSHBFoQKf" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.0.0/core/mco-core.js"
-        integrity="sha384-9PuCbkhL6cl66e4aUUzISkTTHQXPHxdwxWvXTCjNOXqVAB2TaHjYZs+MC3jZxV9E" crossorigin="anonymous"></script>
+        integrity="sha384-2NpB+lMp7pAGZVQE6e1dNccUnR3F5fhheC/F9WnOUsb/XXcBc8BrQwqbcst+WEyy" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -183,7 +183,7 @@ CSS custom properties, kept in lockstep by CI.
 
 ```
 theme/mco-theme.css      sha384-BXqc+uDId7rVls9Yd+C1DE4heDuFKEWjgZ+7Zuuy0rCI8RosEzpzTblWSHBFoQKf
-core/mco-core.js         sha384-9PuCbkhL6cl66e4aUUzISkTTHQXPHxdwxWvXTCjNOXqVAB2TaHjYZs+MC3jZxV9E
+core/mco-core.js         sha384-2NpB+lMp7pAGZVQE6e1dNccUnR3F5fhheC/F9WnOUsb/XXcBc8BrQwqbcst+WEyy
 map/mco-map.js           sha384-8ZLN6Xhnts1kIMbDa9M+H05sYgu770WLohBOrch1nTafMd+HEM7PlrP0e4fCoRb8
 map/cog-protocol.js      sha384-9yj+drZu0fzoorpjvVuopXW7He6R73EklvzwXBRNgQIvCIunOVzdJXi0oVhvM2BW
 palette/mco-palette.js   sha384-bMyfpU5iEKAQiHDJZLqmCMt3sTGm+HBi2GIY7I9xLyV+JYrbGgHOX9+/XVXy8CYV

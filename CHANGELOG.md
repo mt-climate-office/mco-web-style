@@ -114,6 +114,9 @@ is in MIGRATING.md, *0.21.2 → 1.0.0*.
   `<dialog>` is open, the overlay's inert roots on its ancestor chain are
   lifted (a modal dialog inerts the rest itself), focus goes into it, and
   they return when it closes; focus goes back into the drawer.
+  Only a modal dialog (`:modal`, i.e. `showModal()`) lifts them: a
+  non-modal one (`show()`, an `open` attribute) leaves the page inert behind
+  the drawer, and an engine without `:modal` lifts nothing.
 
 ### Added
 - **The bottom control bar** (`.mco-controlbar`, `MCO.initControlBar`):
@@ -205,7 +208,9 @@ control bar).
   260 px keyboard at 750×342, 844×390 and 320×568; the rail with 2-, 3- and
   4-button control bars at 568×320, 667×375, 750×342 and 844×390 (top group
   whole, hittable, above the bar; every control shown or reachable by
-  scrolling); the rail's 44 px badge; a dialog opened from the drawer.
+  scrolling); the rail's 44 px badge; a modal dialog opened from the
+  drawer is live, and a non-modal one leaves the page inert. The search
+  list probe waits for the demo's counties before typing.
   family-audit: the same panel, Legend-button and rail top-group checks on
   every consumer; the label check skips `.mco-legend-slot`, reads a
   declared `sidebar` (explorer) at 1440 and counts a phone's hot controls

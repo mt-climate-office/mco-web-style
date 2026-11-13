@@ -1318,9 +1318,15 @@
      MCO.initInfoModal does), and the browser returns it to the opener in
      the drawer on close. */
   var _dlgLifted = new Map();   // dialog -> [roots lifted for it]
+  // Only a MODAL dialog (showModal) inerts the page itself; a non-modal one
+  // (show(), an open attribute) does not, so lifting roots for it would let
+  // the page behind a drawer go live. An engine without :modal lifts
+  // nothing (the behaviour before this fix). :modal is already true when the
+  // observer runs after showModal(), in Chromium and WebKit.
+  function _isModal(d) { try { return d.matches(':modal'); } catch (e) { return false; } }
   function _syncDialogs() {
     Array.prototype.forEach.call(document.querySelectorAll('dialog'), function (d) {
-      if (d.open && !_dlgLifted.has(d)) {
+      if (d.open && !_dlgLifted.has(d) && _isModal(d)) {
         var lifted = [];
         for (var n = d; n && n !== document.documentElement; n = n.parentElement) {
           if (_inertCount.has(n) && n.inert) { n.inert = false; lifted.push(n); }
