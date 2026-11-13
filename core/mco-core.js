@@ -1106,8 +1106,8 @@
      to the uncapped --overlay-bottom.
      A control group above it counts too (1.0.0): a MapLibre top corner
      (zoom, fit) in the same container that overlaps the element across is
-     a ceiling, so the attribution under top-right zoom stops 8px below the
-     zoom group instead of riding over it (mesonet-explorer carried an
+     a ceiling, so an attribution or panel under a zoom group on the same
+     side stops 8px below it instead of riding over it (mesonet-explorer carried an
      --attrib-lift-max override for exactly this). */
   var _LIFTED = '[data-autolift], .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right';
   var _CEILINGS = '.maplibregl-ctrl-top-left, .maplibregl-ctrl-top-right';
@@ -2574,7 +2574,9 @@
      this cap still guards every floating panel at every width.
      A bottom-anchored .mco-panel (a legend) grows upward, and one taller than
      its map pushed its own head, collapse toggle included, off the top of
-     the screen or under the bar, where nothing could close it. Core watches
+     the screen or under the bar, where nothing could close it. A MapLibre
+     control group above it on the same side (zoom, top-left since 1.0.0)
+     is a ceiling as well, so the legend never covers it. Core watches
      every .mco-panel present at load. When a bottom-anchored one would rise
      past the top of the room it has (its container's top, or the bottom of
      a top bar over it, whichever is lower, plus 8px),
@@ -2610,7 +2612,16 @@
       var br = bar.getBoundingClientRect();
       if (br.height < window.innerHeight / 2 && br.bottom > top) top = br.bottom;
     }
-    var bottom = panel.getBoundingClientRect().bottom;
+    // A MapLibre control group above it on the same side (zoom, top-left
+    // since 1.0.0) is a ceiling too: the legend stops under it.
+    var pr = panel.getBoundingClientRect();
+    Array.prototype.forEach.call((host || document).querySelectorAll(_CEILINGS), function (c) {
+      if (!c.firstElementChild) return;
+      var cr = c.getBoundingClientRect();
+      if (!cr.height || cr.right <= pr.left || cr.left >= pr.right || cr.bottom > pr.bottom) return;
+      if (cr.bottom > top) top = cr.bottom;
+    });
+    var bottom = pr.bottom;
     var room = Math.max(0, Math.floor(bottom - top - PANEL_GAP));
     var natural = panel.scrollHeight + panel.offsetHeight - panel.clientHeight;
     if (natural > room + 1) {
@@ -2644,6 +2655,16 @@
       ro.observe(panel);
       Array.prototype.forEach.call(panel.children, function (c) { ro.observe(c); });
       if (panel.offsetParent) ro.observe(panel.offsetParent);
+    }
+    // The map's control corners arrive after this runs (1.0.0): re-cap when
+    // they do.
+    if (typeof MutationObserver !== 'undefined' && panel.offsetParent) {
+      new MutationObserver(function (recs) {
+        for (var i = 0; i < recs.length; i++) {
+          var t = recs[i].target;
+          if (t.nodeType === 1 && /maplibregl-ctrl|maplibregl-control-container/.test(t.className)) { later(); return; }
+        }
+      }).observe(panel.offsetParent, { childList: true, subtree: true });
     }
   }
   Array.prototype.forEach.call(document.querySelectorAll('.mco-panel'), _watchPanel);

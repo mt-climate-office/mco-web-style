@@ -873,9 +873,13 @@ a.nav-btn { text-decoration: none; }
 .mco-notice[data-tone="danger"]  { --notice-edge: var(--danger);  --notice-tone: var(--danger);  background: var(--danger-fill);  color: var(--text-on-danger); }
 .mco-notice[data-tone="warning"] { --notice-edge: var(--warning); --notice-tone: var(--warning); background: var(--warning-fill); color: var(--text-on-warning); }
 .mco-notice[data-tone="success"] { --notice-edge: var(--success); --notice-tone: var(--success); background: var(--success-fill); color: var(--text-on-success); }
+/* Over the map it keeps clear of both top corners' control columns (zoom,
+   top left since 1.0.0, or top right where an app keeps it): 7.5rem is
+   two ~44px groups and their margins. A narrow map's notice wraps instead
+   of covering the zoom buttons. */
 .mco-notice[data-place="over"], .mco-empty[data-place="over"] {
   position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%);
-  width: max-content; max-width: min(34rem, calc(100% - 1.5rem));
+  width: max-content; max-width: min(34rem, calc(100% - 7.5rem));
   box-shadow: var(--shadow);
   z-index: var(--z-map-notice);
 }
@@ -1325,7 +1329,8 @@ html:not(.mco-booting) [data-skeleton] { display: none; }
 :root { --chrome-h: 0px; --sheet-h: 0px; --sheet-end: 0px; --tabbar-h: 0px; --controlbar-h: 0px; --kb-inset: 0px; --vv-h: 100dvh; --overlay-bottom: calc(var(--sheet-h) + var(--tabbar-h)); }
 html { scroll-padding-top: var(--chrome-h); }
 /* An end-docked sheet covers the map's right edge (0.21.1): MapLibre's right
-   corners (zoom, fit, attribution) step clear by --sheet-end, which the open
+   corners (the attribution; zoom and fit too where an app keeps them top
+   right, since 1.0.0 puts them top left) step clear by --sheet-end, which the open
    sheet publishes. Not opt-in: they were unreachable under it. A map that
    stops short of the viewport's right edge opts out with
    .maplibregl-map { --sheet-end: 0px; }. */
@@ -1447,8 +1452,8 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
    unused. In rail mode the bar is turned on its side: a 56px column at the
    right edge (fixed, so it works whether the body is a flex column or
    scrolls), clear of the right safe area, and the page is padded clear of
-   it, so the map's right-hand controls (zoom stays top right) sit just left
-   of it. Top to bottom: the logo badge, ☰, the search button, then the
+   it, so the map's right-hand controls (the attribution; zoom is top left
+   since 1.0.0) sit just left of it. Top to bottom: the logo badge, ☰, the search button, then the
    app's time controls (.mco-rail's hot controls, then a .mco-controlbar at
    the foot of the column). Everything else is in .mco-nav-drawer, which
    opens from the right, beside the rail (Kyle, 2026-11-12: "Right rail").

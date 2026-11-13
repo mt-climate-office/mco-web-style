@@ -537,12 +537,15 @@ edge, clear of the right safe area, and the body is padded clear of it.
 - **Everything else** sits in `.mco-nav-drawer`, which opens **from the
   right, beside the rail**. It is `display: contents` outside rail mode, so
   the normal bar is unchanged.
-- **The map's right-hand controls sit just left of the rail.** Zoom stays
-  top right in every app, on the map in both orientations, never in the
-  rail (Kyle: it would read as the time steppers). It stays at all: WCAG
-  2.1 SC 2.5.1 needs a single-pointer alternative to pinch, and fullscreen
-  lives there. The rail already covers the right safe area, so the corners
-  don't pad for it again.
+- **Zoom is in the map's TOP-LEFT corner, in every app, at every width**
+  (Kyle, 2026-11-13: "I don't like how they sit right next to the rail";
+  this reverses the 12 Nov top-right ruling). It is on the map in both
+  orientations, never in the rail (Kyle: it would read as the time
+  steppers), padded for the left safe area where a landscape notch sits.
+  It stays at all: WCAG 2.1 SC 2.5.1 needs a single-pointer alternative to
+  pinch, and fullscreen lives there. The map's right-hand corner (the
+  attribution) sits just left of the rail, which already covers the right
+  safe area, so it doesn't pad for it again.
 - **`--rail-inset`** is what the rail covers, a **right-hand** inset (it was
   the left until 1.0.0): the end-side `.mco-drawer`, the station panel and
   the toast's centre read it. It is unset, so 0, outside rail mode.
@@ -676,7 +679,8 @@ sources/layers — re-add them in `map.once('style.load', …)`). Use
 one press away instead of hidden behind `?theme=`. A cycling toggle passes an
 `iconContrast` for the light state.
 
-**Notices** (`MCO.notice`, `.mco-notice`, 0.8.0) for anything that must
+**Notices** (`MCO.notice`, `.mco-notice`, 0.8.0; over the map they keep
+clear of both top corners' control columns, 1.0.0) for anything that must
 persist or offer an action: a failed load with Retry, a data caveat, an
 outage. `data-tone` is info, warning, danger or success, built on the status
 tokens (§2), and the tone word is always visible text. Over a map, use
@@ -967,7 +971,8 @@ boundary needs an outline on light basemaps.
   `watchBasemap`) rewrites a known-bad label exactly; add an entry and ship
   a patch when it happens.
 - Controls: `MCO.map.addNavigation` (no compass — rotation is off in these
-  apps), `MCO.map.addFitControl` fused into the same group,
+  apps; **top-left by default since 1.0.0**, `{position}` to choose another
+  corner), `MCO.map.addFitControl` fused into the same group,
   `MCO.map.installZoomFloor` so the region always fills the viewport. Since
   0.8.0 the floor ignores chrome-only resizes (a phone URL bar) and takes
   `onBeforeSnap` for app policy ("not while a detail is open").

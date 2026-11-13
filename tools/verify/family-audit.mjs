@@ -137,7 +137,9 @@ for (const [name, site] of Object.entries(SITES)) {
     if ((site.map || site.bar) && v.id.endsWith('dark') && v.id !== 'd-hc' && !railView) {
       const want = v.mobile ? 40 : 34;
       const hs = [...new Set((m.controls ?? []).map(c => c.h))];
-      check(name, v.id, `navbar controls all ${want}px`, valid && m.controls.length ? hs.length === 1 && hs[0] === want : null, `heights=${hs.join('/')}`);
+      // A bar with no controls of its own at this width has nothing to measure:
+      // skipped, not INVALID (1.0.0 round 4).
+      if (!valid || m.controls.length) check(name, v.id, `navbar controls all ${want}px`, valid ? hs.length === 1 && hs[0] === want : null, `heights=${hs.join('/')}`);
     }
     if (site.map && v.id.endsWith('dark') && v.id !== 'd-hc') {
       if (v.mobile && !railView) check(name, v.id, 'phone navbar ≤ 64px', valid ? m.navH <= 64 : null, `navH=${m.navH}`);
@@ -209,9 +211,13 @@ for (const [name, site] of Object.entries(SITES)) {
         if (!nav) return null;
         const nr = nav.getBoundingClientRect();
         const cb = document.querySelector('body > .mco-controlbar');
+        // A button inside the kit's scrolling control bar (.is-scroll) is
+        // reachable by scrolling it: it counts as on screen when the bar is.
+        const scrolls = !!cb && cb.classList.contains('is-scroll');
+        const cbr = cb && cb.getClientRects().length ? cb.getBoundingClientRect() : null;
         const btns = [nav.querySelector(':scope > .logo-link'), ...nav.querySelectorAll('.mco-rail button'), ...(cb ? cb.querySelectorAll('button') : [])].filter(Boolean)
-          .filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect())
-          .map((q) => [Math.round(q.width), Math.round(q.height), Math.round(q.top), Math.round(q.bottom)]);
+          .filter((b) => b.getClientRects().length).map((b) => [b.getBoundingClientRect(), scrolls && cb.contains(b)])
+          .map(([q, inScroll]) => [Math.round(q.width), Math.round(q.height), Math.round(inScroll ? cbr.top : q.top), Math.round(inScroll ? cbr.bottom : q.bottom)]);
         // The top group (badge, ☰, search) whole, hittable, and above the control bar (1.0.0 round 2).
         const cbTop = cb && cb.getClientRects().length ? cb.getBoundingClientRect().top : innerHeight;
         const top = [nav.querySelector(':scope > .logo-link'), nav.querySelector('.mco-rail > :first-child'), nav.querySelector('.mco-rail > .mco-search-toggle')].filter(Boolean).map((e) => {
@@ -238,6 +244,29 @@ for (const [name, site] of Object.entries(SITES)) {
         check(name, v.id, '☰ opens the drawer beside the rail, focus not a field', d ? Math.abs(d.right - d.railLeft) <= 1 && !d.field : null, d ? `drawer right=${d.right} rail=${d.railLeft} focus=${d.what}` : 'no open drawer');
         await page.keyboard.press('Escape');
       }
+    }
+    // 1.0.0 round 4 (Kyle, 2026-11-13): the zoom group sits in the map's
+    // TOP-LEFT corner at every width, every button hittable, overlapping
+    // nothing (a panel, a notice, the bar, a sidebar toggle).
+    if (site.map && valid && ['m-dark', 'lx-dark', 'tt-dark', 'd-dark'].includes(v.id)) {
+      const z = await page.evaluate(() => {
+        const g = document.querySelector('.maplibregl-ctrl-group');
+        if (!g) return null;
+        const gr = g.getBoundingClientRect();
+        const corner = (g.closest('[class*="maplibregl-ctrl-top-"], [class*="maplibregl-ctrl-bottom-"]')?.className.match(/ctrl-(top|bottom)-(left|right)/) || [''])[0];
+        const over = [...document.querySelectorAll('body *')].filter((x) => {
+          if (g.contains(x) || x.contains(g) || x.closest('.maplibregl-canvas-container')) return false;
+          const cs = getComputedStyle(x);
+          if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0 || !/absolute|fixed|sticky/.test(cs.position)) return false;
+          if (x.matches('.sr-only, .mco-tooltip, .mco-toast, .mco-scrim, [aria-live]') || x.closest('.sr-only')) return false;
+          const q = x.getBoundingClientRect();
+          return q.width > 1 && q.height > 1 && q.left < gr.right && q.right > gr.left && q.top < gr.bottom && q.bottom > gr.top;
+        }).map((x) => x.id ? '#' + x.id : x.tagName.toLowerCase() + '.' + [...x.classList].slice(0, 2).join('.'));
+        const hit = [...g.querySelectorAll('button')].every((b) => { const q = b.getBoundingClientRect(), h = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return !!h && (h === b || b.contains(h)); });
+        return { corner, over, hit };
+      });
+      check(name, v.id, 'zoom group in the top-left corner, overlapping nothing, hittable',
+        z ? z.corner === 'ctrl-top-left' && z.over.length === 0 && z.hit : null, z ? `${z.corner} over=[${z.over.slice(0, 4).join(', ')}] hit=${z.hit}` : 'no zoom group');
     }
     // 1.0.0 round 2: on compact, a Legend button (MCO.initLegendDrawer) never
     // overlaps the map's bottom-corner controls (attribution, scale).
@@ -305,8 +334,16 @@ for (const [name, site] of Object.entries(SITES)) {
           // The legend group MCO.initLegendDrawer adds on a phone is the map's
           // legend, not the bar's controls (1.0.0 round 2).
           if (el.closest('.mco-legend-slot')) continue;
+          // A group's own disclosure (a <summary>, or a button that expands a
+          // region inside the drawer) is not a control of the bar.
+          const ctl = el.getAttribute('aria-controls');
+          if (el.hasAttribute('aria-expanded') && ctl && ctl.split(' ').some((id) => { const t = document.getElementById(id); return t && dr.contains(t); })) continue;
+          // Controls in a collapsed group (a closed <details>, or a region a
+          // collapsed toggle hides) are present, just folded away (1.0.0 round 4).
+          const folded = !!el.closest('details:not([open])') || (() => { const h = el.closest('[hidden]');
+            return !!h && dr.contains(h) && !!h.id && !!dr.querySelector(`[aria-controls~="${h.id}"][aria-expanded="false"]`); })();
           const g = el.closest('.seg-btns');
-          if (!(g ? vis(g) : vis(el))) continue;
+          if (!folded && !(g ? vis(g) : vis(el))) continue;
           if (!g && el.type === 'radio') continue;
           const n = g ? groupName(g) || nameOf(el) : nameOf(el);
           if (n && out[out.length - 1] !== n) out.push(n);

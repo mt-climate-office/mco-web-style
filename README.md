@@ -26,9 +26,9 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 ```html
 <link rel="stylesheet"
       href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.0.0/theme/mco-theme.css"
-      integrity="sha384-BXqc+uDId7rVls9Yd+C1DE4heDuFKEWjgZ+7Zuuy0rCI8RosEzpzTblWSHBFoQKf" crossorigin="anonymous">
+      integrity="sha384-sYr4fDiezV2VCn92FyWqmM9kKbbJPMUCqf7xIkQqLyFlSbMmWCTGdAzNPlm6cJ65" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.0.0/core/mco-core.js"
-        integrity="sha384-2NpB+lMp7pAGZVQE6e1dNccUnR3F5fhheC/F9WnOUsb/XXcBc8BrQwqbcst+WEyy" crossorigin="anonymous"></script>
+        integrity="sha384-ncRLVVbxoEU0GFCV+GV65xJKn2NHbK4rPBwdmIkGSwWnc1gwva1PMlxCJIAAJZlU" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -182,9 +182,9 @@ CSS custom properties, kept in lockstep by CI.
 ## SRI hashes — v1.0.0
 
 ```
-theme/mco-theme.css      sha384-BXqc+uDId7rVls9Yd+C1DE4heDuFKEWjgZ+7Zuuy0rCI8RosEzpzTblWSHBFoQKf
-core/mco-core.js         sha384-2NpB+lMp7pAGZVQE6e1dNccUnR3F5fhheC/F9WnOUsb/XXcBc8BrQwqbcst+WEyy
-map/mco-map.js           sha384-8ZLN6Xhnts1kIMbDa9M+H05sYgu770WLohBOrch1nTafMd+HEM7PlrP0e4fCoRb8
+theme/mco-theme.css      sha384-sYr4fDiezV2VCn92FyWqmM9kKbbJPMUCqf7xIkQqLyFlSbMmWCTGdAzNPlm6cJ65
+core/mco-core.js         sha384-ncRLVVbxoEU0GFCV+GV65xJKn2NHbK4rPBwdmIkGSwWnc1gwva1PMlxCJIAAJZlU
+map/mco-map.js           sha384-eWrG2T3udOw4ET+hy7Sq0BR/c4jCKD2+Cy4TEV2m4Dd6BL5VXGZXS2n8B8y+8v4z
 map/cog-protocol.js      sha384-9yj+drZu0fzoorpjvVuopXW7He6R73EklvzwXBRNgQIvCIunOVzdJXi0oVhvM2BW
 palette/mco-palette.js   sha384-bMyfpU5iEKAQiHDJZLqmCMt3sTGm+HBi2GIY7I9xLyV+JYrbGgHOX9+/XVXy8CYV
 photos/mco-photos.js     sha384-37IVeEM6TGCn5N4m1wEWJHp/LUzOsamBdkDmzbU+qHENAP1PfLQVMjVIX0SY3X/2

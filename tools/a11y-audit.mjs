@@ -581,6 +581,46 @@ const port = server.address().port;
         r.open && !r.modal && r.mainInert && r.dialogInert && r.drawerOpen, JSON.stringify(r));
       await ctx.close();
     }
+    // R4 (Kyle, 2026-11-13): zoom sits in the map's TOP-LEFT corner at every
+    //    width, padded for the left safe area, hittable, overlapping nothing;
+    //    the phone's Legend button (bottom-left) never meets it.
+    for (const [w, h, touch] of [[320, 568, true], [390, 844, true], [568, 320, true], [844, 390, true], [768, 1024, true], [1440, 900, false]]) {
+      const { ctx, p } = await open(w, h, { touch, wait: 1500 });
+      // The map's top (where zoom is) just under the bar: the demo map is
+      // taller than a landscape phone, so centring it hides its top.
+      await p.evaluate(() => {
+        const bar = document.querySelector('.mco-navbar').getBoundingClientRect();
+        const under = bar.height > innerHeight / 2 ? 0 : bar.bottom;
+        scrollTo(0, scrollY + document.getElementById('map-wrap').getBoundingClientRect().top - under - 8);
+      });
+      await p.waitForFunction(() => !!document.querySelector('#map .maplibregl-ctrl-group'), null, { timeout: 20000 }).catch(() => {});
+      await p.waitForTimeout(500);
+      const r = await p.evaluate(() => {
+        const g = document.querySelector('#map .maplibregl-ctrl-group'); if (!g) return null;
+        const gr = g.getBoundingClientRect(), mr = document.getElementById('map').getBoundingClientRect();
+        const corner = g.closest('.maplibregl-ctrl-top-left') ? 'top-left' : 'other';
+        const pad = getComputedStyle(g.closest('.maplibregl-ctrl-top-left') || g).paddingLeft;
+        const others = [...document.querySelectorAll('#map-wrap .mco-panel, #map-wrap .mco-legend-btn, #map .maplibregl-ctrl-bottom-left > *, #map .maplibregl-ctrl-bottom-right > *, #map .maplibregl-ctrl-top-right > *')]
+          .filter((x) => x.getClientRects().length && !x.hidden).map((x) => [x.className.split(' ')[0] || x.id, x.getBoundingClientRect()])
+          .filter(([, q]) => q.left < gr.right && q.right > gr.left && q.top < gr.bottom && q.bottom > gr.top).map(([n]) => n);
+        const hit = [...g.querySelectorAll('button')].every((b) => { const q = b.getBoundingClientRect(), e = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return !!e && (e === b || b.contains(e)); });
+        const lb = document.querySelector('.mco-legend-btn:not([hidden])');
+        return { corner, pad, dx: Math.round(gr.left - mr.left), dy: Math.round(gr.top - mr.top), others, hit, legendBtn: !!lb };
+      });
+      probe(`r4 ${w}×${h}: zoom group in the map's top-left corner (${r && r.dx},${r && r.dy} in), padded for the left safe area, hittable, overlapping nothing${r && r.legendBtn ? ' (Legend button shown)' : ''}`,
+        !!r && r.corner === 'top-left' && r.dx <= 16 && r.dy <= 16 && r.others.length === 0 && r.hit, JSON.stringify(r));
+      // A long over-the-map notice keeps clear of the zoom group.
+      const n = await p.evaluate(() => {
+        const nt = MCO.notice({ tone: 'warning', place: 'over', container: document.getElementById('map-wrap'),
+          text: 'Station data is delayed; the map shows the last values received, which may be several hours old.' });
+        const q = document.querySelector('#map-wrap .mco-notice').getBoundingClientRect(), g = document.querySelector('#map .maplibregl-ctrl-group').getBoundingClientRect();
+        const ov = q.left < g.right && q.right > g.left && q.top < g.bottom && q.bottom > g.top;
+        nt.close();
+        return { notice: [q.left, q.right].map(Math.round), zoomRight: Math.round(g.right), ov };
+      });
+      probe(`r4 ${w}×${h}: an over-the-map notice clears the zoom group (notice ${n.notice}, zoom right edge ${n.zoomRight})`, !n.ov, JSON.stringify(n));
+      await ctx.close();
+    }
     await vb.close();
   }
 

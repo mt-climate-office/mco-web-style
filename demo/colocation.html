@@ -58,7 +58,8 @@
     main { position: relative; flex: 1 1 auto; min-height: 0; }
     main:focus { outline: none; }
     #map { position: absolute; inset: 0; }
-    #controls-panel { top: 0.75rem; left: 0.75rem; max-width: min(300px, calc(100vw - 1.5rem)); }
+    /* Top right: the map's zoom group holds the top-left corner (kit 1.0.0). */
+    #controls-panel { top: 0.75rem; right: 0.75rem; max-width: min(300px, calc(100vw - 6rem)); }
     .demo-note { font-size: var(--fs-sm); color: var(--text-muted); margin: 0 0 var(--space-3); }
     .demo-links { margin: var(--space-3) 0 0; padding-left: 1.1rem; font-size: var(--fs-sm); }
     .demo-links a { color: var(--accent-line); }

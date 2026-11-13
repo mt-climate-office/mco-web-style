@@ -533,18 +533,19 @@ per step keeps the review readable. Work in a worktree from `origin/main`,
 test against the 1.0.0 files served from a kit checkout before the tag
 exists, and pin `@1.0.0` with the hashes from README § SRI.
 
-**What did not change:** `map/mco-map.js`, `map/cog-protocol.js`,
+**What did not change:** `map/cog-protocol.js`,
 `palette/mco-palette.js`, `places/mco-places.js`, `summary/mco-summary.js`
 and the anti-flash snippet are byte-identical to 0.21.2: their SRI hashes
 and your CSP's anti-flash `sha256` stay. `theme/mco-theme.css`,
-`core/mco-core.js` and `photos/mco-photos.js` have new hashes.
+`core/mco-core.js`, `map/mco-map.js` and `photos/mco-photos.js` have new
+hashes.
 
 ### Step 1. Pins
 
 Bump every kit URL from `@0.21.2` to `@1.0.0`: the `<link>` and `<script>`
 tags, the font and favicon links, and any kit URL your JavaScript builds
 (`KIT_ASSETS` in explorer, photos and snowpack `app.js`, and the
-dashboard's `web/test/kit.ts`). Swap the integrity of the three changed
+dashboard's `web/test/kit.ts`). Swap the integrity of the four changed
 files only.
 
 ### Step 2. The station panel: one state, a close button
@@ -604,14 +605,35 @@ MCO.initSheet({ sheet: el, … });
 - **Delete** app CSS written for a LEFT rail: `padding-left:
   var(--rail-inset)`, `left: var(--rail-inset)`, a left offset for map
   controls or panels in landscape. The body is padded on the right now, so
-  the map ends at the rail and its right-hand controls sit just left of
-  it. Zoom stays top right, on the map.
+  the map ends at the rail and its right-hand corner (the attribution)
+  sits just left of it. Zoom moves to the top LEFT (Step 3b).
 - **Keep** `isRail()` / `RAIL_MQ` checks: they are real APIs. `isRail()`
   is false while the K7 hold keeps the folded bar (someone typing).
 - A select hot control (status, maintenance `.mode-select`) still doesn't
   fit the 56 px column: keep hiding it in the rail; the drawer carries it.
 - Tests: delete "56px rail at the left" checks; check the rail at the right
   edge, its buttons ≥ 44 px on touch, and ☰ opening the drawer beside it.
+
+### Step 3b. Zoom moves to the top-left corner
+
+`MCO.map.addNavigation(map)` now puts the zoom group (and the fit button
+fused into it) in the map's top-left corner, at every width (Kyle,
+2026-11-13). Nothing to call if you want that.
+
+```js
+// to keep the old corner (not the family default):
+MCO.map.addNavigation(map, { position: 'top-right' });
+```
+
+- Move anything of your own out of the top-left corner (a panel, a notice,
+  a sidebar toggle), or check it clears the zoom group. Comments and app
+  CSS that keep clear of "the top-right zoom column" are now about nothing.
+- A tall bottom-left legend is capped under the zoom group by the kit (no
+  app change). An over-the-map notice or empty state keeps clear of both
+  top corners in the kit, so an app override that narrowed it (maintenance)
+  can go.
+- family-audit checks "zoom group in the top-left corner, overlapping
+  nothing, hittable" at 390×844, 844×390, 768×1024 and 1440×900.
 
 ### Step 4. Time controls go in the bottom control bar
 

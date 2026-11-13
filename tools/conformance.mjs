@@ -99,7 +99,7 @@ if (isMap) {
   const htmlSinks = (js.match(/\.setHTML\(|\.innerHTML\s*=\s*`[^`]*\$\{|\.innerHTML\s*\+?=\s*[^;`'"]*\+/g) || []).length;
   check('Maps', 'no setHTML / innerHTML built from values (DOM popups) — HOUSE-STYLE §7', htmlSinks === 0, `${htmlSinks} sinks`);
   check('Maps', 'selection halo uses --selection-ring', /--selection-ring/.test(all));
-  check('Maps', 'MCO.map.addNavigation (top-right, no compass)', /MCO\.map\.addNavigation\(/.test(js) && !/showCompass:\s*true/.test(js));
+  check('Maps', 'MCO.map.addNavigation (no compass; top-left by default, kit 1.0.0)', /MCO\.map\.addNavigation\(/.test(js) && !/showCompass:\s*true/.test(js));
   check('Maps', 'zoom floor installed', /installZoomFloor\(/.test(js));
   // Kit 1.0.0: the one-state station panel and the right-hand rail.
   if (/class="[^"]*\bmco-sheet\b/.test(html)) {

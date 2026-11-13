@@ -10,7 +10,7 @@ policy in README.md.
 
 ## [1.0.0] — 2026-11-13
 
-MAJOR: the phone layout. Theme, core and photos change; map, cog,
+MAJOR: the phone layout. Theme, core, map and photos change; cog,
 palette, places, summary and the anti-flash snippet are byte-identical to
 0.21.2, so their SRI hashes and every consumer's CSP hashes are unchanged.
 From the 12 Nov 2026 phone audit and Kyle's rulings that day (the station
@@ -82,6 +82,27 @@ is in MIGRATING.md, *0.21.2 → 1.0.0*.
     bar folds docks the control bar under it).
 13. **The rail badge is 44 px on touch**, as ☰ and search are.
 14. **`MCO.keyboard` also starts at load**, not only in `MCO.ready()`.
+15. **Zoom moves to the top-left corner** (Kyle, 2026-11-13: "I don't like
+    how they sit right next to the rail"). `MCO.map.addNavigation(map)`
+    defaults to `'top-left'` (it was `'top-right'`), at every width;
+    `addFitControl` fuses into that group and moves with it. Pass
+    `{position: 'top-right'}` to keep the old corner.
+
+### Changed
+- `MCO.map.addNavigation` default position `'top-right'` → `'top-left'`
+  (map/mco-map.js changes for the first time since 0.21.2; its
+  `markerPaint` comment now says "until 2.0"). The 0.21.2 legend cap and
+  the autolift clamp treat a top-corner control group on the same side as
+  a ceiling, so a tall bottom-left legend stops under the zoom group
+  (mco-snowpack-explorer at 1200×600: legend 89–564 over zoom 64–153,
+  two zoom buttons unreachable; now capped at 161). The right-corner
+  `--sheet-end` shift and the rail's right-corner padding stay: the
+  attribution is bottom right, and an app may keep zoom top right.
+- An over-the-map notice or empty state (`[data-place="over"]`) keeps
+  clear of both top corners: `max-width: min(34rem, calc(100% - 7.5rem))`
+  (was `- 1.5rem`). On a phone-width map it covered whichever top corner
+  held zoom (mesonet-maintenance carried an override for the right one);
+  it now wraps between them.
 
 ### Fixed in the release candidate (review of the seven consumer PRs)
 - **The panel ran under the control bar above compact.** At 768×1024 the
@@ -167,8 +188,8 @@ is in MIGRATING.md, *0.21.2 → 1.0.0*.
 - `MCO.palette.categorySet`, `CATEGORY_SETS`, `RESERVED_HUE`,
   `isReservedHue` (0.21.1) and `MCO.map.markerPaint` /
   `colocatedHaloPaint` (0.21.0) stay deprecated and working until 2.0
-  (their source comments still say "until 1.0.0": palette and map are
-  byte-identical to 0.21.2 on purpose).
+  (palette's source comment still says "until 1.0.0": palette is
+  byte-identical to 0.21.2 on purpose; map's now says 2.0).
 - Not deprecated: `MCO.viewport.isRail()`, `RAIL_MQ` and
   `initNavRail().isRail` are real APIs (the rail stays, at the right).
 
@@ -216,6 +237,15 @@ control bar).
   declared `sidebar` (explorer) at 1440 and counts a phone's hot controls
   in the folded bar as present; the control-bar check runs only where a
   bar is displayed.
+- Round 4: a11y-audit checks the zoom group in the map's top-left corner,
+  hittable and overlapping nothing, at 320×568, 390×844, 568×320,
+  844×390, 768×1024 and 1440×900, and that an over-the-map notice clears
+  it; family-audit checks "zoom group in the top-left corner, overlapping
+  nothing, hittable" at 390×844, 844×390, 768×1024 and 1440×900, counts
+  controls in a collapsed drawer group as present (and skips the group's
+  own toggle), treats a button inside a scrolling kit control bar as
+  reachable, and skips the control-height check where the bar has no
+  controls of its own.
 - `tools/conformance.mjs`: a close button in `.mco-sheet-head`, no grip /
   `data-peek` / `open('peek')`, no left-rail app CSS.
 - `tools/check-tokens.mjs`: the three new metrics.
