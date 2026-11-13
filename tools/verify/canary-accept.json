@@ -77,6 +77,22 @@
       ],
       "maxPixels": 1.0,
       "why": "0.21.2: deterministic fold. mco-snowpack-explorer's full bar fits at 1440 (unfolded 54px, both engines), but 0.21.1 measured it before its fonts loaded and kept it folded (Chromium 10/10 loads folded, WebKit 3/10, Linux CI WebKit varied); 0.21.2 shows the full bar on 10/10 loads in both engines, with normal, delayed and blocked fonts."
+    },
+    {
+      "selector": ".maplibregl-ctrl-top-right",
+      "widths": [
+        1440
+      ],
+      "maxPixels": 1.5,
+      "why": "1.0.0 round 4 (Kyle, 2026-11-13: zoom to the upper left): MCO.map.addNavigation defaults to 'top-left'. At 1440 the zoom group leaves .maplibregl-ctrl-top-right (mesonet-status 1399,54,41,99 -> 1440,54,0,0) for .maplibregl-ctrl-top-left (0,54,0,0 -> 0,54,41,99). Measured on eff9c2e: all 45 failing runs (status, explorer, umrb, snowpack, photos, aq, dashboard, website x 3 themes x Chromium/WebKit) were exactly this pair, 0 at 390 (covered by the 0.9.0 entries), pixel diff 0.00-1.01%."
+    },
+    {
+      "selector": ".maplibregl-ctrl-top-left",
+      "widths": [
+        1440
+      ],
+      "maxPixels": 1.5,
+      "why": "1.0.0 round 4 (Kyle, 2026-11-13: zoom to the upper left): MCO.map.addNavigation defaults to 'top-left'. At 1440 the zoom group leaves .maplibregl-ctrl-top-right (mesonet-status 1399,54,41,99 -> 1440,54,0,0) for .maplibregl-ctrl-top-left (0,54,0,0 -> 0,54,41,99). Measured on eff9c2e: all 45 failing runs (status, explorer, umrb, snowpack, photos, aq, dashboard, website x 3 themes x Chromium/WebKit) were exactly this pair, 0 at 390 (covered by the 0.9.0 entries), pixel diff 0.00-1.01%."
     }
   ]
 }

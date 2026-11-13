@@ -249,8 +249,9 @@ control bar).
 - `tools/conformance.mjs`: a close button in `.mco-sheet-head`, no grip /
   `data-peek` / `open('peek')`, no left-rail app CSS.
 - `tools/check-tokens.mjs`: the three new metrics.
-- `tools/verify/canary-accept.json`: the 1.0.0 entries (each with its
-  measured reason).
+- `tools/verify/canary-accept.json`: the zoom move at 1440
+  (`.maplibregl-ctrl-top-right` → `.maplibregl-ctrl-top-left`), with its
+  measured reason; nothing else in 1.0.0 needed an entry.
 - Demo: the control bar, the one-state panel, a keyboard section, the
   legend in the drawer, ← / → on both day steppers; 320 px no longer
   scrolls sideways. Exemplar: the compact bar with its drawer, the kit's

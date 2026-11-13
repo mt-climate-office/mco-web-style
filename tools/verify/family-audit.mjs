@@ -340,8 +340,8 @@ for (const [name, site] of Object.entries(SITES)) {
           if (el.hasAttribute('aria-expanded') && ctl && ctl.split(' ').some((id) => { const t = document.getElementById(id); return t && dr.contains(t); })) continue;
           // Controls in a collapsed group (a closed <details>, or a region a
           // collapsed toggle hides) are present, just folded away (1.0.0 round 4).
-          const folded = !!el.closest('details:not([open])') || (() => { const h = el.closest('[hidden]');
-            return !!h && dr.contains(h) && !!h.id && !!dr.querySelector(`[aria-controls~="${h.id}"][aria-expanded="false"]`); })();
+          const folded = !!el.closest('details:not([open])') || [...dr.querySelectorAll('[aria-expanded="false"][aria-controls]')]
+            .some((t) => t.getAttribute('aria-controls').split(' ').some((id) => { const r = document.getElementById(id); return !!r && r !== dr && dr.contains(r) && r.contains(el); }));
           const g = el.closest('.seg-btns');
           if (!folded && !(g ? vis(g) : vis(el))) continue;
           if (!g && el.type === 'radio') continue;
