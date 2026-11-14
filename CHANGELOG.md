@@ -219,7 +219,12 @@ control bar).
   outline (Kyle, 2026-11-14): help ≤ 150 words with the four fixed sections,
   short sentences, a one-screen README with fixed headings.
   `tools/conformance.mjs` checks the help modal and, with `--readme`, the
-  README; the demo's and exemplar's help follow it.
+  README; the demo's and exemplar's help follow it. HTML comments are
+  stripped before the Help checks (one mentioning `<details>` inflated a
+  count); `tools/check-conformance.mjs` tests that on a fixture in CI.
+- **1.0.1 to-do, not shipped here:** move the help `<details>` summary rule
+  (`.info-section summary` 40px, body-size text; `code`/`kbd` nowrap) into
+  `mco-theme.css`. Five apps carry it as a `kit-override` until then.
 
 ### Tooling
 - `tools/a11y-audit.mjs`: 1.0.0 probes in both engines, touch contexts

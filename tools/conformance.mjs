@@ -37,7 +37,7 @@ const all = html + '\n' + js;
 const isMap = /maplibre/i.test(all);
 
 const results = [];
-const check = (section, label, ok, detail = '', warn = false) => results.push({ section, label, ok, detail, warn });
+const check = (section, label, ok, detail = '', warn = false, show = false) => results.push({ section, label, ok, detail, warn, show });
 const na = (section, label, why) => results.push({ section, label, ok: null, detail: why });
 
 /* 1. Head */
@@ -109,7 +109,10 @@ const strip = (h) => h.replace(/<(script|style|template)\b[\s\S]*?<\/\1>/gi, ' '
   .replace(/<(\w+)\b[^>]*\b(?:hidden|class="[^"]*\bsr-only\b[^"]*")[^>]*>[\s\S]*?<\/\1>/gi, ' ')
   .replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/&[#\w]+;/g, ' ');
 const words = (t) => (t.match(/[\p{L}\p{N}][\p{L}\p{N}'’.\-/]*/gu) || []).length;
-const modal = (html.match(/<(dialog|div|section)\b[^>]*\bid="info-modal"[^>]*>[\s\S]*?<\/\1>/i) || [])[0];
+// Comments go first: one that mentions "<details>" or "</dialog>" would
+// start or end a match and skew every count below.
+const helpHtml = html.replace(/<!--[\s\S]*?-->/g, ' ');
+const modal = (helpHtml.match(/<(dialog|div|section)\b[^>]*\bid="info-modal"[^>]*>[\s\S]*?<\/\1>/i) || [])[0];
 if (modal) {
   const h3 = [...modal.matchAll(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi)].map((m) => strip(m[1]).replace(/\s+/g, ' ').trim());
   const idx = h3.map((t) => SECTIONS.findIndex((x) => x.toLowerCase() === t.toLowerCase()));
@@ -118,10 +121,10 @@ if (modal) {
   const details = [...modal.matchAll(/<details\b[^>]*>([\s\S]*?)<\/details>/gi)];
   const visible = modal.replace(/<details\b[^>]*>([\s\S]*?)<\/details>/gi, (m, inner) => (inner.match(/<summary\b[^>]*>[\s\S]*?<\/summary>/i) || [''])[0]);
   const vw = words(strip(visible));
-  check('Help', 'help modal ≤ 200 always-visible words (target 150) — kit 1.0.0', vw <= 200, `${vw} words`, vw > 150 && vw <= 200);
+  check('Help', 'help modal ≤ 200 always-visible words (target 150) — kit 1.0.0', vw <= 200, `${vw} words`, vw > 150 && vw <= 200, true);
   const dw = details.map((m) => words(strip(m[1])));
   check('Help', 'help modal: ≤ 2 <details>, ≤ 80 words each — kit 1.0.0', dw.length <= 2 && dw.every((n) => n <= 80),
-    dw.length ? `${dw.length} × [${dw.join(', ')}] words` : 'none');
+    dw.length ? `${dw.length} × [${dw.join(', ')}] words` : 'none', false, true);
 } else {
   na('Help', 'help modal checks', 'no #info-modal in the page');
 }
@@ -134,7 +137,7 @@ if (readmeArg === 'none') {
     .split('\n').filter((l) => !/^\s*\|/.test(l)).join('\n')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/<[^>]+>/g, ' ').replace(/^#+\s*/gm, '');
   const pw = words(prose);
-  check('Help', 'README ≤ 250 prose words (tables, code not counted) — kit 1.0.0', pw <= 250, `${pw} words`);
+  check('Help', 'README ≤ 250 prose words (tables, code not counted) — kit 1.0.0', pw <= 250, `${pw} words`, false, true);
   const README_H2 = ['Run it', 'Deploy', 'URL parameters', 'Data', 'Tests', 'Kit'];
   const h1 = (md.replace(/```[\s\S]*?```/g, '').match(/^#\s+\S.*$/gm) || []).length;
   const h2 = [...md.replace(/```[\s\S]*?```/g, '').matchAll(/^##\s+(.+?)\s*$/gm)].map((m) => m[1]);
@@ -180,7 +183,7 @@ let section = '';
 for (const r of results) {
   if (r.section !== section) { section = r.section; console.log(`\n${section}`); }
   const mark = r.ok === null ? '–' : r.ok ? (r.warn ? '⚠' : '✓') : '✗';
-  console.log(`  ${mark} ${r.label}${r.detail && (r.ok !== true || r.warn) ? ` (${r.detail})` : ''}`);
+  console.log(`  ${mark} ${r.label}${r.detail && (r.ok !== true || r.warn || r.show) ? ` (${r.detail})` : ''}`);
 }
 const scored = results.filter((r) => r.ok !== null);
 const pass = scored.filter((r) => r.ok).length;

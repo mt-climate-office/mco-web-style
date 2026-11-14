@@ -704,8 +704,8 @@ MCO.photos.initPhotoControls({ …, arrowKeys: true });
   choice in the PR.
 - Info modal, *How to use it*: add `←` `→` to the one keys line, e.g.
   "Keys: `/` search, `←` `→` change the day, `Esc` close. Add `?kbd=off` to
-  the address to turn them off." HOUSE-STYLE §1 *Help and docs* has the
-  rules.
+  the address to turn off `/` and the arrows." HOUSE-STYLE §1 *Help and
+  docs* has the rules.
 
 ### Step 6. The legend goes in the drawer on a phone
 

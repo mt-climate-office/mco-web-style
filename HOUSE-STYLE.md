@@ -157,8 +157,9 @@ in this order: **What this shows**, **How to use it**, **Share or bookmark**,
   tap". Leave out what a person finds by looking: zoom, pan, theme, close,
   Back. Do not describe the layout per device.
 - The last bullet is the keys, on one line: "Keys: `/` search, `←` `→`
-  change the day, `Esc` close. Add `?kbd=off` to the address to turn them
-  off." Name every single-key shortcut the app has. §5.9 has the opt-out rule.
+  change the day, `Esc` close. Add `?kbd=off` to the address to turn off `/`
+  and the arrows." Name every single-key shortcut the app has. Say what
+  `?kbd=off` really turns off: never `Esc`. §5.9 has the opt-out rule.
 - **Share or bookmark:** one or two sentences. "The address holds this view.
   Copy it to share." Add one clause for a Share or Export button.
 - **Data:** each source as a link and how often it updates. End with the
@@ -167,6 +168,13 @@ in this order: **What this shows**, **How to use it**, **Share or bookmark**,
   its section. Its `<summary>` says what is inside. Two at most, 80 words
   each. They do not count toward the 150. Longer than that is a page: link
   to it.
+- Until the theme ships it in 1.0.1, style the summary with this rule,
+  marked `kit-override`. It is 40px tall, with text the size of the body.
+
+  ```css
+  .info-section summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); padding: 0.6rem 0; min-height: 40px; box-sizing: border-box; }
+  .info-section code, .info-section kbd { white-space: nowrap; }
+  ```
 - A first-visit intro is the same modal. No separate intro copy.
 
 *Sentences.* 15 words or fewer, one idea each. No parentheses, no
@@ -190,7 +198,7 @@ don't count. These headings, in order, each only where it applies:
 Keep every fact needed to run, deploy, test or link to the app. Cut
 narrative, rationale, history and feature tours. Git keeps them.
 
-*Example: mesonet-status.*
+*Example: mesonet-status, as the app shows it.*
 
 > **Mesonet Station Status**
 >
@@ -208,15 +216,15 @@ narrative, rationale, history and feature tours. Git keeps them.
 > - Pick a mode in the bar.
 > - Tap a station for its details and a dashboard link.
 > - Tap a legend row to hide that category. Double-tap to show only it.
-> - Use **Networks** to show or hide HydroMet and AgriMet.
-> - Keys: `/` search, `Esc` close. Add `?kbd=off` to the address to turn them off.
+> - Tap **HydroMet** or **AgriMet** to show or hide that network.
+> - Keys: `/` search, `Esc` close. Add `?kbd=off` to the address to turn off `/`.
 >
 > **Share or bookmark**
 > The address holds this view. Copy it to share. Times are Mountain Time.
 >
 > **Data**
 > Montana Mesonet API, checked every 5 minutes.
-> Montana Climate Office · climate.umt.edu
+> Montana Mesonet · Montana Climate Office · climate.umt.edu
 
 ---
 

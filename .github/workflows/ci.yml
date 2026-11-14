@@ -50,6 +50,11 @@ jobs:
       - name: MCO.places unit tests
         run: node tools/check-places.mjs
 
+      # tools/conformance.mjs's Help checks on a fixture (a comment that
+      # mentions <details> must not change the counts).
+      - name: Conformance Help checks self-test
+        run: node tools/check-conformance.mjs
+
       # The verify harness's one-retry rule, with fake scenarios (no browser).
       - name: Verify harness retry tests
         run: node tools/check-verify.mjs
