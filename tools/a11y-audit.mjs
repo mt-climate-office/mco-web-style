@@ -621,6 +621,79 @@ const port = server.address().port;
       probe(`r4 ${w}×${h}: an over-the-map notice clears the zoom group (notice ${n.notice}, zoom right edge ${n.zoomRight})`, !n.ov, JSON.stringify(n));
       await ctx.close();
     }
+    // R5 (1.0.0 RC 5). WebKit logged "ResizeObserver loop completed with
+    //    undelivered notifications" in photos and explorer with RC 4: the
+    //    autolift observer observed a new target (a top corner that became a
+    //    ceiling) from inside its own callback. (a) Structural, both engines:
+    //    the kit never calls observe() inside a ResizeObserver delivery, and
+    //    the page logs no error, in the state that triggers it (map corners
+    //    registered, a never-seen top corner over the attribution, then the
+    //    attribution resizes). (b) No page or console error through load,
+    //    the panel, the drawer and an info dialog, at 320×568, 390×844 and
+    //    768×1024. (c) WebKit does not focus a tapped button: the info
+    //    dialog's opener is its trigger, and focus returns to it.
+    const roWatch = () => {
+      window.__roIn = 0; window.__roInside = [];
+      const RO = window.ResizeObserver;
+      window.ResizeObserver = class extends RO {
+        constructor(cb) { super((e, o) => { window.__roIn++; try { return cb(e, o); } finally { window.__roIn--; } }); }
+        observe(t, o) { if (window.__roIn > 0) window.__roInside.push((t.className || t.id || t.tagName).toString().slice(0, 40)); return super.observe(t, o); }
+      };
+    };
+    const errsOf = (pg) => { const out = []; pg.on('pageerror', (e) => out.push(String(e).slice(0, 100)));
+      pg.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) out.push(m.text().slice(0, 100)); }); return out; };
+    {
+      const ctx = await vb.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: engine === 'chromium', reducedMotion: 'reduce' });
+      await ctx.addInitScript(roWatch);
+      const p = await ctx.newPage(); const errs = errsOf(p);
+      await p.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
+      await p.waitForFunction(() => !!document.querySelector('#map .maplibregl-ctrl-attrib'), null, { timeout: 20000 }).catch(() => {});
+      await p.waitForTimeout(1500);
+      await p.evaluate(() => MCO.metrics.set('--tabbar-h', MCO.metrics.get('--tabbar-h')));
+      await p.waitForTimeout(400);
+      await p.evaluate(() => {
+        const c = document.createElement('div'); c.className = 'maplibregl-ctrl-top-left probe-ceiling';
+        c.style.cssText = 'position:absolute;top:0;left:0;right:0;pointer-events:none';
+        c.innerHTML = '<div style="height:30px"></div>';
+        document.querySelector('#map .maplibregl-control-container').appendChild(c);
+        document.querySelector('#map .maplibregl-ctrl-attrib').style.minHeight = '60px';
+      });
+      await p.waitForTimeout(800);
+      const inside = await p.evaluate(() => window.__roInside);
+      probe(`r5 390×844: no ResizeObserver observe() from inside a delivery (${inside.length}) and no page error (${errs.length}) when a new map ceiling meets the attribution`,
+        inside.length === 0 && errs.length === 0, JSON.stringify({ inside, errs }));
+      await ctx.close();
+    }
+    for (const [w, h] of [[320, 568], [390, 844], [768, 1024]]) {
+      const ctx = await vb.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: engine === 'chromium', reducedMotion: 'reduce' });
+      await ctx.addInitScript(roWatch);
+      const p = await ctx.newPage(); const errs = errsOf(p);
+      await p.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(2500);
+      await p.evaluate(() => { const a = document.querySelector('#map .maplibregl-ctrl-attrib'); if (a) a.classList.add('maplibregl-compact-show'); window.dispatchEvent(new Event('resize')); });
+      await p.waitForTimeout(500);
+      await p.evaluate(() => document.getElementById('btn-sheet').click()); await p.waitForTimeout(500);
+      await p.evaluate(() => document.querySelector('#demo-sheet [data-close-sheet]').click()); await p.waitForTimeout(400);
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+      const inside = await p.evaluate(() => window.__roInside);
+      probe(`r5 ${w}×${h}: no page or console error through load, the panel and the drawer (${errs.length}); no observe() inside a delivery (${inside.length})`,
+        errs.length === 0 && inside.length === 0, JSON.stringify({ errs, inside }));
+      await ctx.close();
+    }
+    {
+      const ctx = await vb.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: engine === 'chromium', reducedMotion: 'reduce' });
+      const p = await ctx.newPage();
+      await p.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(1500);
+      await p.tap('#btn-rail-menu'); await p.waitForTimeout(400);
+      await p.tap('#btn-info'); await p.waitForTimeout(400);
+      const opened = await p.evaluate(() => document.getElementById('info-modal').open);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+      const back = await p.evaluate(() => document.activeElement.id || document.activeElement.className);
+      probe(`r5 390×844 tap: the info dialog opened from a tapped button returns focus to that button (focus ${back})`, opened && back === 'btn-info', JSON.stringify({ opened, back }));
+      await ctx.close();
+    }
     await vb.close();
   }
 

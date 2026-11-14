@@ -1113,8 +1113,24 @@
   var _CEILINGS = '.maplibregl-ctrl-top-left, .maplibregl-ctrl-top-right';
   var _liftRO = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(function () { _clampLift(); }) : null;
   var _liftSeen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  // New targets are observed on the next frame, never inside a delivery
+  // (1.0.0 RC 5): _clampLift runs from this observer's own callback, and a
+  // target observed there (a top corner that became a ceiling) is a
+  // notification WebKit cannot deliver in that pass, so it logged
+  // "ResizeObserver loop completed with undelivered notifications". A timer
+  // backs the frame (WebKit runs no frames while a page loads).
+  var _liftQueue = [], _liftRaf = 0, _liftTid = 0;
+  function _flushLift() {
+    cancelAnimationFrame(_liftRaf); clearTimeout(_liftTid);
+    _liftRaf = _liftTid = 0;
+    var q = _liftQueue; _liftQueue = [];
+    q.forEach(function (el) { _liftRO.observe(el); });
+  }
   function _observeLift(el) {
-    if (_liftRO && _liftSeen && !_liftSeen.has(el)) { _liftSeen.add(el); _liftRO.observe(el); }
+    if (!_liftRO || !_liftSeen || _liftSeen.has(el)) return;
+    _liftSeen.add(el);
+    _liftQueue.push(el);
+    if (!_liftRaf) { _liftRaf = requestAnimationFrame(_flushLift); _liftTid = setTimeout(_flushLift, 100); }
   }
   // The lowest bottom (viewport px) of a non-empty top corner inside host
   // that overlaps el across; -Infinity when there is none.
@@ -1155,7 +1171,11 @@
       room.push(r);
       _observeLift(el);
     }
-    for (i = 0; i < els.length; i++) els[i].style.setProperty('--lift', Math.round(Math.min(lift, room[i])) + 'px');
+    // Written only when it changes, so a measure settles in one pass.
+    for (i = 0; i < els.length; i++) {
+      var v = Math.round(Math.min(lift, room[i])) + 'px';
+      if (els[i].style.getPropertyValue('--lift') !== v) els[i].style.setProperty('--lift', v);
+    }
   }
   window.addEventListener('resize', _clampLift);
 
@@ -2538,8 +2558,12 @@
     var intro = opts.intro || null;
     var opener = null;
 
-    function open() {
-      opener = document.activeElement;
+    // e: the trigger's click. WebKit does not focus a tapped button, so the
+    // active element is then whatever held focus before (a drawer); the
+    // trigger itself is the opener focus returns to (1.0.0 RC 5).
+    function open(e) {
+      var a = document.activeElement;
+      opener = e && e.currentTarget && e.currentTarget.focus && a !== e.currentTarget ? e.currentTarget : a;
       dialog.showModal();
       var closeBtn = dialog.querySelector('.modal-close, [data-close-modal]');
       if (closeBtn && closeBtn.focus) closeBtn.focus();

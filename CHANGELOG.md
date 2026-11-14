@@ -105,6 +105,20 @@ is in MIGRATING.md, *0.21.2 → 1.0.0*.
   it now wraps between them.
 
 ### Fixed in the release candidate (review of the seven consumer PRs)
+- **WebKit logged "ResizeObserver loop completed with undelivered
+  notifications"** with RC 4 (mesonet-photo-explorer at 320×568 and
+  390×844, mesonet-explorer at 320×568, 390×844 and 768×1024, on opening a
+  station; Chromium clean). Cause, instrumented: the autolift observer's
+  own callback (`_clampLift`) met a new ceiling (the top-left zoom group,
+  under which the expanded attribution now runs) and observed it from
+  inside the delivery, a notification WebKit cannot deliver in that pass.
+  New targets are now observed on the next frame (timer-backed), and
+  `--lift` is written only when it changes. Before/after on the consumers'
+  heads in WebKit: 5/5 cells logged it with RC 4, 0/5 with RC 5.
+- **An info dialog opened by a tap returns focus to its button**
+  (`MCO.initInfoModal`): WebKit does not focus a tapped button, so the
+  opener was whatever held focus (the drawer). The trigger's click is now
+  the opener when the active element is not the trigger.
 - **The panel ran under the control bar above compact.** At 768×1024 the
   end-docked panel ended at 1024 while the control bar covered 966–1024
   (mesonet-photo-explorer); it now ends at 966.
@@ -246,6 +260,11 @@ control bar).
   own toggle), treats a button inside a scrolling kit control bar as
   reachable, and skips the control-height check where the bar has no
   controls of its own.
+- Round 5: a11y-audit fails on any `observe()` the page makes from inside
+  a ResizeObserver delivery (both engines; it catches the RC 4 defect in
+  Chromium too, where no error is logged) and on any page or console error
+  through load, the panel and the drawer at 320×568, 390×844 and 768×1024,
+  in Chromium and WebKit; and checks a tapped info button gets focus back.
 - `tools/conformance.mjs`: a close button in `.mco-sheet-head`, no grip /
   `data-peek` / `open('peek')`, no left-rail app CSS.
 - `tools/check-tokens.mjs`: the three new metrics.
