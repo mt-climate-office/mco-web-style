@@ -707,36 +707,34 @@
 
 <dialog class="mco-modal" id="info-modal" aria-labelledby="info-modal-title">
   <div class="info-modal-box">
+    <!-- The help standard: HOUSE-STYLE §1 "Help and docs". -->
     <div class="info-modal-header">
       <div>
-        <h2 class="info-modal-title" id="info-modal-title">MCO Web Style demo</h2>
-        <p class="info-modal-subtitle">mco-web-style v0.1.0</p>
+        <h2 class="info-modal-title" id="info-modal-title">MCO Web Style</h2>
       </div>
       <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
     </div>
     <div class="info-section">
-      <h3>What this page is</h3>
-      <p>A living exercise of every component in the kit — tokens, navbar, buttons, toast, tooltip,
-         modal, collapsible panel, and the MapLibre helpers. It doubles as the target for the
-         automated axe accessibility audit in CI.</p>
+      <h3>What this shows</h3>
+      <p>Every part of the kit, working. The map, cards and bars use the same parts as the apps.</p>
     </div>
     <div class="info-section">
-      <h3>Try</h3>
+      <h3>How to use it</h3>
       <ul>
-        <li>Press <kbd>Tab</kbd> from the top of the page — the skip link appears first.</li>
-        <li>Close this dialog with <kbd>Esc</kbd> — focus returns to the button that opened it.</li>
-        <li>Zoom the map out — it snaps back to Montana.</li>
-        <li>Switch to <strong>High contrast</strong> and watch every surface re-derive.</li>
-        <li>Step the day with <kbd>←</kbd> and <kbd>→</kbd> from anywhere on the page. In a field, a radio group or a
-            dialog the arrows keep their own meaning, and on a map you reached with <kbd>Tab</kbd> they pan it; after a
-            click on the map, ← and → step the day and ↑ and ↓ pan. Add <code>?kbd=off</code> to the address to turn
-            these keys and <kbd>/</kbd> off.</li>
+        <li>Pick <strong>Dark</strong>, <strong>Light</strong> or <strong>High contrast</strong> to change the theme.</li>
+        <li>Tap <strong>Open drawer</strong> or <strong>Open sheet</strong> to try the panels.</li>
+        <li>Press Tab from the top. The skip link comes first.</li>
+        <li>Keys: <kbd>/</kbd> search, <kbd>←</kbd> <kbd>→</kbd> change the day, <kbd>Esc</kbd> close. Add <code>?kbd=off</code> to the address to turn them off.</li>
       </ul>
     </div>
     <div class="info-section">
-      <h3>Where the rules live</h3>
-      <p>Design and interaction conventions: <code>HOUSE-STYLE.md</code>. Developer guardrails:
-         <code>AGENTS.md</code>. Adoption status per app: <code>CONSUMERS.md</code>.</p>
+      <h3>Share or bookmark</h3>
+      <p>The address holds the theme and the map view. Copy it to share.</p>
+    </div>
+    <div class="info-section">
+      <h3>Data</h3>
+      <p>Boundaries from the US Census. Map tiles from CARTO and OpenStreetMap.</p>
+      <p id="info-credit"></p>
     </div>
   </div>
 </dialog>
@@ -944,6 +942,7 @@
   renderPalette();
   document.addEventListener('mco:themechange', renderPalette);
   document.getElementById('demo-credit').textContent = MCO.credit({ source: 'Boundaries: US Census TIGER' });
+  document.getElementById('info-credit').textContent = MCO.credit({ source: 'Boundaries: US Census TIGER' });
 
   /* ── Drawer + sheet ──────────────────────────────────────────────────── */
   document.documentElement.classList.add('mco-autolift');   // toast clears the sheet

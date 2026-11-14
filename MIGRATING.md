@@ -702,10 +702,10 @@ MCO.photos.initPhotoControls({ …, arrowKeys: true });
   showing: the hour in Hourly, the date in Daily. Leave `arrowKeys` off the
   hour stepper instead if the arrows should always drive the date; log the
   choice in the PR.
-- Info modal, *How to use it*: "step one day at a time with ‹ and › or the
-  ← and → keys. If you reach the map with Tab, the arrow keys pan it; after
-  a click, ← and → change the day and ↑ and ↓ pan." And say `?kbd=off` turns
-  these keys off with `/`.
+- Info modal, *How to use it*: add `←` `→` to the one keys line, e.g.
+  "Keys: `/` search, `←` `→` change the day, `Esc` close. Add `?kbd=off` to
+  the address to turn them off." HOUSE-STYLE §1 *Help and docs* has the
+  rules.
 
 ### Step 6. The legend goes in the drawer on a phone
 

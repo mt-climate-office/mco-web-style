@@ -373,6 +373,8 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
   // One listener for every theme change, wherever it came from — §4
   document.addEventListener('mco:themechange', paintLegendSwatches);
 
+  // The Data section ends with the one credit line — HOUSE-STYLE §1.
+  document.getElementById('info-credit').textContent = MCO.credit({ source: 'Montana Mesonet API' });
   MCO.initInfoModal({
     dialog: document.getElementById('info-modal'),
     trigger: document.getElementById('btn-info'),

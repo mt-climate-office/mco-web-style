@@ -214,6 +214,13 @@ kit's own rules moving onto the type scale, `{keepHash: true}` as the URL
 writers' default, and `mco-autolift` on by default (it turns on with a
 control bar).
 
+### Docs and tooling (no published file changes)
+- HOUSE-STYLE §1 *Help and docs: how to write them* replaces the info modal
+  outline (Kyle, 2026-11-14): help ≤ 150 words with the four fixed sections,
+  short sentences, a one-screen README with fixed headings.
+  `tools/conformance.mjs` checks the help modal and, with `--readme`, the
+  README; the demo's and exemplar's help follow it.
+
 ### Tooling
 - `tools/a11y-audit.mjs`: 1.0.0 probes in both engines, touch contexts
   (`PROBE_ONLY=v1` runs just them): the rail at the right edge at 750×342

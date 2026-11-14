@@ -262,35 +262,33 @@
 
 <dialog class="mco-modal" id="info-modal" aria-labelledby="info-modal-title">
   <div class="info-modal-box">
+    <!-- The help standard: HOUSE-STYLE §1 "Help and docs". -->
     <div class="info-modal-header">
       <div>
         <h2 class="info-modal-title" id="info-modal-title">Mesonet Station Map</h2>
-        <p class="info-modal-subtitle">mco-web-style exemplar · reference implementation</p>
       </div>
       <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
     </div>
     <div class="info-section">
-      <h3>What this is</h3>
-      <p>A live map of the <a href="https://climate.umt.edu/mesonet/" target="_blank" rel="noopener noreferrer">Montana
-         Mesonet</a> stations, and the reference implementation of the MCO house style — every
-         convention in <code>HOUSE-STYLE.md</code>, composed in one small real app. Copy the
-         <code>exemplar/</code> directory to start a new map.</p>
+      <h3>What this shows</h3>
+      <p>Every Montana Mesonet station, by network.</p>
     </div>
     <div class="info-section">
-      <h3>Using the map</h3>
+      <h3>How to use it</h3>
       <ul>
-        <li>Click a dot for station details; hover for a quick readout.</li>
-        <li>Keyboard: use the <strong>Fly to a station</strong> picker — every station is reachable without a pointer.</li>
-        <li>Toggle sub-networks with the HydroMet / AgriMet buttons.</li>
-        <li>The URL always holds your full view — copy it (or press Share) to hand someone exactly this map.</li>
+        <li>Tap a station for its details and a dashboard link.</li>
+        <li>Use <strong>Fly to a station</strong> to find one by name.</li>
+        <li>Tap <strong>HydroMet</strong> or <strong>AgriMet</strong> to show or hide that network.</li>
       </ul>
     </div>
     <div class="info-section">
+      <h3>Share or bookmark</h3>
+      <p>The address holds this view. Copy it, or tap <strong>Share</strong>.</p>
+    </div>
+    <div class="info-section">
       <h3>Data</h3>
-      <p>Station metadata from the <a href="https://mesonet.climate.umt.edu/api/v2/docs" target="_blank" rel="noopener noreferrer">Montana
-         Mesonet API</a>. Boundaries from the US Census (via the kit's <code>map/data/</code>).
-         Basemap © <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>,
-         © OpenStreetMap contributors.</p>
+      <p><a href="https://mesonet.climate.umt.edu/api/v2/docs" target="_blank" rel="noopener noreferrer">Montana Mesonet API</a>, loaded when the page opens. Boundaries from the US Census.</p>
+      <p id="info-credit"></p>
     </div>
   </div>
 </dialog>
