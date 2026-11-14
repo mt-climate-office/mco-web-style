@@ -8,6 +8,274 @@ policy in README.md.
 
 (Nothing yet.)
 
+## [1.0.0] — 2026-11-13
+
+MAJOR: the phone layout. Theme, core, map and photos change; cog,
+palette, places, summary and the anti-flash snippet are byte-identical to
+0.21.2, so their SRI hashes and every consumer's CSP hashes are unchanged.
+From the 12 Nov 2026 phone audit and Kyle's rulings that day (the station
+panel, the right rail, the bottom control bar, the legend in the drawer)
+and on 13 Nov (← / → on every date stepper). A consumer on 0.21.2 markup
+keeps working: every renamed call has a shim, and what each app must change
+is in MIGRATING.md, *0.21.2 → 1.0.0*.
+
+### Migration list (breaking changes)
+1. **The landscape rail is at the RIGHT edge.** At `RAIL_MQ` the bar is a
+   56 px column at `right: 0`, clear of the right safe area, and the body is
+   padded on the right (`padding-right: var(--rail-inset)`), not the left.
+   Top to bottom: badge, ☰, the search button (new in the rail), the hot
+   controls, then a `.mco-controlbar` at its foot. Rail buttons are 44 px on
+   touch. App CSS that assumed a left rail (`padding-left` /
+   `left: var(--rail-inset)`, left-edge offsets in landscape) must go.
+2. **`--rail-inset` is a right-hand inset.** The end-side `.mco-drawer`
+   (`right`), the compact station panel (`right`) and the toast's centre
+   read it; the start-side `.mco-drawer` no longer does. MapLibre's right
+   corners sit left of the rail through the body padding and no longer pad
+   for the right safe area in rail mode.
+3. **The ☰ drawer opens from the right, beside the rail** (it opened to the
+   rail's right, from the left edge). In the folded bar it now stops above
+   the bottom control bar and an on-screen keyboard
+   (`bottom: max(--tabbar-h, --kb-inset)`), and the control bar stays live
+   while it is open, in both modes.
+4. **The station panel (`MCO.initSheet`) has one state.** On compact it is
+   full height under the bar (`--sheet-top`, measured; 0 beside the rail)
+   down to the bottom control bar (`--tabbar-h`) or the screen's bottom, the
+   whole width left of the rail. No peek detent, no drag, no grip. It is
+   modal there: everything is inert except `.mco-navbar` and
+   `.mco-controlbar`, which the kit removes from the inert set even when the
+   app passes `inertRoots`. `state()` returns `'full'` or `'closed'`;
+   `onState` never receives `'peek'`. `--sheet-h` stays 0, so autolift never
+   lifts the toast or a legend for it. Above compact nothing changes
+   (end-docked, map live). Removed: drag on the head, the grip's keyboard
+   twin (ArrowUp/ArrowDown on it), `syncPeek`, `--sheet-peek-h` and the
+   `[data-peek]` measurement; app CSS on `[data-state="peek"]` or a
+   compact `max-height` override now fights the full-height panel.
+5. **A close button is required** in `.mco-sheet-head`: a visible
+   `[data-close-sheet]` at the top right, styled 44×44 px at every width
+   (it was 34 px with a mouse). `initSheet` warns in the console without
+   one. `.mco-sheet-grip` is hidden at every width.
+6. **K7: the bar no longer flips into the rail while someone types.** With a
+   text field focused on a touch screen, or `MCO.keyboard` reporting a
+   keyboard, a resize into `RAIL_MQ` keeps the folded bar
+   (`html.mco-bar-hold`), and `MCO.viewport.isRail()` reports the bar as
+   shown (false while held). `initNavRail`'s mode change no longer closes an
+   open drawer while typing; it re-anchors it. The fold is not re-measured
+   while typing, and is measured again when typing ends.
+7. **`MCO.keyboard` starts in `MCO.ready()`** and writes `--kb-inset`,
+   `--vv-h` and `.kb-open` on `<html>` (the dashboard's names, so its own
+   copy and the kit's write the same values until it switches).
+8. **Under `.kb-open`**: the nav drawer and off-canvas drawers stop above
+   the keyboard, `.mco-search-list` keeps to the room above it
+   (`--list-room`), `.mco-sheet-body` pads for it, and the control bar
+   hides.
+9. **The toast centres in the area left of the rail** (`left: calc(50% -
+   var(--rail-inset) / 2)`), and with a control bar it clears `--tabbar-h`
+   (autolift).
+10. **Autolift caps at a MapLibre control group above** (G): a lifted
+    bottom corner or `[data-autolift]` panel stops 8 px under a top corner
+    (zoom, fit) that overlaps it across, not only at its container's top.
+    mesonet-explorer's `--attrib-lift-max` override is no longer needed.
+11. **The rail drawer undoes the bar's stamp sheds** (`.refresh-word`,
+    `.refresh-status`) as the folded drawer already did.
+12. **The end-docked panel stops above a docked control bar** too
+    (`.mco-sheet { bottom: var(--tabbar-h) }` at every width; a tablet whose
+    bar folds docks the control bar under it).
+13. **The rail badge is 44 px on touch**, as ☰ and search are.
+14. **`MCO.keyboard` also starts at load**, not only in `MCO.ready()`.
+15. **Zoom moves to the top-left corner** (Kyle, 2026-11-13: "I don't like
+    how they sit right next to the rail"). `MCO.map.addNavigation(map)`
+    defaults to `'top-left'` (it was `'top-right'`), at every width;
+    `addFitControl` fuses into that group and moves with it. Pass
+    `{position: 'top-right'}` to keep the old corner.
+
+### Changed
+- `MCO.map.addNavigation` default position `'top-right'` → `'top-left'`
+  (map/mco-map.js changes for the first time since 0.21.2; its
+  `markerPaint` comment now says "until 2.0"). The 0.21.2 legend cap and
+  the autolift clamp treat a top-corner control group on the same side as
+  a ceiling, so a tall bottom-left legend stops under the zoom group
+  (mco-snowpack-explorer at 1200×600: legend 89–564 over zoom 64–153,
+  two zoom buttons unreachable; now capped at 161). The right-corner
+  `--sheet-end` shift and the rail's right-corner padding stay: the
+  attribution is bottom right, and an app may keep zoom top right.
+- An over-the-map notice or empty state (`[data-place="over"]`) keeps
+  clear of both top corners: `max-width: min(34rem, calc(100% - 7.5rem))`
+  (was `- 1.5rem`). On a phone-width map it covered whichever top corner
+  held zoom (mesonet-maintenance carried an override for the right one);
+  it now wraps between them.
+
+### Fixed in the release candidate (review of the seven consumer PRs)
+- **WebKit logged "ResizeObserver loop completed with undelivered
+  notifications"** with RC 4 (mesonet-photo-explorer at 320×568 and
+  390×844, mesonet-explorer at 320×568, 390×844 and 768×1024, on opening a
+  station; Chromium clean). Cause, instrumented: the autolift observer's
+  own callback (`_clampLift`) met a new ceiling (the top-left zoom group,
+  under which the expanded attribution now runs) and observed it from
+  inside the delivery, a notification WebKit cannot deliver in that pass.
+  New targets are now observed on the next frame (timer-backed), and
+  `--lift` is written only when it changes. Before/after on the consumers'
+  heads in WebKit: 5/5 cells logged it with RC 4, 0/5 with RC 5.
+- **An info dialog opened by a tap returns focus to its button**
+  (`MCO.initInfoModal`): WebKit does not focus a tapped button, so the
+  opener was whatever held focus (the drawer). The trigger's click is now
+  the opener when the active element is not the trigger.
+- **The panel ran under the control bar above compact.** At 768×1024 the
+  end-docked panel ended at 1024 while the control bar covered 966–1024
+  (mesonet-photo-explorer); it now ends at 966.
+- **The Legend button covered the attribution** on portrait phones: its
+  corner was taken once, before MapLibre's attribution existed (18 px over
+  it at 390×844 in maintenance and umrb). It now tracks the map's
+  bottom-corner controls (attribution, scale, anything MapLibre or an app
+  puts there) as they appear, wrap, resize or lift, and its insets don't
+  animate. It lifts with autolift over a control bar.
+- **A search list ran under the keyboard** in short landscape (the room had
+  a 96 px floor: 194 px vs a 162 px keyboard line at 750×342). The list now
+  keeps to the room under its field, at least one 44 px option, and opens
+  upward (`.is-above`) when there is less room under the field than over
+  it. A keyboard that opened before the app called `MCO.ready()` went
+  unseen; `MCO.keyboard` now starts at load.
+- **The rail's control bar could cover its top group** (photos at 568×320:
+  the search button half under a 192 px bar). Core measures the top group
+  into `--rail-top-h`; the bar takes at most the rest of the screen. Short
+  of room the readouts go first (`.is-tight`, visually hidden, still read),
+  then the bar scrolls (`.is-scroll`, with shadows at the scrolled edges).
+  The bar's content sits at its foot with `safe` alignment, so its first
+  control never scrolls out of reach. A readout written in parts (spans)
+  breaks between them, never inside one, and stacks them in the rail in
+  the UI face (from mesonet-photo-explorer).
+- **A dialog opened from inside the ☰ drawer was inert** (snowpack's
+  "About this data" in the legend, once the legend moved into the drawer):
+  the drawer had inerted the page around it, dialog included. While a modal
+  `<dialog>` is open, the overlay's inert roots on its ancestor chain are
+  lifted (a modal dialog inerts the rest itself), focus goes into it, and
+  they return when it closes; focus goes back into the drawer.
+  Only a modal dialog (`:modal`, i.e. `showModal()`) lifts them: a
+  non-modal one (`show()`, an `open` attribute) leaves the page inert behind
+  the drawer, and an engine without `:modal` lifts nothing.
+
+### Added
+- **The bottom control bar** (`.mco-controlbar`, `MCO.initControlBar`):
+  the time controls on a phone (Kyle: "time controls only"). App markup, a
+  direct child of `<body>`; the kit docks it at the bottom wherever the
+  compact bar folds (portrait phones by CSS from first paint, any folded
+  width by `.is-folded`), clear of the bottom safe area; at the foot of the
+  rail in short landscape; hidden above that and under `.kb-open`. It
+  publishes `--tabbar-h` (bottom-docked) and `--controlbar-h` (in the
+  rail), turns on `html.mco-autolift`, stays live under the station panel
+  and beside an open drawer. Core wires every one present at load.
+  `.mco-controlbar-readout` styles a date readout. 44 px buttons on touch.
+- **`MCO.keyboard`**: `start()`, `stop()`, `isOpen()`, `inset()`,
+  `keyboardInset(layoutH, vvH, vvOffsetTop)` (pure), `KEYBOARD_MIN_PX`
+  (80), and `'mco:keyboard'` on document. A port of mesonet-dashboard's
+  `keyboard.ts` and `keyboardInset.ts`, plus one guard: while the page is
+  pinch-zoomed (`visualViewport.scale` > 1.05) nothing reads as a keyboard.
+- **← / → step the date** (`MCO.initStepper({…, arrowKeys: true, unit})`,
+  Kyle 2026-11-13), from Kyle's snowpack work. One stepper takes the keys:
+  the finest `unit` among the arrowKeys steppers showing (an hour beside a
+  day), then the first made. Fields, keyboard-reached radio groups,
+  sliders, spinbuttons, listboxes, tablists, menus, menubars, grids, trees,
+  toolbars, open dialogs and blocking overlays keep their arrows; on a map
+  a pointer focused ← / → step until ↑ / ↓ / + / − / Tab, and on a map
+  reached by Tab they pan; any modifier, a handler that already called
+  `preventDefault`, `canStep` saying no, or `?kbd=off` leaves them alone.
+  Prev/next get `aria-keyshortcuts`. `initStepper` returns `destroy()`.
+  `MCO.photos.initPhotoControls` passes `arrowKeys` through (for all
+  steppers, or per pair).
+- **`MCO.initLegendDrawer({panel, rail})`**: on compact a floating legend
+  `.mco-panel` moves into a "Legend" group at the end of the ☰ drawer
+  (`.mco-legend-slot`, `.is-in-drawer`), and a `.mco-legend-btn` takes its
+  corner on the map and opens the drawer at it (expanded, focus on its
+  title, focus back to the button on close). Above compact it floats as
+  before; the 0.21.2 height cap stays.
+- `html.is-rail` and `html.mco-bar-hold` (core) for CSS hooks.
+- Metrics `--controlbar-h`, `--kb-inset`, `--vv-h` (tokens.json `metrics`).
+- `.mco-sheet-head [data-close-sheet]` styles (44 px).
+
+### Deprecated (shims, kept until 2.0)
+- `sheet.open('peek', o)` and `sheet.open('full', o)`: the state argument is
+  ignored; use `sheet.open(o)`.
+- `sheet.setState('peek')` (and `'full'`): opens a closed panel; use
+  `open()`.
+- `initSheet({peekHeight})` and `initSheet({dismissible})`: ignored (there
+  is no drag or grip to dismiss with; Esc and the close button close).
+- `.mco-sheet-grip` markup and `[data-peek]`: hidden / ignored.
+- `MCO.palette.categorySet`, `CATEGORY_SETS`, `RESERVED_HUE`,
+  `isReservedHue` (0.21.1) and `MCO.map.markerPaint` /
+  `colocatedHaloPaint` (0.21.0) stay deprecated and working until 2.0
+  (palette's source comment still says "until 1.0.0": palette is
+  byte-identical to 0.21.2 on purpose; map's now says 2.0).
+- Not deprecated: `MCO.viewport.isRail()`, `RAIL_MQ` and
+  `initNavRail().isRail` are real APIs (the rail stays, at the right).
+
+### Not in 1.0.0
+Three changes earlier notes promised "in 1.0.0" are left for a later
+MAJOR, so this one stays the phone layout Kyle checks on a real phone: the
+kit's own rules moving onto the type scale, `{keepHash: true}` as the URL
+writers' default, and `mco-autolift` on by default (it turns on with a
+control bar).
+
+### Tooling
+- `tools/a11y-audit.mjs`: 1.0.0 probes in both engines, touch contexts
+  (`PROBE_ONLY=v1` runs just them): the rail at the right edge at 750×342
+  and 844×390 (order badge → ☰ → search → time controls, every button
+  ≥ 44 px on screen, ☰ drawer beside it, the control bar live, axe with it
+  open); the station panel at 320×568, 390×844, 750×342, 844×390, 768×1024
+  and 1440×900 (rect = the viewport less the bar(s) on compact, the bar and
+  control bar live and the rest inert, close button 44 px top right and
+  hittable, focus, axe open, the shims); the control bar (`--tabbar-h`,
+  safe-area padding, the drawer and toast clearing it, hidden with a
+  simulated keyboard); K7 (390×664 → 390×374 → 844×390 with the search
+  field focused, then the hold lifting, then back to portrait) and a
+  deterministic fold after a hold; the legend in the drawer and floating;
+  ← / → with every exemption.
+- `tools/verify/family-audit.mjs`: 750×342 and 844×390 touch views; the
+  rail at the right edge, its buttons ≥ 44 px, its search button and ☰
+  opening the drawer beside it; on compact the station panel = the
+  viewport less the bar(s) and the navbar not inert; the panel header (44
+  px close top right, no grip) at 1440, 768, 390 and 750×342, identical
+  across 1440, 768 and 390; a control bar's `--tabbar-h` and its hiding
+  under a keyboard; the drawer at 390 holding the desktop bar's control
+  labels in the same order (a segmented group counts by its name, matching
+  its fallback select).
+- Round 2 probes (both engines): the end-docked panel against the control
+  bar at 768×1024; the Legend button against the map's bottom-corner
+  controls at 320×568, 390×844 and 844×390; a search list above a 180 /
+  260 px keyboard at 750×342, 844×390 and 320×568; the rail with 2-, 3- and
+  4-button control bars at 568×320, 667×375, 750×342 and 844×390 (top group
+  whole, hittable, above the bar; every control shown or reachable by
+  scrolling); the rail's 44 px badge; a modal dialog opened from the
+  drawer is live, and a non-modal one leaves the page inert. The search
+  list probe waits for the demo's counties before typing.
+  family-audit: the same panel, Legend-button and rail top-group checks on
+  every consumer; the label check skips `.mco-legend-slot`, reads a
+  declared `sidebar` (explorer) at 1440 and counts a phone's hot controls
+  in the folded bar as present; the control-bar check runs only where a
+  bar is displayed.
+- Round 4: a11y-audit checks the zoom group in the map's top-left corner,
+  hittable and overlapping nothing, at 320×568, 390×844, 568×320,
+  844×390, 768×1024 and 1440×900, and that an over-the-map notice clears
+  it; family-audit checks "zoom group in the top-left corner, overlapping
+  nothing, hittable" at 390×844, 844×390, 768×1024 and 1440×900, counts
+  controls in a collapsed drawer group as present (and skips the group's
+  own toggle), treats a button inside a scrolling kit control bar as
+  reachable, and skips the control-height check where the bar has no
+  controls of its own.
+- Round 5: a11y-audit fails on any `observe()` the page makes from inside
+  a ResizeObserver delivery (both engines; it catches the RC 4 defect in
+  Chromium too, where no error is logged) and on any page or console error
+  through load, the panel and the drawer at 320×568, 390×844 and 768×1024,
+  in Chromium and WebKit; and checks a tapped info button gets focus back.
+- `tools/conformance.mjs`: a close button in `.mco-sheet-head`, no grip /
+  `data-peek` / `open('peek')`, no left-rail app CSS.
+- `tools/check-tokens.mjs`: the three new metrics.
+- `tools/verify/canary-accept.json`: the zoom move at 1440
+  (`.maplibregl-ctrl-top-right` → `.maplibregl-ctrl-top-left`), with its
+  measured reason; nothing else in 1.0.0 needed an entry.
+- Demo: the control bar, the one-state panel, a keyboard section, the
+  legend in the drawer, ← / → on both day steppers; 320 px no longer
+  scrolls sideways. Exemplar: the compact bar with its drawer, the kit's
+  station panel, the legend in the drawer.
+
 ## [0.21.2] — 2026-11-13
 
 PATCH: theme and core. Map, cog, palette, photos, places, summary and the

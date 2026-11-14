@@ -11,6 +11,15 @@
 //   node tools/verify/family-audit.mjs --out /tmp/audit --no-sheets
 //   node tools/verify/family-audit.mjs --fold-repeats 10      # fold determinism (0 skips)
 //
+// 1.0.0 checks (the phone layout; a consumer still on 0.21.x markup fails
+// them by design): the rail at the right edge in short landscape, its
+// buttons ≥ 44px and ☰ opening the drawer beside it; the station panel on
+// compact = the viewport less the bar(s), with the bar not inert; its
+// header (title, 44px close button top right) identical at 390, 768 and
+// 1440; a bottom control bar publishing --tabbar-h and hiding under a
+// (simulated) keyboard; and the drawer at 390 holding the desktop bar's
+// control labels in the same order.
+//
 // For each site and view it writes a screenshot and a metrics row, then a
 // contact sheet per view. Each acceptance check prints PASS, FAIL, or INVALID
 // (the page did not load or the element under test is missing — never a value).
@@ -20,7 +29,9 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 
 const SITES = {
-  explorer:    { url: 'https://mesonet.climate.umt.edu/explorer/',    station: 'station', map: true },
+  // sidebar: where the desktop controls live when not in the bar (the label
+  // consistency check reads it at 1440 instead of the bar, 1.0.0).
+  explorer:    { url: 'https://mesonet.climate.umt.edu/explorer/',    station: 'station', map: true, sidebar: '#sidebar' },
   // bar: not a map tool, but its navbar keeps the control-height rule (0.21.1);
   // the section track is the control (its links sit inside it, as .seg-btn do).
   dashboard:   { url: 'https://mesonet.climate.umt.edu/dash/next/',   station: 's',       map: false, bar: '.dash-sections' },
@@ -44,7 +55,11 @@ const VIEWS = [
   // bar folds above 640px.
   { id: 's-dark',  w: 320,  h: 568, scheme: 'dark', mobile: true },
   { id: 'tt-dark', w: 768,  h: 1024, scheme: 'dark', mobile: true },
+  // 1.0.0: short landscape phones, where the bar is the rail at the RIGHT edge.
+  { id: 'l-dark',  w: 750,  h: 342, scheme: 'dark', mobile: true },
+  { id: 'lx-dark', w: 844,  h: 390, scheme: 'dark', mobile: true },
 ];
+const VIEW = Object.fromEntries(VIEWS.map((v) => [v.id, v]));
 
 const args = process.argv.slice(2);
 const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
@@ -117,16 +132,18 @@ for (const [name, site] of Object.entries(SITES)) {
     await page.screenshot({ path: path.join(out, 'shots', `${name}_${v.id}.png`) });
     results[name].views[v.id] = { status, errors, ...m };
     const valid = status === 200 && m.navH != null;
-    if ((site.map || site.bar) && v.id.endsWith('dark') && v.id !== 'd-hc') {
+    // The rail (short landscape, 1.0.0) is a column of 44px buttons, not a row.
+    const railView = v.mobile && v.h <= 560 && v.w > v.h;
+    if ((site.map || site.bar) && v.id.endsWith('dark') && v.id !== 'd-hc' && !railView) {
       const want = v.mobile ? 40 : 34;
       const hs = [...new Set((m.controls ?? []).map(c => c.h))];
-      check(name, v.id, `navbar controls all ${want}px`, valid && m.controls.length ? hs.length === 1 && hs[0] === want : null, `heights=${hs.join('/')}`);
+      // A bar with no controls of its own at this width has nothing to measure:
+      // skipped, not INVALID (1.0.0 round 4).
+      if (!valid || m.controls.length) check(name, v.id, `navbar controls all ${want}px`, valid ? hs.length === 1 && hs[0] === want : null, `heights=${hs.join('/')}`);
     }
     if (site.map && v.id.endsWith('dark') && v.id !== 'd-hc') {
-      if (v.mobile) {
-        check(name, v.id, 'phone navbar ≤ 64px', valid ? m.navH <= 64 : null, `navH=${m.navH}`);
-        check(name, v.id, 'badge visible on phone', valid ? m.logoVisible : null);
-      }
+      if (v.mobile && !railView) check(name, v.id, 'phone navbar ≤ 64px', valid ? m.navH <= 64 : null, `navH=${m.navH}`);
+      if (v.mobile) check(name, v.id, 'badge visible on phone', valid ? m.logoVisible : null);
       if (!v.mobile && m.stamp != null) check(name, v.id, 'stamp reads "Updated … M[SD]T"', /Updated .*M[SD]T$/.test(m.stamp), `"${m.stamp}"`);
       if (!v.mobile) check(name, v.id, 'on/off toggles are .mco-chip', valid ? m.offChipToggles.length === 0 : null, m.offChipToggles.join(', '));
       const errs = site.allow404 ? errors.filter(e => !/status of 404/.test(e)) : errors;
@@ -185,6 +202,162 @@ for (const [name, site] of Object.entries(SITES)) {
         }
       }
     }
+    // 1.0.0: the rail at the RIGHT edge in short landscape. Its buttons are
+    // ≥ 44px on touch and on screen; ☰ opens the drawer beside it (its right
+    // edge at the rail's left), with focus on the drawer, not a field.
+    if (site.map && v.mobile && v.h <= 560 && v.w > v.h && valid) {
+      const r = await page.evaluate(() => {
+        const nav = document.querySelector('.mco-navbar[data-rail]');
+        if (!nav) return null;
+        const nr = nav.getBoundingClientRect();
+        const cb = document.querySelector('body > .mco-controlbar');
+        // A button inside the kit's scrolling control bar (.is-scroll) is
+        // reachable by scrolling it: it counts as on screen when the bar is.
+        const scrolls = !!cb && cb.classList.contains('is-scroll');
+        const cbr = cb && cb.getClientRects().length ? cb.getBoundingClientRect() : null;
+        const btns = [nav.querySelector(':scope > .logo-link'), ...nav.querySelectorAll('.mco-rail button'), ...(cb ? cb.querySelectorAll('button') : [])].filter(Boolean)
+          .filter((b) => b.getClientRects().length).map((b) => [b.getBoundingClientRect(), scrolls && cb.contains(b)])
+          .map(([q, inScroll]) => [Math.round(q.width), Math.round(q.height), Math.round(inScroll ? cbr.top : q.top), Math.round(inScroll ? cbr.bottom : q.bottom)]);
+        // The top group (badge, ☰, search) whole, hittable, and above the control bar (1.0.0 round 2).
+        const cbTop = cb && cb.getClientRects().length ? cb.getBoundingClientRect().top : innerHeight;
+        const top = [nav.querySelector(':scope > .logo-link'), nav.querySelector('.mco-rail > :first-child'), nav.querySelector('.mco-rail > .mco-search-toggle')].filter(Boolean).map((e) => {
+          const q = e.getBoundingClientRect(), hit = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+          return { ok: !!hit && (hit === e || e.contains(hit)) && q.bottom <= cbTop + 0.5 && q.top >= 0, b: Math.round(q.bottom) }; });
+        return { top, cbTop: Math.round(cbTop), rail: !!window.MCO && MCO.viewport.isRail(), x: Math.round(nr.left), w: Math.round(nr.width),
+          gap: Math.round(document.documentElement.clientWidth - nr.right), vh: innerHeight, btns,
+          search: !!nav.querySelector('.mco-rail > .mco-search-toggle') && nav.querySelector('.mco-rail > .mco-search-toggle').getClientRects().length > 0 };
+      });
+      check(name, v.id, 'rail at the right edge', r ? r.rail && r.gap === 0 && r.x > v.w / 2 : null, r ? `x=${r.x} gap=${r.gap}` : 'no data-rail bar');
+      if (r) {
+        check(name, v.id, 'rail buttons ≥ 44px and on screen', r.btns.length ? r.btns.every(([w, h, t, b]) => w >= 44 && h >= 44 && t >= 0 && b <= r.vh) : null, r.btns.map((b) => b.slice(0, 2).join('×')).join(' '));
+        check(name, v.id, 'rail shows the search button', r.search);
+        check(name, v.id, 'rail top group (badge, ☰, search) whole, hittable, above the control bar', r.top.length >= 2 ? r.top.every((t) => t.ok) : null,
+          `bottoms=${r.top.map((t) => t.b)} bar=${r.cbTop}`);
+        await page.locator('.mco-navbar .mco-rail > :first-child').first().click().catch(() => {});
+        await page.waitForTimeout(400);
+        const d = await page.evaluate(() => {
+          const dr = document.querySelector('.mco-nav-drawer.is-open'), nr = document.querySelector('.mco-navbar').getBoundingClientRect();
+          const a = document.activeElement;
+          const field = !!a && (a.matches('textarea, select, [contenteditable="true"]') || (a.tagName === 'INPUT' && !/^(checkbox|radio|range|button|submit|reset|color|file|image)$/.test(a.type)));
+          return dr ? { right: Math.round(dr.getBoundingClientRect().right), railLeft: Math.round(nr.left), field, what: a ? (a.id || a.tagName) : null } : null;
+        });
+        check(name, v.id, '☰ opens the drawer beside the rail, focus not a field', d ? Math.abs(d.right - d.railLeft) <= 1 && !d.field : null, d ? `drawer right=${d.right} rail=${d.railLeft} focus=${d.what}` : 'no open drawer');
+        await page.keyboard.press('Escape');
+      }
+    }
+    // 1.0.0 round 4 (Kyle, 2026-11-13): the zoom group sits in the map's
+    // TOP-LEFT corner at every width, every button hittable, overlapping
+    // nothing (a panel, a notice, the bar, a sidebar toggle).
+    if (site.map && valid && ['m-dark', 'lx-dark', 'tt-dark', 'd-dark'].includes(v.id)) {
+      const z = await page.evaluate(() => {
+        const g = document.querySelector('.maplibregl-ctrl-group');
+        if (!g) return null;
+        const gr = g.getBoundingClientRect();
+        const corner = (g.closest('[class*="maplibregl-ctrl-top-"], [class*="maplibregl-ctrl-bottom-"]')?.className.match(/ctrl-(top|bottom)-(left|right)/) || [''])[0];
+        const over = [...document.querySelectorAll('body *')].filter((x) => {
+          if (g.contains(x) || x.contains(g) || x.closest('.maplibregl-canvas-container')) return false;
+          const cs = getComputedStyle(x);
+          if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0 || !/absolute|fixed|sticky/.test(cs.position)) return false;
+          if (x.matches('.sr-only, .mco-tooltip, .mco-toast, .mco-scrim, [aria-live]') || x.closest('.sr-only')) return false;
+          const q = x.getBoundingClientRect();
+          return q.width > 1 && q.height > 1 && q.left < gr.right && q.right > gr.left && q.top < gr.bottom && q.bottom > gr.top;
+        }).map((x) => x.id ? '#' + x.id : x.tagName.toLowerCase() + '.' + [...x.classList].slice(0, 2).join('.'));
+        const hit = [...g.querySelectorAll('button')].every((b) => { const q = b.getBoundingClientRect(), h = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return !!h && (h === b || b.contains(h)); });
+        return { corner, over, hit };
+      });
+      check(name, v.id, 'zoom group in the top-left corner, overlapping nothing, hittable',
+        z ? z.corner === 'ctrl-top-left' && z.over.length === 0 && z.hit : null, z ? `${z.corner} over=[${z.over.slice(0, 4).join(', ')}] hit=${z.hit}` : 'no zoom group');
+    }
+    // 1.0.0 round 2: on compact, a Legend button (MCO.initLegendDrawer) never
+    // overlaps the map's bottom-corner controls (attribution, scale).
+    if (site.map && phone && valid) {
+      const lb = await page.evaluate(() => {
+        const b = document.querySelector('.mco-legend-btn');
+        if (!b || !b.getClientRects().length) return null;
+        const r = b.getBoundingClientRect();
+        return [...document.querySelectorAll('.maplibregl-ctrl-bottom-left > *, .maplibregl-ctrl-bottom-right > *')].map((c) => c.getBoundingClientRect())
+          .filter((c) => c.height && c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top).length;
+      });
+      if (lb !== null) check(name, v.id, 'Legend button clear of the map\'s bottom-corner controls', lb === 0, `${lb} overlap(s)`);
+    }
+    // 1.0.0: the bottom control bar (where an app has one), on a portrait
+    // phone: docked at the bottom, --tabbar-h = its height, hidden under a
+    // keyboard (visualViewport.height reduced by 300px).
+    if (site.map && phone && v.h > v.w && valid) {
+      const b = await page.evaluate(() => {
+        const cb = document.querySelector('body > .mco-controlbar');
+        // An app may hide its bar by design in a mode (explorer's Latest).
+        if (!cb || !cb.getClientRects().length) return null;
+        const r = cb.getBoundingClientRect();
+        return { bottom: Math.round(r.bottom), h: Math.round(r.height), vh: innerHeight,
+          tabbar: getComputedStyle(document.documentElement).getPropertyValue('--tabbar-h').trim() };
+      });
+      if (b) {
+        check(name, v.id, 'control bar docked at the bottom, --tabbar-h = its height', b.bottom === b.vh && b.tabbar === b.h + 'px', JSON.stringify(b));
+        const k = await page.evaluate(() => new Promise((res) => {
+          const vv = window.visualViewport; if (!vv) { res(null); return; }
+          const h = document.documentElement.clientHeight - 300;
+          Object.defineProperty(vv, 'height', { configurable: true, get: () => h });
+          vv.dispatchEvent(new Event('resize'));
+          setTimeout(() => {
+            const cb = document.querySelector('body > .mco-controlbar');
+            res({ kb: document.documentElement.classList.contains('kb-open'), shown: cb.getClientRects().length > 0,
+              tabbar: getComputedStyle(document.documentElement).getPropertyValue('--tabbar-h').trim() });
+            delete vv.height; vv.dispatchEvent(new Event('resize'));
+          }, 300);
+        }));
+        check(name, v.id, 'control bar hides under a keyboard', k ? k.kb && !k.shown && k.tabbar === '0px' : null, JSON.stringify(k));
+      }
+    }
+    // 1.0.0: the drawer holds the desktop bar's controls, same labels, same
+    // order (Kyle: consistency across widths). Names are read from the open
+    // drawer at 390 and from the full bar's .mco-nav-drawer (display:
+    // contents) at 1440; results are compared after both views ran.
+    if (site.map && (v.id === 'm-dark' || v.id === 'd-dark') && valid) {
+      if (v.id === 'm-dark') {
+        await page.locator('.mco-navbar .mco-rail > :first-child').first().click().catch(() => {});
+        await page.waitForTimeout(400);
+      }
+      const labels = await page.evaluate((side) => {
+        const dr = (side && document.querySelector(side) && document.querySelector(side).getClientRects().length && innerWidth > 1000
+          ? document.querySelector(side) : null) || document.querySelector('.mco-nav-drawer');
+        if (!dr) return null;
+        const vis = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+        const nameOf = (el) => (el.getAttribute('aria-label') || (el.labels && el.labels[0] && el.labels[0].textContent) ||
+          (el.getAttribute('aria-labelledby') || '').split(' ').map((id) => document.getElementById(id)?.textContent || '').join(' ') || el.textContent || '').replace(/\s+/g, ' ').trim();
+        // A segmented group counts once, by its own name, so it matches the
+        // <select> that replaces it below 1060px (MCO.initSegmentedFallback).
+        const groupName = (g) => (g.getAttribute('aria-label') || g.querySelector('legend')?.textContent ||
+          (g.getAttribute('aria-labelledby') || '').split(' ').map((id) => document.getElementById(id)?.textContent || '').join(' ') || '').replace(/\s+/g, ' ').trim();
+        const out = [];
+        for (const el of dr.querySelectorAll('button, a[href], select, input:not([type=hidden])')) {
+          // The legend group MCO.initLegendDrawer adds on a phone is the map's
+          // legend, not the bar's controls (1.0.0 round 2).
+          if (el.closest('.mco-legend-slot')) continue;
+          // A group's own disclosure (a <summary>, or a button that expands a
+          // region inside the drawer) is not a control of the bar.
+          const ctl = el.getAttribute('aria-controls');
+          if (el.hasAttribute('aria-expanded') && ctl && ctl.split(' ').some((id) => { const t = document.getElementById(id); return t && dr.contains(t); })) continue;
+          // Controls in a collapsed group (a closed <details>, or a region a
+          // collapsed toggle hides) are present, just folded away (1.0.0 round 4).
+          const folded = !!el.closest('details:not([open])') || [...dr.querySelectorAll('[aria-expanded="false"][aria-controls]')]
+            .some((t) => t.getAttribute('aria-controls').split(' ').some((id) => { const r = document.getElementById(id); return !!r && r !== dr && dr.contains(r) && r.contains(el); }));
+          const g = el.closest('.seg-btns');
+          if (!folded && !(g ? vis(g) : vis(el))) continue;
+          if (!g && el.type === 'radio') continue;
+          const n = g ? groupName(g) || nameOf(el) : nameOf(el);
+          if (n && out[out.length - 1] !== n) out.push(n);
+        }
+        // A phone's hot controls live in the folded bar (HOUSE-STYLE §3), not
+        // necessarily in the drawer: they count as present, not in the order.
+        const hot = innerWidth <= 640 ? [...document.querySelectorAll('.mco-navbar .mco-rail > *')]
+          .filter((e) => vis(e) && e !== e.parentElement.firstElementChild && !e.classList.contains('mco-search-toggle'))
+          .flatMap((e) => (e.matches('button, select, input') ? [e] : [...e.querySelectorAll('button, select, input')])).map(nameOf).filter(Boolean) : [];
+        return { out, hot };
+      }, site.sidebar || null);
+      (results[name].labels ??= {})[v.id] = labels;
+      if (v.id === 'm-dark') await page.keyboard.press('Escape');
+    }
     // 0.21.2: an expanded over-map legend must keep its collapse toggle
     // reachable: hit-testable, on screen, below a top bar, and the panel
     // inside the map. Then the toggle must collapse it.
@@ -217,6 +390,18 @@ for (const [name, site] of Object.entries(SITES)) {
       }
     }
     await ctx.close();
+  }
+  // 1.0.0: drawer at 390 vs desktop bar at 1440, same labels, same order.
+  if (site.map) {
+    const L = results[name].labels || {};
+    const a = L['d-dark'] && L['d-dark'].out, b = L['m-dark'] && L['m-dark'].out, hot = (L['m-dark'] && L['m-dark'].hot) || [];
+    if (a && b && a.length >= 2) {
+      const missing = a.filter((x) => !b.includes(x) && !hot.includes(x)), extra = b.filter((x) => !a.includes(x));
+      const ca = a.filter((x) => b.includes(x)), cbb = b.filter((x) => a.includes(x));
+      const ordered = ca.join('|') === cbb.join('|');
+      check(name, 'x-width', 'drawer (390) holds the desktop bar\'s control labels in the same order',
+        missing.length === 0 && extra.length === 0 && ordered, `missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]${ordered ? '' : ' order differs'}`);
+    }
   }
   // One row at every width (0.21.1): sweep 641–1440 with a mouse, and the
   // tablet widths with touch, where 40px controls make the bar widest.
@@ -264,15 +449,53 @@ for (const [name, site] of Object.entries(SITES)) {
     check(name, `fold-${w}`, `fold state identical on ${foldRepeats} fresh loads and matches the unfolded height`,
       loaded === foldRepeats ? new Set(states).size === 1 && wrong.length === 0 : null, `${states.join('')} ${wrong.join('; ')}`);
   }
-  // Deep link: ?<param>=<station> must open the sheet at desktop and phone width.
-  if (site.station && site.map) for (const v of [VIEWS[0], VIEWS[4]]) {
+  // Deep link: ?<param>=<station> must open the sheet at every width. 1.0.0:
+  // on compact the panel is the viewport less the bar(s) (the bar's bottom,
+  // or 0 beside the rail, to the control bar's top or the bottom; 0 to the
+  // rail's left), the bar is not inert, and the header (title, a 44px close
+  // button top right) is the same at 390, 768 and 1440.
+  const heads = {};
+  if (site.station && site.map) for (const v of [VIEW['d-dark'], VIEW['tt-dark'], VIEW['m-dark'], VIEW['l-dark']]) {
     const u = site.url + (site.url.includes('?') ? '&' : '?') + `${site.station}=${station}`;
     const { ctx, page, status } = await load(u, v);
     await page.waitForTimeout(2500);
     const m = await page.evaluate(METRICS).catch(() => ({}));
     await page.screenshot({ path: path.join(out, 'shots', `${name}_${v.id}_station.png`) });
     check(name, v.id, `?${site.station}=${station} opens the sheet`, status === 200 ? !!m.sheetOpen : null);
+    if (status === 200 && m.sheetOpen) {
+      const s = await page.evaluate(() => {
+        const sh = [...document.querySelectorAll('.mco-sheet')].find((x) => x.dataset.state !== 'closed' && x.getClientRects().length);
+        const nav = document.querySelector('.mco-navbar'), cb = document.querySelector('body > .mco-controlbar');
+        const sr = sh.getBoundingClientRect(), nr = nav.getBoundingClientRect(), cr = cb && cb.getClientRects().length ? cb.getBoundingClientRect() : null;
+        const x = sh.querySelector('.mco-sheet-head [data-close-sheet]'), t = sh.querySelector('.mco-sheet-title');
+        const xr = x && x.getBoundingClientRect();
+        const rail = !!window.MCO && MCO.viewport.isRail() && nav.hasAttribute('data-rail');
+        return { compact: !!window.MCO && MCO.viewport.isCompact(), rail, state: sh.dataset.state,
+          rect: [sr.left, sr.top, sr.right, sr.bottom].map(Math.round),
+          want: [0, rail ? 0 : Math.round(nr.bottom), rail ? Math.round(nr.left) : document.documentElement.clientWidth, cr && !rail ? Math.round(cr.top) : innerHeight],
+          barTop: cr && !rail ? Math.round(cr.top) : null,
+          navInert: !!nav.closest('[inert]'), grip: !!sh.querySelector('.mco-sheet-grip') && sh.querySelector('.mco-sheet-grip').getClientRects().length > 0,
+          close: xr ? [Math.round(xr.width), Math.round(xr.height), Math.round(sr.right - xr.right), Math.round(xr.top - sr.top)] : null,
+          title: !!t && (!xr || t.getBoundingClientRect().right <= xr.left + 1) };
+      });
+      if (!s.compact && s.barTop != null) {
+        check(name, v.id, 'end-docked panel ends at the control bar', Math.abs(s.rect[3] - s.barTop) <= 1, `panel bottom=${s.rect[3]} bar top=${s.barTop}`);
+      }
+      if (s.compact) {
+        check(name, v.id, 'station panel = viewport less the bar(s), one state', s.rect.every((n, i) => Math.abs(n - s.want[i]) <= 1) && s.state !== 'peek',
+          `rect=${s.rect} want=${s.want} state=${s.state}`);
+        check(name, v.id, 'navbar not inert over the station panel', !s.navInert);
+      }
+      check(name, v.id, 'panel header: 44px close button top right, no grip', s.close ? s.close[0] >= 44 && s.close[1] >= 44 && s.close[2] <= 16 && s.close[3] <= 16 && s.title && !s.grip : null,
+        `close=${s.close} grip=${s.grip}`);
+      heads[v.id] = s.close;
+    }
     await ctx.close();
+  }
+  if (heads['d-dark'] && heads['tt-dark'] && heads['m-dark']) {
+    const hs = ['d-dark', 'tt-dark', 'm-dark'].map((k) => heads[k]);
+    check(name, 'x-width', 'station panel header identical at 1440, 768 and 390 (±2px)',
+      hs.every((h) => h.every((n, i) => Math.abs(n - hs[0][i]) <= 2)), hs.map((h) => h.join(',')).join(' | '));
   }
 }
 

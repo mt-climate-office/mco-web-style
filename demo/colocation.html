@@ -58,11 +58,12 @@
     main { position: relative; flex: 1 1 auto; min-height: 0; }
     main:focus { outline: none; }
     #map { position: absolute; inset: 0; }
-    #controls-panel { top: 0.75rem; left: 0.75rem; max-width: min(300px, calc(100vw - 1.5rem)); }
+    /* Top right: the map's zoom group holds the top-left corner (kit 1.0.0). */
+    #controls-panel { top: 0.75rem; right: 0.75rem; max-width: min(300px, calc(100vw - 6rem)); }
     .demo-note { font-size: var(--fs-sm); color: var(--text-muted); margin: 0 0 var(--space-3); }
     .demo-links { margin: var(--space-3) 0 0; padding-left: 1.1rem; font-size: var(--fs-sm); }
     .demo-links a { color: var(--accent-line); }
-    .demo-peek { margin: 0 0 var(--space-3); font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
+    .demo-lead { margin: 0 0 var(--space-3); font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
     .demo-siblings { margin-top: var(--space-4); }
     .demo-siblings h3 { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-secondary); margin: 0 0 var(--space-2); }
     .demo-siblings ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
@@ -116,7 +117,6 @@
 
 <section class="mco-sheet" id="station-sheet" aria-labelledby="sheet-title" data-state="closed" hidden>
   <div class="mco-sheet-head">
-    <button type="button" class="mco-sheet-grip" aria-label="Expand details" aria-expanded="false"></button>
     <h2 class="mco-sheet-title" id="sheet-title" tabindex="-1">Station</h2>
     <button type="button" class="modal-close" data-close-sheet aria-label="Close station details">×</button>
   </div>
@@ -184,7 +184,8 @@
     autoCollapseOnCompact: true,
   });
 
-  /* ── Station sheet (MCO.initSheet at every width) ────────────────────── */
+  /* ── Station panel (MCO.initSheet at every width): end-docked above
+     compact, a full-height panel under the bar on a phone (1.0.0). ──── */
   const sheetEl = document.getElementById('station-sheet');
   const sheetBody = document.getElementById('sheet-body');
   const sheet = MCO.initSheet({
@@ -210,8 +211,7 @@
   }
   function fillSheet(s) {
     document.getElementById('sheet-title').textContent = s.name;
-    const peek = el('p', 'demo-peek', `${s.sub_network} · ${s.station}`);
-    peek.dataset.peek = '';
+    const peek = el('p', 'demo-lead', `${s.sub_network} · ${s.station}`);
     const dl = el('dl', 'mco-facts');
     [['Network', s.sub_network], ['Station ID', s.station], ['Elevation', `${Math.round(s.elevation)} m`],
      ['County', s.county], ['Location', `${s.latitude.toFixed(2)}, ${s.longitude.toFixed(2)}`]].forEach(([k, v]) => {
@@ -247,7 +247,7 @@
     const first = selected == null;
     selected = id;
     fillSheet(s);
-    sheet.open('peek', { opener: opts && opts.opener });
+    sheet.open({ opener: opts && opts.opener });
     paintSelection();
     twin.render(rows(), { selected: id });
     const params = { station: id };

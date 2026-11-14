@@ -14,6 +14,13 @@ different states, and the first one silently forks the tokens.
 
 ## Pick up here (state as of 2026-11-04)
 
+**2026-11-13: kit 1.0.0 is a release candidate, not a tag.** The phone layout
+(station panel in one state, the rail at the right edge, the bottom control
+bar, `MCO.keyboard`, the legend in the drawer, ← / → date stepping). Kyle tags
+it after a real-phone check; the seven consumers stay on @0.21.2 until their
+Wave 3 PRs (MIGRATING.md, *0.21.2 → 1.0.0*), which pin @1.0.0 from the
+frozen RC files and wait for the tag.
+
 **2026-11-04: family conformance (kit 0.21.0, then 0.21.1).** Seven
 consumers moved from @0.20.0 to **@0.21.0** in one PR each (the family
 conformance rules in CONFORMANCE.md and the owner rulings recorded with
@@ -24,8 +31,9 @@ them), then to **@0.21.1** the same day, which dropped their stopgaps:
 - status's two-row tablet bar (the compact bar now folds wherever the full
   bar would wrap).
 
-The `--chrome-h` observe stays in every map tool: the phone bottom sheet's
-full-detent `max-height` reads it.
+(1.0.0 note: the `--chrome-h` observe no longer serves the phone sheet,
+which is full height under the bar and measures the bar itself; keep it
+only where something else reads `--chrome-h`.)
 
 `tools/verify/family-audit.mjs` against production after the rollout, with
 all seven live pages serving only `@0.21.1`: 91 pass, 0 fail, 0 invalid. That
@@ -347,7 +355,8 @@ checklist; the owner rulings are in HOUSE-STYLE.
 
 **Already there:** `MCO.initSheet` for the detail, `MCO.onUrlState`,
 `initInfoModal` with `MCO.credit`, and a `--chrome-h` observe on the in-flow
-navbar (keep it: the phone sheet's `max-height` reads it).
+navbar (from kit 1.0.0 the phone panel measures the bar itself, so the
+observe is no longer needed for it).
 
 **To do, in the order the other seven took:**
 
@@ -376,6 +385,12 @@ navbar (keep it: the phone sheet's `max-height` reads it).
    `MCO.palette.categorySet`.
 9. **Verify.** Run `tools/verify/family-audit.mjs --only aq` and `axe-matrix.mjs`
    in both engines. aq is already in the canary.
+10. **Kit 1.0.0** (if aq goes straight to 1.0.0, do these too; MIGRATING.md,
+    *0.21.2 → 1.0.0*): the station panel is one state (drop `open('peek')`,
+    grip, `data-peek`; keep a 44 px `[data-close-sheet]`), the landscape
+    rail is at the right edge, `MCO.initLegendDrawer` for the legend on a
+    phone, `arrowKeys` on any date stepper, and aq has no time controls
+    unless it adds a date (then a `.mco-controlbar`).
 
 ## Migration mechanics
 
