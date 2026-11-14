@@ -40,11 +40,14 @@ pass's job. Each item cites the rule it checks.
 - [ ] ✋ **Time controls** (a date stepper, photos' direction) are in a `.mco-controlbar` child of `<body>`, not the top bar; an app with none has no control bar (§3 *The bottom control bar*, 1.0.0)
 - [ ] ✋ **Station panel:** on compact it is the viewport less the bar(s), one state, the bar not inert; no `.mco-sheet-grip`, `data-peek` or `open('peek')`; a visible 44px `[data-close-sheet]` at the top right of `.mco-sheet-head` at every width (§3, 1.0.0)
 - [ ] ✋ **Legend on a phone:** a floating legend `.mco-panel` uses `MCO.initLegendDrawer` (in the ☰ drawer on compact, a Legend button on the map); desktop keeps it floating (§3, 1.0.0)
-- [ ] ✋ **← / → step the date** on every date stepper (`MCO.initStepper` `arrowKeys: true`), the info modal says so, and `?kbd=off` turns them off (§3, §5.9, 1.0.0)
+- [ ] ✋ **← / → step the date** on every date stepper (`MCO.initStepper` `arrowKeys: true`), the help's keys line names them, and `?kbd=off` turns them off (§1, §3, §5.9, 1.0.0)
 - [ ] ✋ Every bar control is one height: 34px at desktop, 40px on touch (`--control-h`), the app's own selects and inputs included (§3)
 - [ ] ✋ On/off filters and layers are `.mco-chip[aria-pressed]`; actions are `.nav-btn` (§5.7)
 - [ ] ✋ The freshness stamp is `MCO.formatUpdatedMT` of the data's time in `.refresh-status` ("Updated 2:45 PM MST"), with no other wording (§4)
-- [ ] ✋ The info modal follows the outline: brand-title heading; What this shows · How to use it · Share or bookmark · Data, with the Data credit from `MCO.credit` (§1)
+- [ ] The help modal: brand-title heading, then only these `<h3>` sections, in order: What this shows · How to use it · Share or bookmark · Data; Data ends with the credit from `MCO.credit` (§1 *Help and docs*)
+- [ ] Help modal ≤ 150 always-visible words, hard limit 200; at most two `<details>`, ≤ 80 words each (§1)
+- [ ] ✋ *How to use it* is ≤ 5 one-line bullets, the last one the keys line with every single-key shortcut and `?kbd=off` (§1, §5.9)
+- [ ] README ≤ 250 prose words, tables and code blocks not counted, with the fixed headings in order: `#` app name · Run it · Deploy · URL parameters · Data · Tests · Kit (§1)
 - [ ] ✋ A first-visit intro uses `initInfoModal`'s `intro` option, with `skip` set for the app's deep-link params (§4)
 
 ## 3. Tokens
@@ -61,7 +64,7 @@ pass's job. Each item cites the rule it checks.
 - [ ] One `MCO.srTable` twin per canvas/WebGL data layer, and the canvas `aria-label` points to it (§5.2)
 - [ ] Legend "off" dims the swatch, never the row; legend rows are `.mco-legend-row` with `aria-pressed` (§5.7)
 - [ ] ✋ Touch targets ≥ 40px (44px close buttons) under `hover: none` (§5.5)
-- [ ] `?kbd=off` supported **and disclosed in the info modal** wherever single-key shortcuts exist (§5.9)
+- [ ] `?kbd=off` supported **and disclosed in the help's keys line** wherever single-key shortcuts exist (§1, §5.9)
 - [ ] ✋ Steppers and every pointer gesture have a keyboard twin (§5.8)
 
 ## 5. Maps

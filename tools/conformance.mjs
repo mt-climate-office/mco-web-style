@@ -5,6 +5,11 @@
 
      node tools/conformance.mjs ../mesonet-status            # index.html
      node tools/conformance.mjs ../mesonet-photo-explorer docs/index.html
+     node tools/conformance.mjs ../mesonet-status --readme ../mesonet-status/README.md
+
+   --readme <path> picks the README the Help checks read; the default is the
+   repo's README.md, when there is one. --readme none skips them (the kit's
+   own demo and exemplar, whose README is the kit's).
 
    Prints one line per check (✓ / ✗ / – not applicable) and "N/M automatic",
    the number CONSUMERS.md records per app. Manual items are listed after;
@@ -14,7 +19,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 
-const [repo, page = 'index.html'] = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const ri = argv.indexOf('--readme');
+const readmeArg = ri >= 0 ? argv.splice(ri, 2)[1] : null;
+const [repo, page = 'index.html'] = argv;
 if (!repo) { console.error('usage: node tools/conformance.mjs <consumer-repo> [entry.html]'); process.exit(2); }
 const htmlPath = join(repo, page);
 const html = readFileSync(htmlPath, 'utf8');
@@ -29,7 +37,7 @@ const all = html + '\n' + js;
 const isMap = /maplibre/i.test(all);
 
 const results = [];
-const check = (section, label, ok, detail = '') => results.push({ section, label, ok, detail });
+const check = (section, label, ok, detail = '', warn = false, show = false) => results.push({ section, label, ok, detail, warn, show });
 const na = (section, label, why) => results.push({ section, label, ok: null, detail: why });
 
 /* 1. Head */
@@ -93,6 +101,54 @@ const shortcuts = /kbd=off|'kbd'|"kbd"/.test(js);
 if (shortcuts) check('A11y', '?kbd=off disclosed in the info modal', /kbd=off/.test(html));
 else na('A11y', '?kbd=off disclosed in the info modal', 'no single-key shortcuts found');
 
+/* 4b. Help and README (HOUSE-STYLE §1 "Help and docs", kit 1.0.0). Static:
+   the modal's text as written in the HTML; text a script adds at run time
+   (the credit line) is not counted. */
+const SECTIONS = ['What this shows', 'How to use it', 'Share or bookmark', 'Data'];
+const strip = (h) => h.replace(/<(script|style|template)\b[\s\S]*?<\/\1>/gi, ' ')
+  .replace(/<(\w+)\b[^>]*\b(?:hidden|class="[^"]*\bsr-only\b[^"]*")[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+  .replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/&[#\w]+;/g, ' ');
+const words = (t) => (t.match(/[\p{L}\p{N}][\p{L}\p{N}'’.\-/]*/gu) || []).length;
+// Comments go first: one that mentions "<details>" or "</dialog>" would
+// start or end a match and skew every count below.
+const helpHtml = html.replace(/<!--[\s\S]*?-->/g, ' ');
+const modal = (helpHtml.match(/<(dialog|div|section)\b[^>]*\bid="info-modal"[^>]*>[\s\S]*?<\/\1>/i) || [])[0];
+if (modal) {
+  const h3 = [...modal.matchAll(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi)].map((m) => strip(m[1]).replace(/\s+/g, ' ').trim());
+  const idx = h3.map((t) => SECTIONS.findIndex((x) => x.toLowerCase() === t.toLowerCase()));
+  check('Help', 'help modal: only the four sections, in order — kit 1.0.0',
+    h3.length > 0 && idx.every((n, i) => n >= 0 && (i === 0 || n > idx[i - 1])), h3.join(' · '));
+  const details = [...modal.matchAll(/<details\b[^>]*>([\s\S]*?)<\/details>/gi)];
+  const visible = modal.replace(/<details\b[^>]*>([\s\S]*?)<\/details>/gi, (m, inner) => (inner.match(/<summary\b[^>]*>[\s\S]*?<\/summary>/i) || [''])[0]);
+  const vw = words(strip(visible));
+  check('Help', 'help modal ≤ 200 always-visible words (target 150) — kit 1.0.0', vw <= 200, `${vw} words`, vw > 150 && vw <= 200, true);
+  const dw = details.map((m) => words(strip(m[1])));
+  check('Help', 'help modal: ≤ 2 <details>, ≤ 80 words each — kit 1.0.0', dw.length <= 2 && dw.every((n) => n <= 80),
+    dw.length ? `${dw.length} × [${dw.join(', ')}] words` : 'none', false, true);
+} else {
+  na('Help', 'help modal checks', 'no #info-modal in the page');
+}
+const readmePath = readmeArg || join(repo, 'README.md');
+if (readmeArg === 'none') {
+  na('Help', 'README checks', '--readme none');
+} else if (existsSync(readmePath)) {
+  const md = readFileSync(readmePath, 'utf8');
+  const prose = md.replace(/```[\s\S]*?```/g, ' ').replace(/<!--[\s\S]*?-->/g, ' ')
+    .split('\n').filter((l) => !/^\s*\|/.test(l)).join('\n')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/<[^>]+>/g, ' ').replace(/^#+\s*/gm, '');
+  const pw = words(prose);
+  check('Help', 'README ≤ 250 prose words (tables, code not counted) — kit 1.0.0', pw <= 250, `${pw} words`, false, true);
+  const README_H2 = ['Run it', 'Deploy', 'URL parameters', 'Data', 'Tests', 'Kit'];
+  const h1 = (md.replace(/```[\s\S]*?```/g, '').match(/^#\s+\S.*$/gm) || []).length;
+  const h2 = [...md.replace(/```[\s\S]*?```/g, '').matchAll(/^##\s+(.+?)\s*$/gm)].map((m) => m[1]);
+  const hi = h2.map((t) => README_H2.findIndex((x) => x.toLowerCase() === t.toLowerCase()));
+  const required = ['Run it', 'Data', 'Kit'].every((x) => h2.some((t) => t.toLowerCase() === x.toLowerCase()));
+  check('Help', 'README headings: one #, then ## Run it · Deploy · URL parameters · Data · Tests · Kit, in order, none other — kit 1.0.0',
+    h1 === 1 && required && hi.every((n, i) => n >= 0 && (i === 0 || n > hi[i - 1])), h2.join(' · ') || 'no ## headings');
+} else {
+  na('Help', 'README checks', `no ${readmePath}`);
+}
+
 /* 5. Maps */
 if (isMap) {
   check('Maps', 'basemap failure handled (MCO.map.watchBasemap) — kit 0.8.0', /watchBasemap\(/.test(js));
@@ -122,12 +178,27 @@ const keys = [...js.matchAll(/(?:localStorage\.setItem|MCO\.lsSet)\(\s*['"`]([^'
 const badKeys = keys.filter((k) => k !== 'mco-theme' && !/^mco-[a-z0-9]+(-[a-z0-9]+)*-/.test(k));
 check('URL', 'storage keys app-prefixed (mco-<app>-*)', badKeys.length === 0, badKeys.join(', '));
 
+/* 6b. One Mesonet origin (HOUSE-STYLE §4, 2026-11-14). An app that reaches a
+   Mesonet host declares MESONET_ORIGIN, and no shipped code links the old
+   forms on mesonet.climate.umt.edu. The app's own canonical and og:/twitter:
+   address is allowed; comments are not code. */
+const noComments = (t) => t.replace(/<!--[\s\S]*?-->/g, ' ').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|\s)\/\/.*$/gm, '$1');
+const shipped = noComments(html.replace(/<(link|meta)\b[^>]*(?:rel="canonical"|property="og:|name="twitter:)[^>]*>/gi, ' ')) + '\n' + noComments(js);
+const usesMesonet = /mesonet2?\.climate\.umt\.edu/.test(shipped) || /\bMESONET_ORIGIN\b/.test(js);
+if (usesMesonet) {
+  check('URL', 'one MESONET_ORIGIN constant in the app script — HOUSE-STYLE §4', /\b(?:const|let|var)\s+MESONET_ORIGIN\s*=/.test(js));
+  const old = [...new Set(shipped.match(/mesonet\.climate\.umt\.edu\/(?:dash|api)[^\s'"`<)]*/g) || [])];
+  check('URL', 'no mesonet.climate.umt.edu/dash or /api links in shipped code — HOUSE-STYLE §4', old.length === 0, old.slice(0, 3).join(', '));
+} else {
+  na('URL', 'MESONET_ORIGIN checks', 'no Mesonet host in the app');
+}
+
 /* Report */
 let section = '';
 for (const r of results) {
   if (r.section !== section) { section = r.section; console.log(`\n${section}`); }
-  const mark = r.ok === null ? '–' : r.ok ? '✓' : '✗';
-  console.log(`  ${mark} ${r.label}${r.detail && r.ok !== true ? ` (${r.detail})` : ''}`);
+  const mark = r.ok === null ? '–' : r.ok ? (r.warn ? '⚠' : '✓') : '✗';
+  console.log(`  ${mark} ${r.label}${r.detail && (r.ok !== true || r.warn || r.show) ? ` (${r.detail})` : ''}`);
 }
 const scored = results.filter((r) => r.ok !== null);
 const pass = scored.filter((r) => r.ok).length;

@@ -345,6 +345,30 @@ to its own title, which is what that field is not for.
 
 ⛔ `mco-drought-dashboard` is **excluded** — hands-off, see its row above.
 
+## Cutover to mesonet.climate.umt.edu
+
+Every Mesonet dashboard and API link derives from one `MESONET_ORIGIN` constant
+per app (HOUSE-STYLE §4 *One Mesonet origin*). Today it is
+`https://mesonet2.climate.umt.edu`. At the cutover, set it to
+`https://mesonet.climate.umt.edu` in each place below, update that app's CSP
+`connect-src` and README `## Data`, and run the app's checks.
+
+Consumer lines are **after PR merge**: the PRs that add the constant are open.
+
+- [ ] **mesonet-explorer:** `MESONET_ORIGIN` in `app.js`; CSP `connect-src` in `index.html`; `README.md`.
+- [ ] **mesonet-photo-explorer:** `MESONET_ORIGIN` in `docs/app.js`; CSP in `docs/index.html`; `README.md`.
+- [ ] **mesonet-status:** `MESONET_ORIGIN` in `app.js`; CSP in `index.html`; `README.md`.
+- [ ] **mesonet-maintenance:** `MESONET_ORIGIN` in `app.js`; CSP in `index.html`; `README.md`.
+- [ ] **mesonet-umrb-build:** `MESONET_ORIGIN` in `app.js`; CSP in `index.html`; `README.md`.
+- [ ] **mesonet-dashboard:** `MESONET_ORIGIN` in `web/src/core/config.ts`; CSP in `web/index.html`; `README.md`.
+- **mco-snowpack-explorer:** uses no Mesonet host. Nothing to change.
+- [ ] **The kit:** `summary/mco-summary.js` sets `S.API` to the mesonet2 API. It is a
+  published file, so changing it is a kit release: bump the version and give the
+  consumers new SRI. Not changed yet.
+- [ ] **mesonet-gateway:** the CloudFront distribution that serves `/dash/` on
+  mesonet2 (`terraform/cloudfront.tf`). Its cutover change goes with the others.
+- **Not yet done, owner decides:** `mco-website-next`, and `mesonet-aq` (hands-off).
+
 ## mesonet-aq: conformance handoff
 
 mesonet-aq is Kyle's own overhaul, so the 2026-11-04 conformance rollout left

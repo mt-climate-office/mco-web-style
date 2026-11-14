@@ -129,23 +129,102 @@ so the first frame is already in Outfit — no system-font flash, no swap. The t
 carry system fallbacks. Don't add other families — the drought dashboard's Inter
 is drift, not precedent.
 
-**Voice.** Plain, confident, unhedged. Info modals explain what the colors mean
-and where the data comes from. Footers and exports credit
+**Voice.** Plain, confident, unhedged. Help is short: see *Help and docs*
+below. Footers and exports credit
 `Montana Climate Office · climate.umt.edu`, always through `MCO.credit({source})`
 (0.9.0), so the wording and the `·` separator (never `|`) are identical
 everywhere. Pages with room carry a `.mco-footer`. Full-viewport map apps put
 the credit in the info modal's Data section and their exports instead.
 
-**The info modal outline** (0.21.0). Every app's info modal has the same
-shape, so a visitor who has read one knows where to look in the next:
+**Help and docs: how to write them.** Kyle, 2026-11-14: "Humans need quick
+and easy." `mco-website-next/docs/VOICE.md` binds all copy. Read it first,
+with its banned constructions and words. `tools/conformance.mjs` checks the
+counts below.
 
-- **Heading:** the app's brand title, the same words as `.brand-title`.
-- **Sections, in order:** *What this shows* · *How to use it* · *Share or
-  bookmark* · *Data*. Each is an `.info-section` with an `<h3>`. Leave out a
-  section with nothing true to say, but don't rename or reorder them.
-- **Data** names the sources and ends with the credit line from
-  `MCO.credit({source})`, never hand-typed.
-- Keyboard shortcuts and `?kbd=off` (§5.9) go under *How to use it*.
+*Who reads it.* Someone using the tool for the first time, on a phone, for
+ten seconds. Write for them.
+
+*Help modal.* The heading is the app's brand title, the same words as
+`.brand-title`. Then these sections, each an `.info-section` with an `<h3>`,
+in this order: **What this shows**, **How to use it**, **Share or bookmark**,
+**Data**. No others. Leave out a section with nothing true to say.
+
+- 150 words or fewer of always-visible text, title to credit line. Hard limit 200.
+- **What this shows:** one or two sentences. Then one short line per legend
+  category or mode, only where its label does not explain itself.
+- **How to use it:** five bullets at most, one line each. Start with the verb.
+  Name a control by its on-screen label, in bold. Say "tap", not "click or
+  tap". Leave out what a person finds by looking: zoom, pan, theme, close,
+  Back. Do not describe the layout per device.
+- The last bullet is the keys, on one line: "Keys: `/` search, `←` `→`
+  change the day, `Esc` close. Add `?kbd=off` to the address to turn off `/`
+  and the arrows." Name every single-key shortcut the app has. Say what
+  `?kbd=off` really turns off: never `Esc`. §5.9 has the opt-out rule.
+- **Share or bookmark:** one or two sentences. "The address holds this view.
+  Copy it to share." Add one clause for a Share or Export button.
+- **Data:** each source as a link and how often it updates. End with the
+  credit line from `MCO.credit({source})`, never hand-typed. No method here.
+- Reference some readers need goes in a collapsed `<details>` at the end of
+  its section. Its `<summary>` says what is inside. Two at most, 80 words
+  each. They do not count toward the 150. Longer than that is a page: link
+  to it.
+- Until the theme ships it in 1.0.1, style the summary with this rule,
+  marked `kit-override`. It is 40px tall, with text the size of the body.
+
+  ```css
+  .info-section summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); padding: 0.6rem 0; min-height: 40px; box-sizing: border-box; }
+  .info-section code, .info-section kbd { white-space: nowrap; }
+  ```
+- A first-visit intro is the same modal. No separate intro copy.
+
+*Sentences.* 15 words or fewer, one idea each. No parentheses, no
+semicolons. Present tense, second person or imperative. Say what it is, not
+how it is built: no API names, element names, versions or history. No counts
+or dates that will change. No "simply", "just", "note that", "please",
+"allows you to", "in order to". If a sentence can go and nobody is stuck,
+cut it.
+
+*README.* One screen, 250 words or fewer of prose. Tables and code blocks
+don't count. These headings, in order, each only where it applies:
+
+1. `# <App name>`, one sentence saying what it is, the live URL on its own line.
+2. `## Run it`: the commands in a code block, one line of prose at most.
+3. `## Deploy`: three lines or fewer.
+4. `## URL parameters`: a table of parameter, values, what it does.
+5. `## Data`: the sources with their endpoints.
+6. `## Tests`: the commands in a code block.
+7. `## Kit`: the pinned version and "Design rules: mco-web-style/HOUSE-STYLE.md".
+
+Keep every fact needed to run, deploy, test or link to the app. Cut
+narrative, rationale, history and feature tours. Git keeps them.
+
+*Example: mesonet-status, as the app shows it.*
+
+> **Mesonet Station Status**
+>
+> **What this shows**
+> Every Montana Mesonet station, colored by how recently it reported.
+> - **Status:** reported in the last 2 hours, or not.
+> - **Time since:** time since the last report.
+> - **Health:** whether every expected sensor is reporting.
+>
+> A hollow dot has no record. A numbered dot is several stations at one site.
+>
+> ▸ What the Health categories mean
+>
+> **How to use it**
+> - Pick a mode in the bar.
+> - Tap a station for its details and a dashboard link.
+> - Tap a legend row to hide that category. Double-tap to show only it.
+> - Tap **HydroMet** or **AgriMet** to show or hide that network.
+> - Keys: `/` search, `Esc` close. Add `?kbd=off` to the address to turn off `/`.
+>
+> **Share or bookmark**
+> The address holds this view. Copy it to share. Times are Mountain Time.
+>
+> **Data**
+> Montana Mesonet API, checked every 5 minutes.
+> Montana Mesonet · Montana Climate Office · climate.umt.edu
 
 ---
 
@@ -720,6 +799,26 @@ At ≤ 1400 px the kit hides "Updated" visually, so the stamp shrinks to its
 dot and time and screen readers still hear the whole phrase. No "as of",
 "Last refresh", or "Data through" variants. **`?export=` convention**: a URL param that forces a theme and triggers
 the app's export path — keeps branded-PNG generation headless-scriptable.
+
+**One Mesonet origin.** Kyle, 2026-11-14: one place to change at the cutover.
+Every app declares one constant near the top of its main script:
+
+```js
+// The Mesonet host for the dashboard and the API. At the cutover this becomes
+// 'https://mesonet.climate.umt.edu'. Change it here, and in the CSP and README.
+const MESONET_ORIGIN = 'https://mesonet2.climate.umt.edu';
+```
+
+- A station's dashboard link is `${MESONET_ORIGIN}/dash/?s=<id>`. No `/dash/next/`,
+  no `/dash/<id>`.
+- The API base is `${MESONET_ORIGIN}/api/v2`, or `/api` where the app already calls
+  the unversioned routes. Its docs are `/api/v2/docs`.
+- The host appears only on that line, in the CSP `connect-src` and under README
+  `## Data`. Set links from script. A static `href` that must stay is listed in the PR.
+- `mesonet.climate.umt.edu/dash` and `/api` appear nowhere. The app's own canonical
+  address is not a link to either and stays.
+- Other hosts, such as data2, are not covered by this rule.
+- CONSUMERS.md has the cutover checklist. `tools/conformance.mjs` checks the constant.
 
 **Station photos** (0.14.0; full history 0.15.0) come from `MCO.photos`, which reads the camera
 schedule and manifests on data2. Rules every app inherits from it:
