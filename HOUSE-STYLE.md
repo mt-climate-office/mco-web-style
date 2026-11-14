@@ -800,6 +800,26 @@ dot and time and screen readers still hear the whole phrase. No "as of",
 "Last refresh", or "Data through" variants. **`?export=` convention**: a URL param that forces a theme and triggers
 the app's export path — keeps branded-PNG generation headless-scriptable.
 
+**One Mesonet origin.** Kyle, 2026-11-14: one place to change at the cutover.
+Every app declares one constant near the top of its main script:
+
+```js
+// The Mesonet host for the dashboard and the API. At the cutover this becomes
+// 'https://mesonet.climate.umt.edu'. Change it here, and in the CSP and README.
+const MESONET_ORIGIN = 'https://mesonet2.climate.umt.edu';
+```
+
+- A station's dashboard link is `${MESONET_ORIGIN}/dash/?s=<id>`. No `/dash/next/`,
+  no `/dash/<id>`.
+- The API base is `${MESONET_ORIGIN}/api/v2`, or `/api` where the app already calls
+  the unversioned routes. Its docs are `/api/v2/docs`.
+- The host appears only on that line, in the CSP `connect-src` and under README
+  `## Data`. Set links from script. A static `href` that must stay is listed in the PR.
+- `mesonet.climate.umt.edu/dash` and `/api` appear nowhere. The app's own canonical
+  address is not a link to either and stays.
+- Other hosts, such as data2, are not covered by this rule.
+- CONSUMERS.md has the cutover checklist. `tools/conformance.mjs` checks the constant.
+
 **Station photos** (0.14.0; full history 0.15.0) come from `MCO.photos`, which reads the camera
 schedule and manifests on data2. Rules every app inherits from it:
 - **The schedule is data.** Slots, views and dates come from

@@ -222,6 +222,12 @@ control bar).
   README; the demo's and exemplar's help follow it. HTML comments are
   stripped before the Help checks (one mentioning `<details>` inflated a
   count); `tools/check-conformance.mjs` tests that on a fixture in CI.
+- HOUSE-STYLE §4 *One Mesonet origin* (Kyle, 2026-11-14): each app declares
+  one `MESONET_ORIGIN` (`https://mesonet2.climate.umt.edu` until the cutover)
+  and builds its dashboard links (`/dash/?s=<id>`), API base and API docs
+  link from it. `tools/conformance.mjs` checks for the constant and for any
+  `mesonet.climate.umt.edu/dash` or `/api` link; CONSUMERS has the cutover
+  checklist. The exemplar follows it.
 - **1.0.1 to-do, not shipped here:** move the help `<details>` summary rule
   (`.info-section summary` 40px, body-size text; `code`/`kbd` nowrap) into
   `mco-theme.css`. Five apps carry it as a `kit-override` until then.

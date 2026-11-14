@@ -178,6 +178,21 @@ const keys = [...js.matchAll(/(?:localStorage\.setItem|MCO\.lsSet)\(\s*['"`]([^'
 const badKeys = keys.filter((k) => k !== 'mco-theme' && !/^mco-[a-z0-9]+(-[a-z0-9]+)*-/.test(k));
 check('URL', 'storage keys app-prefixed (mco-<app>-*)', badKeys.length === 0, badKeys.join(', '));
 
+/* 6b. One Mesonet origin (HOUSE-STYLE §4, 2026-11-14). An app that reaches a
+   Mesonet host declares MESONET_ORIGIN, and no shipped code links the old
+   forms on mesonet.climate.umt.edu. The app's own canonical and og:/twitter:
+   address is allowed; comments are not code. */
+const noComments = (t) => t.replace(/<!--[\s\S]*?-->/g, ' ').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|\s)\/\/.*$/gm, '$1');
+const shipped = noComments(html.replace(/<(link|meta)\b[^>]*(?:rel="canonical"|property="og:|name="twitter:)[^>]*>/gi, ' ')) + '\n' + noComments(js);
+const usesMesonet = /mesonet2?\.climate\.umt\.edu/.test(shipped) || /\bMESONET_ORIGIN\b/.test(js);
+if (usesMesonet) {
+  check('URL', 'one MESONET_ORIGIN constant in the app script — HOUSE-STYLE §4', /\b(?:const|let|var)\s+MESONET_ORIGIN\s*=/.test(js));
+  const old = [...new Set(shipped.match(/mesonet\.climate\.umt\.edu\/(?:dash|api)[^\s'"`<)]*/g) || [])];
+  check('URL', 'no mesonet.climate.umt.edu/dash or /api links in shipped code — HOUSE-STYLE §4', old.length === 0, old.slice(0, 3).join(', '));
+} else {
+  na('URL', 'MESONET_ORIGIN checks', 'no Mesonet host in the app');
+}
+
 /* Report */
 let section = '';
 for (const r of results) {

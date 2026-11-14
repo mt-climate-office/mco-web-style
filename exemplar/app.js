@@ -13,8 +13,11 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
 
   /* ── Constants ─────────────────────────────────────────────────────────── */
 
-  const STATIONS_URL = 'https://mesonet.climate.umt.edu/api/stations/?type=json';
-  const DASH_URL = (s) => `https://mesonet.climate.umt.edu/dash/${encodeURIComponent(s)}/`;
+  // The Mesonet host for the dashboard and the API. At the cutover this becomes
+  // 'https://mesonet.climate.umt.edu'. Change it here, and in the CSP and README.
+  const MESONET_ORIGIN = 'https://mesonet2.climate.umt.edu';
+  const STATIONS_URL = `${MESONET_ORIGIN}/api/stations/?type=json`;
+  const DASH_URL = (s) => `${MESONET_ORIGIN}/dash/?s=${encodeURIComponent(s)}`;
 
   // Networks: color AND shape from the kit's registry (MCO.palette.NETWORK,
   // §6/§7) — HydroMet a filled circle, AgriMet a hollow one, so the map
@@ -373,6 +376,8 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
   // One listener for every theme change, wherever it came from — §4
   document.addEventListener('mco:themechange', paintLegendSwatches);
 
+  // The API docs link follows the one origin — HOUSE-STYLE §4.
+  document.getElementById('api-docs').href = `${MESONET_ORIGIN}/api/v2/docs`;
   // The Data section ends with the one credit line — HOUSE-STYLE §1.
   document.getElementById('info-credit').textContent = MCO.credit({ source: 'Montana Mesonet API' });
   MCO.initInfoModal({

@@ -51,7 +51,8 @@ jobs:
         run: node tools/check-places.mjs
 
       # tools/conformance.mjs's Help checks on a fixture (a comment that
-      # mentions <details> must not change the counts).
+      # mentions <details> must not change the counts) and its Mesonet
+      # origin checks on a good and a bad fixture.
       - name: Conformance Help checks self-test
         run: node tools/check-conformance.mjs
 
