@@ -56,8 +56,13 @@
 
   <style>
     /* Demo-page layout only — nothing here is part of the kit. */
+    /* A scrolling page keeps its end clear of the bottom control bar (1.0.0). */
+    body { padding-bottom: var(--tabbar-h); }
     main { max-width: 1080px; margin: 0 auto; padding: 1.5rem max(1rem, env(safe-area-inset-right)) 4rem max(1rem, env(safe-area-inset-left)); }
     main:focus { outline: none; }
+    /* Long code tokens wrap, so a 320px phone gets no sideways scroll. */
+    main { overflow-wrap: anywhere; }
+    main a.nav-btn { white-space: normal; }
     .demo-section { margin-top: 2.5rem; }
     .demo-section > h2 {
       font-size: 0.9rem; font-weight: 600; letter-spacing: 0.06em;
@@ -86,7 +91,7 @@
     .demo-hero-val { font-size: var(--fs-2xl); color: var(--text-primary); }
     .demo-hero-unit { font-size: var(--fs-sm); color: var(--text-muted); }
     .demo-hero-mono { font-family: var(--font-mono); }
-    .demo-peek { font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
+    .demo-lead { font-family: var(--font-mono); font-size: var(--fs-md); color: var(--text-primary); }
     .demo-summary { margin: 0; font-size: var(--fs-lg); line-height: 1.35; color: var(--text-primary); }
     .demo-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
     .demo-islands { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4); }
@@ -154,7 +159,7 @@
       border-radius: 3px; padding: 1px 5px; color: var(--text-muted);
       pointer-events: none;
     }
-    #vp-status, #map-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); }
+    #vp-status, #map-note, .demo-kb-status { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); }
     footer { margin-top: 3rem; font-size: 0.75rem; color: var(--text-dim); }
     footer a { color: var(--accent-line); }
   </style>
@@ -164,11 +169,12 @@
 <a class="mco-skip-link" href="#main">Skip to main content</a>
 
 <!-- is-sticky (0.10.0): this page scrolls, so the bar stays put.
-     data-rail (0.10.0): on a landscape phone it becomes a left rail, and
-     .mco-nav-drawer holds the rest (MCO.initNavRail).
-     data-rail="compact" (0.21.0): on a portrait phone too, as ONE row
-     (logo · the day stepper · search · ☰), with .mco-nav-drawer as a right
-     drawer under it. -->
+     data-rail (0.10.0): on a landscape phone it becomes a rail at the RIGHT
+     edge (1.0.0): badge, ☰, search, then the day stepper of the control bar
+     below, and .mco-nav-drawer opens beside it (MCO.initNavRail).
+     data-rail="compact" (0.21.0): on a portrait phone, as ONE row
+     (logo · search · ☰), with .mco-nav-drawer as a right drawer under it
+     and the day stepper in the bottom control bar (1.0.0). -->
 <header class="mco-navbar is-sticky" data-rail="compact">
   <a href="https://climate.umt.edu" target="_blank" rel="noopener noreferrer"
      class="logo-link" aria-label="Montana Climate Office">
@@ -179,9 +185,6 @@
             aria-controls="nav-drawer" aria-expanded="false">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
-    <!-- A hot control (0.21.0): steps the Controls card's date. -->
-    <button type="button" class="nav-btn mco-step" id="rail-step-prev" aria-label="Previous day">‹</button>
-    <button type="button" class="nav-btn mco-step" id="rail-step-next" aria-label="Next day">›</button>
     <!-- Last in .mco-rail: the compact bar's search button opens the drawer
          on the field (MCO.initNavRail's search option). -->
     <button type="button" class="nav-btn icon-only mco-search-toggle" id="btn-search-toggle"
@@ -250,6 +253,16 @@
   </div>
 </header>
 <div class="mco-scrim" id="rail-scrim" aria-hidden="true" hidden></div>
+<!-- Bottom control bar (1.0.0): the phone's time controls, here the
+     Controls card's day stepper again. A direct child of <body>; core wires
+     it (MCO.initControlBar). Docked at the bottom where the bar is folded,
+     at the foot of the rail in short landscape, hidden otherwise and while
+     a keyboard is up. ← / → step it (arrowKeys). -->
+<div class="mco-controlbar" role="group" aria-label="Day">
+  <button type="button" class="nav-btn mco-step" id="rail-step-prev" aria-label="Previous day">‹</button>
+  <span class="mco-controlbar-readout" id="bar-day"></span>
+  <button type="button" class="nav-btn mco-step" id="rail-step-next" aria-label="Next day">›</button>
+</div>
 
 <main id="main" tabindex="-1">
 
@@ -509,7 +522,7 @@
           </fieldset>
           <label class="sr-only" for="photo-view-select">Direction</label>
           <select id="photo-view-select" class="demo-select" hidden></select>
-          <span class="demo-peek" id="photo-readout" role="status"></span>
+          <span class="demo-lead" id="photo-readout" role="status"></span>
         </div>
       </section>
       <!-- MCO.places.initPlaceSearch (0.16.0): MCO.initSearchBox over stations,
@@ -566,12 +579,29 @@
     <h2>Drawer &amp; sheet</h2>
     <p><code>MCO.initDrawer</code>: a labelled <code>&lt;aside&gt;</code> that makes the rest of the page
        inert while open (Tab can only cycle inside), closes on Esc / × / scrim, and returns focus.
-       <code>MCO.initSheet</code>: docks at the end edge here, at the bottom with peek/full detents on a
-       phone. The grip is the keyboard twin of the drag. Both sit on <code>MCO.overlay</code>.</p>
+       <code>MCO.initSheet</code> (the station panel): docks at the end edge here, with the page live beside it;
+       on a phone (1.0.0) it is one full-height panel under the bar, above the bottom control bar, with the
+       bar and the control bar live and the rest inert. Its 44px close button is the same at every width.
+       Both sit on <code>MCO.overlay</code>.</p>
     <div class="demo-row">
       <button type="button" class="nav-btn" id="btn-drawer" aria-expanded="false" aria-controls="demo-drawer">Open drawer</button>
       <button type="button" class="nav-btn" id="btn-sheet">Open sheet</button>
     </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>Keyboard</h2>
+    <p><code>MCO.keyboard</code> (1.0.0, started by <code>MCO.ready()</code>) watches the visual viewport. While an
+       on-screen keyboard covers the page it sets <code>.kb-open</code> on <code>&lt;html&gt;</code> with
+       <code>--kb-inset</code> (the px it covers) and <code>--vv-h</code> (the visible height): the ☰ drawer and
+       drawers stop above it, a search list keeps to the room above it, the panel's body pads for it and the
+       bottom control bar hides. While someone types, the bar never flips into the rail and an open drawer
+       never closes under them. Focus the field on a phone.</p>
+    <div class="demo-row">
+      <label class="demo-label" for="kb-field">A text field</label>
+      <input type="text" id="kb-field" class="mco-search-input" placeholder="Type here…">
+    </div>
+    <p id="kb-status" class="demo-kb-status"></p>
   </section>
 
   <section class="demo-section">
@@ -662,12 +692,11 @@
 
 <section class="mco-sheet" id="demo-sheet" aria-labelledby="demo-sheet-title" data-state="closed" hidden>
   <div class="mco-sheet-head">
-    <button type="button" class="mco-sheet-grip" aria-label="Expand details" aria-expanded="false"></button>
     <h2 class="mco-sheet-title" id="demo-sheet-title" tabindex="-1">Bozeman (demo)</h2>
     <button type="button" class="modal-close" data-close-sheet aria-label="Close details">×</button>
   </div>
   <div class="mco-sheet-body">
-    <p class="demo-peek" data-peek>42.0 °F · updated 10:15 MT</p>
+    <p class="demo-lead">42.0 °F · updated 10:15 MT</p>
     <dl class="mco-facts">
       <div><dt>Network</dt><dd>HydroMet</dd></div>
       <div><dt>Elevation</dt><dd>1,495 m</dd></div>
@@ -698,6 +727,10 @@
         <li>Close this dialog with <kbd>Esc</kbd> — focus returns to the button that opened it.</li>
         <li>Zoom the map out — it snaps back to Montana.</li>
         <li>Switch to <strong>High contrast</strong> and watch every surface re-derive.</li>
+        <li>Step the day with <kbd>←</kbd> and <kbd>→</kbd> from anywhere on the page. In a field, a radio group or a
+            dialog the arrows keep their own meaning, and on a map you reached with <kbd>Tab</kbd> they pan it; after a
+            click on the map, ← and → step the day and ↑ and ↓ pan. Add <code>?kbd=off</code> to the address to turn
+            these keys and <kbd>/</kbd> off.</li>
       </ul>
     </div>
     <div class="info-section">
@@ -738,14 +771,26 @@
     b.setAttribute('aria-pressed', String(chips.includes(b.dataset.chip)));
   }));
   let demoDate = MCO.todayMT();
+  const dateSteppers = [];   // both steppers of this date refresh together
   const minDate = MCO.shiftDate(demoDate, -14);
   const readout = document.getElementById('date-readout');
-  const showDate = () => { readout.textContent = MCO.formatDateStr(demoDate); };
-  MCO.initStepper({
+  const showDate = () => {
+    readout.textContent = MCO.formatDateStr(demoDate);
+    const b = document.getElementById('bar-day');
+    if (b) b.textContent = MCO.formatDateStr(demoDate);
+    dateSteppers.forEach((st) => st.refresh());
+  };
+  // arrowKeys (1.0.0): ← / → step the day from anywhere on the page, unless
+  // focus is in a field, a radio group, a slider, a dialog or a map reached by
+  // Tab (MCO.initStepper). Two steppers drive this date (here and the control
+  // bar); the one showing takes the keys. Try ?kbd=off.
+  const cardStep = MCO.initStepper({
     prev: document.getElementById('step-prev'), next: document.getElementById('step-next'),
     onStep: (d) => { demoDate = MCO.shiftDate(demoDate, d); showDate(); },
     canStep: (d) => (d < 0 ? demoDate > minDate : demoDate < MCO.todayMT()),
+    arrowKeys: true, unit: 'day',
   });
+  dateSteppers.push(cardStep);
   showDate();
   MCO.initSegmentedFallback({
     group: document.getElementById('units-seg'),
@@ -910,9 +955,20 @@
   });
   const sheet = MCO.initSheet({ sheet: document.getElementById('demo-sheet') });
   document.getElementById('btn-sheet').addEventListener('click', (e) => {
-    sheet.open('peek', { opener: e.currentTarget });
+    sheet.open({ opener: e.currentTarget });
     MCO.announce('Bozeman opened.');
   });
+
+  /* ── Keyboard (1.0.0) ────────────────────────────────────────────────── */
+  const kbStatus = document.getElementById('kb-status');
+  function renderKb() {
+    const cs = getComputedStyle(document.documentElement);
+    kbStatus.textContent = `keyboard: ${MCO.keyboard.isOpen() ? 'up' : 'down'} · --kb-inset: ${cs.getPropertyValue('--kb-inset').trim() || '0px'}` +
+      ` · --vv-h: ${cs.getPropertyValue('--vv-h').trim()}`;
+  }
+  document.addEventListener('mco:keyboard', renderKb);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', renderKb);
+  MCO.whenReady().then(renderKb);
 
   /* ── Notice ──────────────────────────────────────────────────────────── */
   document.getElementById('btn-notice').addEventListener('click', () => {
@@ -968,6 +1024,7 @@
   function renderVp() {
     document.getElementById('vp-status').textContent =
       'compact: ' + MCO.viewport.isCompact() +
+      ' · rail: ' + MCO.viewport.isRail() +
       ' · touch: ' + MCO.viewport.isTouch() +
       ' · reduced motion: ' + MCO.reducedMotion();
   }
@@ -1225,6 +1282,7 @@
   // the same in rail or drawer mode and focuses the field otherwise.
   window.addEventListener('keydown', (e) => {
     if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (MCO.getParamLower('kbd') === 'off') return;   // WCAG 2.1.4 opt-out
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     e.preventDefault();
@@ -1232,8 +1290,9 @@
     else { demoSearchInput.focus(); demoSearchInput.select(); }
   });
 
-  // Short-landscape rail (MCO.initNavRail): rotate a phone, or try 750×342.
-  // data-rail="compact" (0.21.0) adds the portrait-phone drawer: try 390×844.
+  // Short-landscape rail (MCO.initNavRail), at the right edge since 1.0.0:
+  // rotate a phone, or try 750×342. data-rail="compact" (0.21.0) adds the
+  // portrait-phone drawer: try 390×844.
   const rail = MCO.initNavRail({
     toggle: document.getElementById('btn-rail-menu'),
     drawer: document.getElementById('nav-drawer'),
@@ -1241,14 +1300,19 @@
     search: { toggle: document.getElementById('btn-search-toggle'), input: demoSearchInput },
   });
 
-  // The bar's hot control: the Controls card's day stepper, again.
+  // The control bar's day stepper (1.0.0): the Controls card's, again.
   const railStep = MCO.initStepper({
     prev: document.getElementById('rail-step-prev'), next: document.getElementById('rail-step-next'),
     onStep: (d) => { demoDate = MCO.shiftDate(demoDate, d); showDate(); MCO.announce(readout.textContent); },
     canStep: (d) => (d < 0 ? demoDate > minDate : demoDate < MCO.todayMT()),
+    arrowKeys: true, unit: 'day',
   });
-  ['step-prev', 'step-next'].forEach((id) =>
-    document.getElementById(id).addEventListener('click', () => railStep.refresh()));
+  dateSteppers.push(railStep);
+  showDate();
+
+  // Legend in the drawer (1.0.0): on a phone the map's legend moves into a
+  // "Legend" group in the ☰ drawer, and a Legend button on the map opens it.
+  MCO.initLegendDrawer({ panel: document.getElementById('legend-panel'), rail, label: 'Legend' });
 
   // Freshness stamp (0.21.0): today's form in the navbar...
   MCO.formatUpdatedMT(Date.now(), { into: document.getElementById('demo-updated') });

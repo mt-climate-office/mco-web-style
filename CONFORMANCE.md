@@ -34,8 +34,13 @@ pass's job. Each item cites the rule it checks.
 - [ ] Info button is `.mco-btn-info` (§3)
 - [ ] The ≤750px brand collapse is untouched, or overridden with a `/* kit-override: … */` comment (§3)
 - [ ] ✋ Buttons that shed `.btn-label` below 1400px carry a permanent `aria-label` (§3)
-- [ ] ✋ **Map tools:** the bar is one row, ≤ 64px, at every width (390px, 750×342, and each width from 641 to 1440, mouse and touch): `data-rail="compact"` folds to logo · hot controls · search · ☰ (badge left, ☰ right) wherever the full bar would wrap, the rest in `.mco-nav-drawer` (§3 *The one-row phone bar*). No app-local row swaps (`order` / `flex-basis`) remain
-- [ ] ✋ The compact drawer opens from the right, inerts the page and the rest of the bar, and Esc returns focus to the button that opened it (§3)
+- [ ] ✋ **Map tools:** the bar is one row, ≤ 64px, at every width (390px and each width from 641 to 1440, mouse and touch): `data-rail="compact"` folds to logo · hot controls · search · ☰ (badge left, ☰ right) wherever the full bar would wrap, the rest in `.mco-nav-drawer` (§3 *The one-row phone bar*). No app-local row swaps (`order` / `flex-basis`) remain
+- [ ] ✋ **Map tools, short landscape (750×342, 844×390):** the bar is the rail at the RIGHT edge, top to bottom badge · ☰ · search · time controls, every button ≥ 44px on touch; the map's zoom sits top left (kit 1.0.0), never in the rail; no app CSS for a left rail or `padding-left: var(--rail-inset)` remains (§3, kit 1.0.0)
+- [ ] ✋ The ☰ drawer opens from the right (beside the rail in landscape), focuses the drawer itself, inerts the page and the rest of the bar, and Esc returns focus to the button that opened it (§3)
+- [ ] ✋ **Time controls** (a date stepper, photos' direction) are in a `.mco-controlbar` child of `<body>`, not the top bar; an app with none has no control bar (§3 *The bottom control bar*, 1.0.0)
+- [ ] ✋ **Station panel:** on compact it is the viewport less the bar(s), one state, the bar not inert; no `.mco-sheet-grip`, `data-peek` or `open('peek')`; a visible 44px `[data-close-sheet]` at the top right of `.mco-sheet-head` at every width (§3, 1.0.0)
+- [ ] ✋ **Legend on a phone:** a floating legend `.mco-panel` uses `MCO.initLegendDrawer` (in the ☰ drawer on compact, a Legend button on the map); desktop keeps it floating (§3, 1.0.0)
+- [ ] ✋ **← / → step the date** on every date stepper (`MCO.initStepper` `arrowKeys: true`), the info modal says so, and `?kbd=off` turns them off (§3, §5.9, 1.0.0)
 - [ ] ✋ Every bar control is one height: 34px at desktop, 40px on touch (`--control-h`), the app's own selects and inputs included (§3)
 - [ ] ✋ On/off filters and layers are `.mco-chip[aria-pressed]`; actions are `.nav-btn` (§5.7)
 - [ ] ✋ The freshness stamp is `MCO.formatUpdatedMT` of the data's time in `.refresh-status` ("Updated 2:45 PM MST"), with no other wording (§4)
@@ -64,7 +69,7 @@ pass's job. Each item cites the rule it checks.
 - [ ] `MCO.map.watchBasemap(map)`; data loads from `style.load`/`load`, never from a basemap-specific signal (§7)
 - [ ] Popup, tooltip, sheet and table content DOM-built (`popupContent`, `initCursorTooltip`, `srTable`); no `setHTML`/`innerHTML` with API values; API URLs through `MCO.map.safeUrl` (§7)
 - [ ] Selection halo colored by `--selection-ring` (§2)
-- [ ] `MCO.map.addNavigation` (top-right, no compass) + `addFitControl` (§7)
+- [ ] `MCO.map.addNavigation` (top-left by default since 1.0.0, no compass) + `addFitControl` (§7); nothing of the app's own overlaps the zoom group
 - [ ] `MCO.map.installZoomFloor`, with app policy in `onBeforeSnap` (§7)
 - [ ] ✋ Layer order: basemap → hillshade → basemap labels → boundaries → data (§7)
 

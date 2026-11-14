@@ -16,7 +16,7 @@
        storage: { 'mco-status-seen-intro': '1' },  // seeded before load
        scenarios: [
          { name: 'default', query: '' , ready: () => document.querySelectorAll('#sr-twin tbody tr').length > 10 },
-         { name: 'station', query: '?station=acebozem', ready: '.mco-sheet[data-state="peek"]' },
+         { name: 'station', query: '?station=acebozem', ready: '.mco-sheet[data-state="full"]' },
        ],
        // Tolerated small targets, as a selector — say why in a comment.
        exemptTargets: '',

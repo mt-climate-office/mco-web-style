@@ -204,13 +204,17 @@
   /* ── Controls ──────────────────────────────────────────────────────────── */
 
   // House default: zoom buttons, no compass (rotation is off in these apps;
-  // a compass that never turns is noise).
+  // a compass that never turns is noise), in the TOP-LEFT corner of the map
+  // at every width (1.0.0, Kyle 2026-11-13: not beside the right-hand rail;
+  // it was 'top-right'). opts.position still picks another corner, e.g.
+  // {position: 'top-right'} for the old one. addFitControl fuses into this
+  // group, so it moves with it.
   M.addNavigation = function (map, opts) {
     opts = opts || {};
     var control = new maplibregl.NavigationControl({
       showCompass: opts.showCompass === true,
     });
-    map.addControl(control, opts.position || 'top-right');
+    map.addControl(control, opts.position || 'top-left');
     return control;
   };
 
@@ -626,7 +630,7 @@
      expression) to encode a data value. Paints read the theme when called:
      re-call after a theme switch, like every paint.
 
-     DEPRECATED (0.21.0, kept working until 1.0.0): markerPaint(network)'s
+     DEPRECATED (0.21.0, kept working until 2.0): markerPaint(network)'s
      per-network shapes (circle / hollow / ring in MCO.palette.NETWORK
      colors) and colocatedHaloPaint()'s second-network ring. New code uses
      stationPaint(); colocated sites are one marker with a count badge and a

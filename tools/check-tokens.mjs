@@ -49,7 +49,7 @@ const dark = {};
 const zIndex = {};
 const scale = {};   // theme-invariant type/spacing scale (0.9.0)
 const metrics = {}; // layout metrics JS writes at runtime (0.9.0), not theme tokens
-const METRICS = ['--chrome-h', '--sheet-h', '--sheet-end', '--tabbar-h', '--overlay-bottom'];
+const METRICS = ['--chrome-h', '--sheet-h', '--sheet-end', '--tabbar-h', '--controlbar-h', '--kb-inset', '--vv-h', '--overlay-bottom'];
 for (const [k, v] of Object.entries(rootProps)) {
   (k.startsWith('--z-') ? zIndex : /^--(fs|lh|fw|space|control)-/.test(k) ? scale
     : METRICS.includes(k) ? metrics : dark)[k] = v;

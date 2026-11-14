@@ -74,7 +74,14 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     selectable: true,
     onSelect: (s) => openStation(s.station, { fly: true }),
   });
-  let _cardOpener = null;
+  // The station panel — §3 (MCO.initSheet): focus to its title on open, back
+  // to the opener on close; Esc and the close button close it.
+  const sheet = MCO.initSheet({
+    sheet: card,
+    fallbackFocus: document.getElementById('map'),
+    onState: (st) => { if (st === 'closed') onSheetClosed(); },
+  });
+  let _closingFromHistory = false;
 
   // The page's one announcer, for everything a sighted user learns from the
   // canvas — §5.1
@@ -194,7 +201,6 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     const s = stationById.get(id);
     if (!s) return;
     selectedId = id;
-    _cardOpener = document.activeElement;
 
     document.getElementById('card-title').textContent = s.name;
     document.getElementById('card-id').textContent = s.station;
@@ -204,8 +210,7 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     document.getElementById('card-installed').textContent =
       s.date_installed ? MCO.formatDateMT(s.date_installed) : '—';
     document.getElementById('card-dash').href = DASH_URL(s.station);
-    card.hidden = false;
-    card.focus();                                  // focus lands on the card
+    sheet.open({ opener: document.activeElement });   // focus lands on the title
     live.announce(`${s.name} (${s.station}), ${s.sub_network}, opened.`);
 
     map.getLayer('stations-selected') &&
@@ -222,28 +227,27 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     }
   }
 
-  // fromHistory: Back/Forward already moved the URL; just reflect it.
+  // fromHistory: Back/Forward already moved the URL; just reflect it. The
+  // kit returns focus to the opener — §5.12.
   function closeCard({ fromHistory = false } = {}) {
-    if (card.hidden) return;
-    card.hidden = true;
+    if (sheet.state() === 'closed') return;
+    _closingFromHistory = fromHistory;
+    sheet.close();
+  }
+  // Every close (the button, Esc, closeCard) lands here.
+  function onSheetClosed() {
+    const fromHistory = _closingFromHistory;
+    _closingFromHistory = false;
     selectedId = null;
     map.getLayer('stations-selected') &&
       map.setFilter('stations-selected', ['==', ['get', 'id'], '']);
-    if (_cardOpener && _cardOpener.focus) _cardOpener.focus();  // restore — §5.12
-    _cardOpener = null;
     live.announce('Station closed.');
     if (fromHistory) return;
     // Our own pushed entry: step back off it rather than leave a dead entry
-    // that would re-open the card on Back — §4.
+    // that would re-open the panel on Back — §4.
     if (history.state && history.state.mcoDetail) history.back();
     else writeUrl();
   }
-  document.getElementById('card-close').addEventListener('click', () => closeCard());
-  document.addEventListener('keydown', (e) => {
-    // Esc is always live (no opt-out needed: it's not a printable-key
-    // shortcut, so WCAG 2.1.4 / §5.9 doesn't apply).
-    if (e.key === 'Escape' && !card.hidden) closeCard();
-  });
 
   /* ── URL state (§4): mirror every mutation; clean URL at defaults ──────── */
 
@@ -356,6 +360,16 @@ MCO.map.loadMapLibre().then(function (maplibregl) {
     autoCollapseOnCompact: true,                 // §3 compact behavior
   });
   paintLegendSwatches();
+
+  // The bar's drawer — §3 (MCO.initNavRail): ☰ opens it, focus on the drawer
+  // itself; Esc, the scrim or ☰ close it. On a phone the legend moves into
+  // it, with a Legend button on the map in its place (1.0.0).
+  const rail = MCO.initNavRail({
+    toggle: document.getElementById('btn-menu'),
+    drawer: document.getElementById('nav-drawer'),
+    scrim: document.getElementById('nav-scrim'),
+  });
+  MCO.initLegendDrawer({ panel: document.getElementById('legend-panel'), rail });
   // One listener for every theme change, wherever it came from — §4
   document.addEventListener('mco:themechange', paintLegendSwatches);
 
