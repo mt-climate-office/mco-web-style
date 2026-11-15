@@ -7,6 +7,7 @@ and the legend is also a screen-reader surface.
 
 Operational guardrails (the do/don't list for contributors, human or AI) live in
 [AGENTS.md](AGENTS.md). Per-app adoption status lives in [CONSUMERS.md](CONSUMERS.md).
+How app code is written lives in [CODE-STYLE.md](CODE-STYLE.md).
 
 ---
 

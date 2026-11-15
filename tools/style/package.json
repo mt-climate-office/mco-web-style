@@ -1,0 +1,17 @@
+{
+  "name": "mco-app-dev-tools",
+  "private": true,
+  "description": "Format and lint for an MCO app. Dev tools only: nothing here ships to the browser.",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write .",
+    "check": "prettier --check . && eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.14.0",
+    "globals": "17.13.0",
+    "html-validate": "9.7.1",
+    "prettier": "3.9.10"
+  }
+}

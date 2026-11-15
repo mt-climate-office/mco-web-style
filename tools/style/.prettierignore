@@ -1,0 +1,10 @@
+# Prettier formats the app's JavaScript, CSS and JSON.
+# HTML is left alone: index.html carries inline scripts pinned by sha256 in
+# its CSP, and html-validate rejects the "/>" Prettier adds to void elements.
+*.html
+*.md
+*.geojson
+*.min.js
+node_modules/
+vendor/
+package-lock.json

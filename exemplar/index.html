@@ -93,60 +93,7 @@
           crossorigin="anonymous">
   <link rel="stylesheet" href="../theme/mco-theme.css">
 
-  <style>
-    /* App-specific layout ONLY — chrome, tokens, and component shells come
-       from the kit. No raw hexes (§2); anything positional keys off the
-       z-index ladder tiers. */
-
-    /* Full-viewport app frame — §3 (100dvh, never 100vh) */
-    body { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-    main { flex: 1; min-height: 0; position: relative; }
-    main:focus { outline: none; }
-    #map { width: 100%; height: 100%; }
-
-    /* Station picker: the KEYBOARD path to every map feature — §5.8 */
-    .station-select {
-      min-height: 34px; max-width: 220px;
-      padding: 4px 8px;
-      background: var(--input-bg); color: var(--text-primary);
-      border: 1px solid var(--ctrl-border); border-radius: var(--radius-md);
-      font-family: inherit; font-size: 0.78rem;
-    }
-    /* §5.5. height, not min-height: WebKit ignores min-height on a native
-       <select>, which left this 20px tall on iOS. */
-    @media (hover: none) { .station-select { height: 40px; } }
-
-    /* Legend — an .mco-panel docked bottom-right over the map */
-    #legend-panel { right: 0.75rem; bottom: 1.75rem; }
-    .legend-row {
-      display: flex; align-items: center; gap: 0.5rem;
-      font-size: 0.78rem; color: var(--text-secondary); padding: 3px 0;
-    }
-    .legend-swatch {
-      width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
-      border: 1.5px solid var(--dot-stroke);
-    }
-    .legend-count { margin-left: auto; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); }
-
-    /* Station panel content. The panel itself is the kit's .mco-sheet. */
-    .card-rows { display: grid; grid-template-columns: auto 1fr; gap: 2px 0.8rem; padding: 0 0 0.6rem; }
-    .card-rows dt { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; align-self: center; }
-    .card-rows dd { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-primary); margin: 0; }
-    .card-links { font-size: 0.8rem; }
-    .card-links a { color: var(--accent-line); text-decoration: none; }
-    .card-links a:hover { text-decoration: underline; }
-
-    /* Status line under the navbar (loading / error / count) */
-    #app-note {
-      position: absolute; top: 0.5rem; left: 50%; transform: translateX(-50%);
-      z-index: var(--z-map-notice);
-      background: var(--glass); border: 1px solid var(--border);
-      border-radius: var(--radius-md); padding: 0.3rem 0.8rem;
-      font-size: 0.78rem; color: var(--text-secondary);
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    }
-    #app-note button { margin-left: 0.5rem; }
-  </style>
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
 
@@ -156,7 +103,7 @@
 <!-- One row at every width — §3 (data-rail="compact", MCO.initNavRail): the
      badge left and ☰ right, everything else in .mco-nav-drawer, a right
      drawer under the bar on a phone; at short landscape the bar is a rail
-     at the RIGHT edge (1.0.0) and the drawer opens beside it. -->
+     at the RIGHT edge and the drawer opens beside it. -->
 <header class="mco-navbar" data-rail="compact">
   <a href="https://climate.umt.edu" target="_blank" rel="noopener noreferrer"
      class="logo-link" aria-label="Montana Climate Office">
@@ -171,7 +118,7 @@
   <div class="nav-divider" aria-hidden="true"></div>
   <div class="mco-nav-drawer" id="nav-drawer">
   <div class="brand">
-    <p class="brand-title">Mesonet Station Map</p>
+    <h1 class="brand-title">Mesonet Station Map</h1>
     <span class="brand-subtitle">A service of the Montana Climate Office</span>
   </div>
 
@@ -212,8 +159,6 @@
   <!-- role=application + label on the map container — §7 -->
   <div id="map" role="application" aria-label="Map of Montana Mesonet stations. The data is in the table that follows."></div>
 
-  <p id="app-note" role="status" hidden></p>
-
   <div class="mco-panel" id="legend-panel">
     <div class="mco-panel-head">
       <span class="mco-panel-title">Stations</span>
@@ -233,22 +178,22 @@
 
 <!-- Station detail: the kit's station panel at every width — §3
      (MCO.initSheet). End-docked above compact with the map live; on a phone
-     a full-height panel under the bar (1.0.0), the bar still live. The 44px
+     a full-height panel under the bar, the bar still live. The 44px
      close button, top right, is required at every width. -->
-<section class="mco-sheet" id="station-card" aria-labelledby="card-title" data-state="closed" hidden>
+<section class="mco-sheet" id="station-panel" aria-labelledby="panel-title" data-state="closed" hidden>
   <div class="mco-sheet-head">
-    <h2 class="mco-sheet-title" id="card-title" tabindex="-1">Station</h2>
+    <h2 class="mco-sheet-title" id="panel-title" tabindex="-1">Station</h2>
     <button type="button" class="modal-close" data-close-sheet aria-label="Close station details">×</button>
   </div>
   <div class="mco-sheet-body">
-    <dl class="card-rows">
-      <dt>ID</dt><dd id="card-id"></dd>
-      <dt>Network</dt><dd id="card-net"></dd>
-      <dt>County</dt><dd id="card-county"></dd>
-      <dt>Elevation</dt><dd id="card-elev"></dd>
-      <dt>Installed</dt><dd id="card-installed"></dd>
+    <dl class="panel-rows">
+      <dt>ID</dt><dd id="panel-id"></dd>
+      <dt>Network</dt><dd id="panel-network"></dd>
+      <dt>County</dt><dd id="panel-county"></dd>
+      <dt>Elevation</dt><dd id="panel-elevation"></dd>
+      <dt>Installed</dt><dd id="panel-installed"></dd>
     </dl>
-    <p class="card-links"><a id="card-dash" href="#" target="_blank" rel="noopener noreferrer">Open station dashboard →</a></p>
+    <p class="panel-links"><a id="panel-dash" href="#" target="_blank" rel="noopener noreferrer">Open station dashboard →</a></p>
   </div>
 </section>
 
@@ -296,8 +241,8 @@
 <script src="../core/mco-core.js"></script>
 <script src="../palette/mco-palette.js"></script>
 <script src="../map/mco-map.js"></script>
-<!-- App logic is an external file so CSP can pin script-src 'self' (the
-     explorer pattern) — no inline app code beyond the anti-flash boot. -->
-<script src="app.js"></script>
+<!-- The app is an ES module in its own file, so the CSP can pin
+     script-src 'self': no inline app code beyond the anti-flash boot. -->
+<script type="module" src="app.js"></script>
 </body>
 </html>

@@ -28,7 +28,7 @@ jobs:
           node --check places/mco-places.js
           node --check summary/mco-summary.js
           node --check exemplar/app.js
-          for f in tools/*.mjs tools/verify/*.mjs; do node --check "$f"; done
+          for f in tools/*.mjs tools/verify/*.mjs tools/style/*.mjs; do node --check "$f"; done
 
       - name: Token parity (CSS themes ↔ tokens.json)
         run: node tools/check-tokens.mjs
@@ -73,3 +73,14 @@ jobs:
 
       - name: Validate HTML
         run: npx --yes html-validate@9 demo/index.html demo/colocation.html demo/palette-proposal.html demo/cdn.html exemplar/index.html
+
+      # CODE-STYLE.md: the shared Prettier and ESLint config, pinned in
+      # tools/style/package-lock.json, run on the exemplar and on itself.
+      - name: Install the pinned format and lint tools
+        run: npm ci --prefix tools/style --no-audit --no-fund
+
+      - name: Format (Prettier)
+        run: tools/style/node_modules/.bin/prettier --config tools/style/.prettierrc.json --ignore-path tools/style/.prettierignore --check exemplar tools/style
+
+      - name: Lint (ESLint)
+        run: tools/style/node_modules/.bin/eslint --config tools/style/eslint.config.mjs exemplar tools/style

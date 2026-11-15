@@ -1,0 +1,100 @@
+/* The exemplar's own layout. Chrome, tokens and component shells come from
+   the kit's theme; this file holds only what the page adds, in page order.
+   Tokens only: no raw hex (HOUSE-STYLE §2). */
+
+/* ── Frame ───────────────────────────────────────────────────────────────── */
+
+/* 100dvh, never 100vh: a phone's URL bar would hide the bottom. */
+body {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+main:focus {
+  outline: none;
+}
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Bar ─────────────────────────────────────────────────────────────────── */
+
+/* The station picker: the keyboard path to every station (HOUSE-STYLE §5.8). */
+.station-select {
+  min-height: 34px;
+  max-width: 220px;
+  padding: 4px 8px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--ctrl-border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+/* height, not min-height: WebKit ignores min-height on a native <select>. */
+@media (hover: none) {
+  .station-select {
+    height: 40px;
+  }
+}
+
+/* ── Legend ──────────────────────────────────────────────────────────────── */
+
+#legend-panel {
+  right: 0.75rem;
+  bottom: 1.75rem;
+}
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  padding: 3px 0;
+}
+.legend-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ── Panel ───────────────────────────────────────────────────────────────── */
+
+/* The panel itself is the kit's .mco-sheet; this is its content. */
+.panel-rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 0.8rem;
+  padding: 0 0 0.6rem;
+}
+.panel-rows dt {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  align-self: center;
+}
+.panel-rows dd {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+.panel-links {
+  font-size: 0.8rem;
+}
+.panel-links a {
+  color: var(--accent-line);
+  text-decoration: none;
+}
+.panel-links a:hover {
+  text-decoration: underline;
+}

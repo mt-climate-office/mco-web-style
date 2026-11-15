@@ -4,7 +4,7 @@
    same repo; never runs the app or fetches anything. Run from this repo:
 
      node tools/conformance.mjs ../mesonet-status            # index.html
-     node tools/conformance.mjs ../mesonet-photo-explorer docs/index.html
+     node tools/conformance.mjs ../mesonet-photo-explorer    # docs/index.html when there is no index.html
      node tools/conformance.mjs ../mesonet-status --readme ../mesonet-status/README.md
 
    --readme <path> picks the README the Help checks read; the default is the
@@ -12,7 +12,8 @@
    own demo and exemplar, whose README is the kit's).
 
    Prints one line per check (✓ / ✗ / – not applicable) and "N/M automatic",
-   the number CONSUMERS.md records per app. Manual items are listed after;
+   the number CONSUMERS.md records per app. The code-style checks print ⚠
+   when they fail and are not in that number. Manual items are listed after;
    they are CONFORMANCE.md's job. Exit code is always 0: this measures, the
    verify pass gates. Zero dependencies. */
 import { existsSync, readFileSync } from 'node:fs';
@@ -22,8 +23,10 @@ import { dirname, join } from 'node:path';
 const argv = process.argv.slice(2);
 const ri = argv.indexOf('--readme');
 const readmeArg = ri >= 0 ? argv.splice(ri, 2)[1] : null;
-const [repo, page = 'index.html'] = argv;
+const [repo, pageArg] = argv;
 if (!repo) { console.error('usage: node tools/conformance.mjs <consumer-repo> [entry.html]'); process.exit(2); }
+// The entry page: index.html, or docs/index.html for a Pages site served from docs/.
+const page = pageArg || (existsSync(join(repo, 'index.html')) || !existsSync(join(repo, 'docs/index.html')) ? 'index.html' : 'docs/index.html');
 const htmlPath = join(repo, page);
 const html = readFileSync(htmlPath, 'utf8');
 // App scripts: local <script src> files (not CDN), read alongside the page.
@@ -32,7 +35,18 @@ const scripts = [...html.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].map((m) => m[
   .map((s) => join(dirname(htmlPath), s.split('?')[0]))
   .filter((p) => existsSync(p));
 const js = scripts.map((p) => readFileSync(p, 'utf8')).join('\n');
-const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+// The app's own scripts: a page served from the kit repo loads the kit locally.
+const KIT_SCRIPT = /(?:^|\/)(?:mco-(?:core|map|palette|photos|places|summary)|cog-protocol)\.js$/;
+const appScripts = scripts.filter((p) => !KIT_SCRIPT.test(p));
+const appJs = appScripts.map((p) => readFileSync(p, 'utf8')).join('\n');
+// App CSS: inline <style>, plus local stylesheets other than the kit theme.
+const cssFiles = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*>/g)]
+  .map((m) => (m[0].match(/\bhref="([^"]+)"/) || [])[1])
+  .filter((h) => h && !/^https?:/.test(h) && !/mco-theme\.css/.test(h))
+  .map((h) => join(dirname(htmlPath), h.split('?')[0]))
+  .filter((p) => existsSync(p));
+const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1])
+  .concat(cssFiles.map((p) => readFileSync(p, 'utf8'))).join('\n');
 const all = html + '\n' + js;
 const isMap = /maplibre/i.test(all);
 
@@ -97,7 +111,7 @@ if (isMap) check('A11y', 'canvas twin via MCO.srTable — kit 0.8.0', /MCO\.srTa
 // the correct pattern.
 check('A11y', 'legend dims the swatch, never the row (no opacity on a legend row)',
   !/legend-row(?:\.[\w-]+|\[[^\]]+\]|:[\w-]+)*\s*(?:,[^{]*)?\{[^}]*(?:^|[;{\s])opacity\s*:/.test(css));
-const shortcuts = /kbd=off|'kbd'|"kbd"/.test(js);
+const shortcuts = /kbd=off|'kbd'|"kbd"/.test(appJs);
 if (shortcuts) check('A11y', '?kbd=off disclosed in the info modal', /kbd=off/.test(html));
 else na('A11y', '?kbd=off disclosed in the info modal', 'no single-key shortcuts found');
 
@@ -161,7 +175,7 @@ if (isMap) {
   if (/class="[^"]*\bmco-sheet\b/.test(html)) {
     check('Maps', 'station panel: a [data-close-sheet] button in .mco-sheet-head — kit 1.0.0', /data-close-sheet/.test(html));
     check('Maps', "station panel: no grip, data-peek or open('peek') — kit 1.0.0",
-      !/mco-sheet-grip|data-peek|\.open\(\s*['"]peek['"]|setState\(\s*['"]peek['"]/.test(html + js));
+      !/mco-sheet-grip|data-peek|\.open\(\s*['"]peek['"]|setState\(\s*['"]peek['"]/.test(html + appJs));
   }
   if (/data-rail/.test(html)) {
     check('Maps', 'no app CSS for a left rail (rail-inset on the left) — kit 1.0.0', !/padding-left:\s*var\(--rail-inset|left:\s*var\(--rail-inset/.test(css));
@@ -175,6 +189,9 @@ check('URL', 'clean defaults (cameraParamsIfDefault / osTheme) — kit 0.8.0',
   /cameraParamsIfDefault\(|MCO\.osTheme\(/.test(js) || (!isMap && /MCO\.osTheme\(/.test(js)));
 check('URL', 'pushUrlState for drill-down — kit 0.8.0', /MCO\.pushUrlState\(/.test(js));
 const keys = [...js.matchAll(/(?:localStorage\.setItem|MCO\.lsSet)\(\s*['"`]([^'"`]+)['"`]/g)].map((m) => m[1]);
+// Keys held in one STORAGE object (CODE-STYLE.md) count too.
+const storageObj = (js.match(/\bSTORAGE\s*=\s*\{([^}]*)\}/) || [])[1] || '';
+keys.push(...[...storageObj.matchAll(/:\s*['"`]([^'"`]+)['"`]/g)].map((m) => m[1]));
 const badKeys = keys.filter((k) => k !== 'mco-theme' && !/^mco-[a-z0-9]+(-[a-z0-9]+)*-/.test(k));
 check('URL', 'storage keys app-prefixed (mco-<app>-*)', badKeys.length === 0, badKeys.join(', '));
 
@@ -193,15 +210,90 @@ if (usesMesonet) {
   na('URL', 'MESONET_ORIGIN checks', 'no Mesonet host in the app');
 }
 
+/* 7. Code style (CODE-STYLE.md). Advisory: shown as ⚠ and left out of the
+   score until the apps are refactored to the style. */
+const advise = (label, ok, detail = '') => results.push({ section: 'Code style (advisory)', label, ok, detail, advisory: true });
+const STYLE_SECTIONS = ['Header', 'Config', 'State', 'Utilities', 'URL', 'Data', 'Map', 'Legend',
+  'Panel', 'Search', 'Controls', 'Export', 'Table', 'Refresh', 'Boot'];
+
+// Comment text of JS source. Strings, templates and regex literals are
+// skipped, so a URL's "//" is not a comment.
+function jsComments(src) {
+  const out = [];
+  let i = 0;
+  let prev = '';
+  while (i < src.length) {
+    const c = src[i];
+    const n = src[i + 1];
+    if (c === '/' && n === '/') {
+      const end = src.indexOf('\n', i);
+      const stop = end < 0 ? src.length : end;
+      out.push(src.slice(i + 2, stop));
+      i = stop;
+    } else if (c === '/' && n === '*') {
+      const end = src.indexOf('*/', i + 2);
+      const stop = end < 0 ? src.length : end;
+      out.push(src.slice(i + 2, stop));
+      i = stop + 2;
+    } else if (c === '"' || c === "'" || c === '`' || (c === '/' && /^$|[(,=:[!&|?{};+\-*%<>~^]$/.test(prev))) {
+      i++;
+      while (i < src.length && src[i] !== c) {
+        if (src[i] === '\\') i++;
+        else if (c !== '`' && src[i] === '\n') break;
+        i++;
+      }
+      i++;
+      prev = c;
+    } else {
+      if (!/\s/.test(c)) prev = c;
+      i++;
+    }
+  }
+  return out;
+}
+const cssComments = (src) => [...src.matchAll(/\/\*([\s\S]*?)\*\//g)].map((m) => m[1]);
+
+if (appScripts.length) {
+  const banners = [...appJs.matchAll(/^[ \t]*\/\/ ── (.+?) ─/gm)].map((m) => m[1].trim());
+  const idx = banners.map((b) => STYLE_SECTIONS.indexOf(b));
+  const unknown = banners.filter((b, i) => idx[i] < 0);
+  const outOfOrder = banners.filter((b, i) => idx[i] >= 0 && i > 0 && idx[i] <= Math.max(...idx.slice(0, i)));
+  advise('section banners: the fixed names, in the fixed order (missing ones allowed)',
+    banners.length > 0 && unknown.length === 0 && outOfOrder.length === 0,
+    !banners.length ? 'no "// ── Name ──" banners'
+      : [unknown.length && `not a section: ${unknown.slice(0, 4).join(', ')}`, outOfOrder.length && `out of order: ${outOfOrder.slice(0, 4).join(', ')}`].filter(Boolean).join('; '));
+}
+// History belongs in git and the changelog. A WCAG criterion or a § number is
+// not a version.
+const HISTORY = [
+  [/(?<!WCAG |SC |§|\d\.|[\w@-])v?\d+\.\d+\.\d+(?![\d.])/, 'version'],
+  [/\b20\d\d-\d\d(?:-\d\d)?\b/, 'date'],
+  [/\bno longer\b/i, '"no longer"'],
+  [/\bused to\b/i, '"used to"'],
+];
+const comments = [...jsComments(appJs), ...cssComments(css)];
+const hits = [];
+for (const text of comments) {
+  for (const [re, what] of HISTORY) {
+    const m = text.match(re);
+    if (m) hits.push(`${what}: "${text.slice(Math.max(0, m.index - 20), m.index + 30).replace(/\s+/g, ' ').trim()}"`);
+  }
+}
+advise('no history in comments (versions, dates, "no longer", "used to")', hits.length === 0,
+  hits.length ? `${hits.length}: ${hits.slice(0, 3).join(' · ')}` : '');
+advise('app CSS in app.css beside the page', existsSync(join(dirname(htmlPath), 'app.css')));
+
 /* Report */
 let section = '';
 for (const r of results) {
   if (r.section !== section) { section = r.section; console.log(`\n${section}`); }
-  const mark = r.ok === null ? '–' : r.ok ? (r.warn ? '⚠' : '✓') : '✗';
+  const mark = r.ok === null ? '–' : r.ok ? (r.warn ? '⚠' : '✓') : r.advisory ? '⚠' : '✗';
   console.log(`  ${mark} ${r.label}${r.detail && (r.ok !== true || r.warn || r.show) ? ` (${r.detail})` : ''}`);
 }
-const scored = results.filter((r) => r.ok !== null);
+const scored = results.filter((r) => r.ok !== null && !r.advisory);
 const pass = scored.filter((r) => r.ok).length;
+const advisory = results.filter((r) => r.advisory);
 console.log(`\nconformance: ${pass}/${scored.length} automatic — ${htmlPath}`);
+console.log(`code style: ${advisory.filter((r) => r.ok).length}/${advisory.length} (advisory, not scored)`);
 console.log('Manual (CONFORMANCE.md): touch targets · steppers keyboard-operable · layer order · ' +
   'replace-vs-push behavior · axe 1440 + 390 in 3 themes · keyboard probes');
