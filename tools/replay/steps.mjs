@@ -157,9 +157,11 @@ export function pageStationPoint(id) {
       } else continue;
       const p = m.project(ll);
       if (p.x < 0 || p.y < 0 || p.x > r.width || p.y > r.height) continue;
-      // The app's own data is GeoJSON; basemap labels above it don't count.
+      // Only the app's own (GeoJSON) features of the same kind count: a
+      // basemap label or a transparent hit area over a dot does not.
       const src = m.getStyle().sources;
-      const top = m.queryRenderedFeatures([p.x, p.y]).find((t) => src[t.source]?.type === 'geojson');
+      const top = m.queryRenderedFeatures([p.x, p.y])
+        .find((t) => src[t.source]?.type === 'geojson' && (t.geometry.type === 'Point') === (g.type === 'Point'));
       if (top && has(top)) return { x: r.left + p.x, y: r.top + p.y };
     }
   }
