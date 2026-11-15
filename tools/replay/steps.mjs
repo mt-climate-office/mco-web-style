@@ -138,7 +138,7 @@ export function pageRead(regions) {
 
 /**
  * Find a station drawn on the map (a dot, or a cell polygon carrying its id)
- * and return a point on the page where it is the topmost feature.
+ * and return a point on the page where it is the app's topmost feature.
  */
 export function pageStationPoint(id) {
   const has = (f) => Object.values(f.properties || {}).includes(id);
@@ -157,7 +157,9 @@ export function pageStationPoint(id) {
       } else continue;
       const p = m.project(ll);
       if (p.x < 0 || p.y < 0 || p.x > r.width || p.y > r.height) continue;
-      const top = m.queryRenderedFeatures([p.x, p.y])[0];
+      // The app's own data is GeoJSON; basemap labels above it don't count.
+      const src = m.getStyle().sources;
+      const top = m.queryRenderedFeatures([p.x, p.y]).find((t) => src[t.source]?.type === 'geojson');
       if (top && has(top)) return { x: r.left + p.x, y: r.top + p.y };
     }
   }
