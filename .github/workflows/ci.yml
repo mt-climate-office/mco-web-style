@@ -28,7 +28,7 @@ jobs:
           node --check places/mco-places.js
           node --check summary/mco-summary.js
           node --check exemplar/app.js
-          for f in tools/*.mjs tools/verify/*.mjs tools/style/*.mjs; do node --check "$f"; done
+          for f in tools/*.mjs tools/verify/*.mjs tools/style/*.mjs tools/replay/*.mjs; do node --check "$f"; done
 
       - name: Token parity (CSS themes ↔ tokens.json)
         run: node tools/check-tokens.mjs
@@ -59,6 +59,10 @@ jobs:
       # The verify harness's one-retry rule, with fake scenarios (no browser).
       - name: Verify harness retry tests
         run: node tools/check-verify.mjs
+
+      # The replay server: app files, recorded responses, ranges, misses.
+      - name: Replay server tests
+        run: node tools/check-replay.mjs
 
       # The conditions sentence. Rows in epoch ms are read as Mountain wall
       # clock, so the result must not depend on the runner's zone either.

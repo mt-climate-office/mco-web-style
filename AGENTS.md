@@ -73,6 +73,9 @@ settled precedents, gotchas, and the verification recipe — and score it
 against [CONFORMANCE.md](CONFORMANCE.md) (`node tools/conformance.mjs <repo>`).
 The rules below apply to any consumer, migrated or new.
 
+- A change that promises no behaviour change (a refactor, a format pass) is
+  proved with [tools/replay/](tools/replay/README.md): record `main`, compare
+  `main` with the branch, zero differences in Chromium and WebKit.
 - Pin `@X.Y.Z` + `integrity` + `crossorigin` on every kit tag. Never `@latest`.
 - Copy `snippets/anti-flash.html` INLINE into `<head>` — never load it from the
   CDN (it must run before first paint). If the app ships a CSP, recompute the
