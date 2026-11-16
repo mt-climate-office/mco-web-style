@@ -104,13 +104,32 @@ function hideBasemapCounties() {
 
 ## Tools
 
-The kit holds the shared config in [`tools/style/`](tools/style/). An app copies these
-files verbatim and changes none of them: `eslint.config.mjs`, `.prettierrc.json`,
-`.prettierignore`, `package.json`, `package-lock.json`, and `check.yml` into
-`.github/workflows/`. Then `npm ci`, and `npm run check` before a push.
+The kit holds the shared config in [`tools/style/`](tools/style/) and runs it from one
+workflow, [`app-check.yml`](.github/workflows/app-check.yml). An app copies
+[`tools/style/check.yml`](tools/style/check.yml) into `.github/workflows/` and sets the tag:
+
+```yaml
+jobs:
+  check:
+    uses: mt-climate-office/mco-web-style/.github/workflows/app-check.yml@vX.Y.Z
+```
+
+- The tag is a kit release, never a branch. The config, the tool versions and the
+  conformance tool all come from that tag. Bump it to take a new one.
+- An app in a subfolder adds `with: directory: docs`.
+- An app holds no `package.json` and no config copy. A `.prettierrc.json` copied for
+  format-on-save in an editor is allowed; the check does not read it.
+- To run the same tools before a push, from the app, with the kit beside it:
+
+```sh
+S=../mco-web-style/tools/style
+npm ci --prefix $S
+$S/node_modules/.bin/prettier --config $S/.prettierrc.json --ignore-path $S/.prettierignore --check .
+$S/node_modules/.bin/eslint --config $S/eslint.config.mjs .
+```
 
 - Prettier formats JS, CSS and JSON. HTML is not formatted: the CSP pins inline scripts.
 - ESLint enforces what it can: no `var`, `prefer-const`, no unused names, `===`, no leading
   underscore, no `.then`.
-- `node tools/conformance.mjs <app>` warns on section order, history in comments and a
-  missing `app.css`.
+- `node tools/conformance.mjs <app>` warns on section order, history in comments, a
+  missing `app.css`, and a check workflow that does not call `app-check.yml` at a tag.

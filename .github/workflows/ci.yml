@@ -84,3 +84,9 @@ jobs:
 
       - name: Lint (ESLint)
         run: tools/style/node_modules/.bin/eslint --config tools/style/eslint.config.mjs exemplar tools/style
+
+  # The workflow the apps call, run here on the exemplar.
+  app-check:
+    uses: ./.github/workflows/app-check.yml
+    with:
+      directory: exemplar

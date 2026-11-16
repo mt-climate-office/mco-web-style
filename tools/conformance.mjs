@@ -16,7 +16,7 @@
    when they fail and are not in that number. Manual items are listed after;
    they are CONFORMANCE.md's job. Exit code is always 0: this measures, the
    verify pass gates. Zero dependencies. */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 
@@ -283,6 +283,24 @@ advise('no history in comments (versions, dates, "no longer", "used to")', hits.
   hits.length ? `${hits.length}: ${hits.slice(0, 3).join(' · ')}` : '');
 advise('app CSS in app.css beside the page', existsSync(join(dirname(htmlPath), 'app.css')));
 
+// The app's checks come from the kit's reusable workflow, called at a release
+// tag so the config and tool versions are fixed. A branch moves under the app.
+const CHECK_LABEL = 'a workflow calls the kit app-check.yml at a release tag';
+const workflowDir = join(repo, '.github/workflows');
+if (existsSync(workflowDir)) {
+  const refs = readdirSync(workflowDir).filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => readFileSync(join(workflowDir, f), 'utf8').replace(/^\s*#.*$/gm, ''))
+    .flatMap((t) => [...t.matchAll(/\buses:\s*['"]?mt-climate-office\/mco-web-style\/\.github\/workflows\/app-check\.yml@([^\s'"#]+)/g)])
+    .map((m) => m[1]);
+  const loose = refs.filter((r) => !/^v\d+\.\d+\.\d+$/.test(r));
+  advise(CHECK_LABEL, refs.length > 0 && loose.length === 0,
+    refs.length ? `not a release tag: ${loose.map((r) => `@${r}`).join(', ')}` : 'no workflow calls it');
+} else if (existsSync(join(repo, '.git'))) {
+  advise(CHECK_LABEL, false, 'no .github/workflows');
+} else {
+  results.push({ section: 'Code style (advisory)', label: CHECK_LABEL, ok: null, detail: 'not a repository root', advisory: true });
+}
+
 /* Report */
 let section = '';
 for (const r of results) {
@@ -292,7 +310,7 @@ for (const r of results) {
 }
 const scored = results.filter((r) => r.ok !== null && !r.advisory);
 const pass = scored.filter((r) => r.ok).length;
-const advisory = results.filter((r) => r.advisory);
+const advisory = results.filter((r) => r.advisory && r.ok !== null);
 console.log(`\nconformance: ${pass}/${scored.length} automatic — ${htmlPath}`);
 console.log(`code style: ${advisory.filter((r) => r.ok).length}/${advisory.length} (advisory, not scored)`);
 console.log('Manual (CONFORMANCE.md): touch targets · steppers keyboard-operable · layer order · ' +

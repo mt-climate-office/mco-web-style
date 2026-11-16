@@ -1,6 +1,6 @@
-// Lint for MCO apps. Apps copy this file verbatim from mco-web-style
-// tools/style/; change it here, not in an app. The rules are the ones
-// CODE-STYLE.md can check mechanically.
+// Lint for MCO apps. The kit's app-check workflow runs it on each app, so
+// change it here, not in an app. The rules are the ones CODE-STYLE.md can
+// check mechanically.
 import js from '@eslint/js';
 import globals from 'globals';
 

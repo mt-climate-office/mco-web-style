@@ -1,0 +1,5 @@
+name: check
+on: pull_request
+jobs:
+  check:
+    uses: mt-climate-office/mco-web-style/.github/workflows/app-check.yml@v1.2.3

@@ -1,5 +1,5 @@
-# Format, lint, syntax, HTML and kit conformance on every push and PR.
-# Copied verbatim from mco-web-style tools/style/check.yml.
+# Copy to .github/workflows/check.yml in an app.
+# vX.Y.Z is a placeholder: use a kit release tag, never a branch.
 name: check
 
 on:
@@ -12,37 +12,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install the pinned dev tools
-        run: npm ci
-
-      - name: Format
-        run: npx prettier --check .
-
-      - name: Lint
-        run: npx eslint .
-
-      - name: Syntax-check JS
-        run: git ls-files -z '*.js' '*.mjs' | xargs -0 -n1 node --check
-
-      - name: Validate HTML
-        run: git ls-files -z '*.html' | xargs -0 npx html-validate
-
-      # The conformance tool from the kit release this app pins. It reports and
-      # never fails the job; read its output in the log.
-      - uses: actions/checkout@v5
-        with:
-          repository: mt-climate-office/mco-web-style
-          ref: v1.0.0
-          path: .kit
-
-      - name: Kit conformance
-        run: node .kit/tools/conformance.mjs .
+    uses: mt-climate-office/mco-web-style/.github/workflows/app-check.yml@vX.Y.Z
+    # An app that is not at the repository root names its folder:
+    # with:
+    #   directory: docs

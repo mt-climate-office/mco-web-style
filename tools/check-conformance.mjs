@@ -67,7 +67,7 @@ test('style: app.css beside the page', () => {
   assert.match(lineIn(poor, /app\.css beside the page/), /^\s*⚠/);
 });
 test('style: advisory checks are left out of the score', () => {
-  assert.match(lineIn(poor, /^code style:/), /^code style: 0\/3 \(advisory, not scored\)/);
+  assert.match(lineIn(poor, /^code style:/), /^code style: 0\/4 \(advisory, not scored\)/);
   const scoreOf = (t) => lineIn(t, /^conformance:/).match(/(\d+)\/(\d+)/).slice(1).map(Number);
   // The same scored checks run on both pages; the style results move neither total.
   assert.equal(scoreOf(good)[1], scoreOf(poor)[1]);
@@ -75,6 +75,15 @@ test('style: advisory checks are left out of the score', () => {
 test('style: keys in a STORAGE object are checked for the app prefix', () => {
   assert.match(lineIn(good, /storage keys app-prefixed/), /^\s*✓/);
   assert.match(lineIn(poor, /storage keys app-prefixed/), /^\s*✗.*seen-intro/);
+});
+test('style: a workflow calling app-check.yml at a release tag passes', () => {
+  assert.match(lineIn(good, /app-check\.yml at a release tag/), /^\s*✓/);
+});
+test('style: a call at a branch warns, and a commented-out call does not count', () => {
+  assert.match(lineIn(poor, /app-check\.yml at a release tag/), /^\s*⚠.*not a release tag: @main\)/);
+});
+test('style: the workflow check is left out where there is no repository', () => {
+  assert.match(lineIn(run('exemplar'), /app-check\.yml at a release tag/), /^\s*– .*not a repository root/);
 });
 test('style: the exemplar passes every code-style check', () => {
   assert.match(lineIn(run('exemplar'), /^code style:/), /^code style: 3\/3/);
