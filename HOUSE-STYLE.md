@@ -661,7 +661,10 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
   So a tablet, or a desktop window too narrow for the app's controls, gets
   the ☰ bar rather than a second row. **Apps write no row swaps**
   (`order` / `flex-basis` at 1060 or 1400): the sheds still apply first, so
-  the bar folds only when they are not enough.
+  the bar folds only when they are not enough. **Once folded, it stays
+  folded at every narrower width**: at 750 px and under, where the brand
+  collapses, the bar also folds if it would wrap at 751 px with the brand
+  showing. It unfolds again when the window is wide enough for the full bar.
 - **The row, left to right:** the logo badge (it always holds the left
   edge), the rest of `.mco-rail` (one hot control at most: a mode or variable
   select; the time controls go in the bottom control bar, 1.0.0),
@@ -674,7 +677,10 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
   `.mco-nav-drawer`. Keep `.nav-meta` in the drawer, even empty: it holds
   the right edge. In the bar the tools are icon-only at every width,
   between search and ☰. Each has a `.btn-label` word that is part of its
-  accessible name. The fold then runs in steps, each one measured:
+  accessible name. **The help button is named "Help"**, and its word is
+  "Help" (Kyle, 2026-11-16). The row shows the word the app wrote; a button
+  with no `.btn-label` shows its icon alone. The fold then runs in steps,
+  each one measured:
   1. The full bar would wrap: it folds, and the tools stay in the bar.
   2. The tools do not fit: all but help move together to the top of the
      drawer, as one centred row named "Page tools", icon over word.

@@ -1433,6 +1433,15 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   }
   .mco-navbar > .nav-divider { display: none; }
 }
+/* Core's fold measure (.is-fold-probe, set and cleared in one task, never
+   painted): the lockup as it stands above 750px. A bar that folds at 751px
+   stays folded below it. KEEP IN SYNC with BRAND_W in mco-core.js. */
+@media (max-width: 750px) {
+  .mco-navbar.is-fold-probe .brand {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto;
+  }
+  .mco-navbar.is-fold-probe > .nav-divider { display: block; }
+}
 @media (max-width: 640px) {
   .refresh-status { display: none; }   /* reclaim space on phones */
 }

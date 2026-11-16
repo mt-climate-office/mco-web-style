@@ -963,6 +963,48 @@ const port = server.address().port;
       await ctx.close();
     }
 
+    // The help button is named "Help" and shows that word. A button an app
+    // still names "About this map", with no word, moves and works all the same.
+    {
+      const { ctx, p, errs } = await open(320, 568);
+      const named = await p.evaluate(() => { const b = document.getElementById('btn-info'); return [b.getAttribute('aria-label'), b.querySelector('.btn-label').textContent.trim()]; });
+      const ex = await open(390, 844, { path: '/exemplar/' });
+      const exNamed = await ex.p.evaluate(() => { const b = document.getElementById('btn-info'); return [b.getAttribute('aria-label'), b.querySelector('.btn-label').textContent.trim()]; });
+      await ex.ctx.close();
+      probe(`tools: the help button is named "${named[0]}" with the word "${named[1]}" on the demo, "${exNamed[0]}" / "${exNamed[1]}" on the exemplar`,
+        named.join() === 'Help,Help' && exNamed.join() === 'Help,Help', JSON.stringify({ named, exNamed }));
+      await p.evaluate(() => { const b = document.getElementById('btn-info'); b.setAttribute('aria-label', 'About this map'); b.textContent = '?'; });
+      await hot(p, 150); await p.waitForTimeout(300);
+      const s = await state(p);
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      const box = await p.evaluate(() => { const r = document.getElementById('btn-info').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; });
+      await p.click('#btn-info'); await p.waitForTimeout(300);
+      const dlg = await p.evaluate(() => document.getElementById('info-modal').open);
+      probe(`tools 320×568: a help button named "About this map" with no word still joins the row (${s.inRow.join(' ')}), ${box.join('×')}px, and opens its dialog`,
+        s.tools === 'drawer' && s.inRow[s.inRow.length - 1] === 'btn-info' && box[0] >= 40 && box[1] >= 40 && dlg && errs.length === 0, JSON.stringify({ s, box, dlg, errs }));
+      await ctx.close();
+    }
+
+    // Once folded, folded at every narrower width. The exemplar's brand
+    // collapses at 750px, where its full bar would fit again.
+    {
+      const { ctx, p } = await open(1000, 800, { path: '/exemplar/', touch: false });
+      const at = async (w) => { await p.setViewportSize({ width: w, height: 800 }); await p.waitForTimeout(200);
+        return p.evaluate(() => { const b = document.querySelector('.mco-navbar[data-rail]'); return b.classList.contains('is-folded') && b.getBoundingClientRect().height <= 64; }); };
+      const down = []; for (let w = 1000; w >= 650; w -= 10) down.push([w, await at(w)]);
+      const first = down.find(([, f]) => f);
+      const stays = !!first && down.filter(([w]) => w <= first[0]).every(([, f]) => f);
+      const up = []; for (let w = 650; w <= 1000; w += 10) up.push([w, await at(w)]);
+      const same = up.every(([w, f]) => f === down.find(([x]) => x === w)[1]);
+      const full = !(await at(1300));
+      await ctx.close();
+      const fresh = await open(720, 800, { path: '/exemplar/', touch: false });
+      const freshFolded = await fresh.p.evaluate(() => document.querySelector('.mco-navbar[data-rail]').classList.contains('is-folded'));
+      await fresh.ctx.close();
+      probe(`tools /exemplar/ 1000→650 in 10px steps: folds at ${first ? first[0] : '?'}px and stays folded below, 720px included; the same on the way back up; full again at 1300px; a page opened at 720px is folded`,
+        stays && same && full && freshFolded, JSON.stringify({ down: down.filter(([, f]) => !f).map(([w]) => w), same, full, freshFolded }));
+    }
+
     // 5. The typing hold covers the tools too.
     {
       const { ctx, p } = await open(390, 844);

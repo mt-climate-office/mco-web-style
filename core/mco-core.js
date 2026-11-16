@@ -1587,6 +1587,9 @@
      (data-rail="compact") is .is-folded — the compact layout of mco-theme.css
      §6 — on portrait compact, AND wherever the full bar would wrap: it is
      measured unfolded, and folds when taller than FOLD_H. Never in the rail.
+     Once folded it stays folded at every narrower width: at 750px and under,
+     where the brand lockup collapses and could let the full bar fit again,
+     it also folds if it would wrap at 751px with the lockup showing.
      Core watches every compact bar present at load (core loads at the end of
      <body>, so before first paint in practice); initNavRail watches its own.
      Re-measured on resize, on the bar's own size changes, on changes inside
@@ -1598,11 +1601,13 @@
          <button class="nav-btn" aria-label="Copy shareable link">
            <svg …/><span class="btn-label">Share</span></button>
          …
-         <button class="nav-btn mco-btn-info" aria-label="About this map">
-           <span aria-hidden="true">?</span><span class="btn-label">About</span></button>
+         <button class="nav-btn mco-btn-info" aria-label="Help">
+           <span aria-hidden="true">?</span><span class="btn-label">Help</span></button>
        </div>
-     Every child is one tool; the help button is the .mco-btn-info. In the
-     bar they are icon-only; each word must be part of the button's name.
+     Every child is one tool; the help button is the .mco-btn-info, named
+     "Help". In the bar they are icon-only; each word must be part of the
+     button's name. The row shows whatever .btn-label the app wrote: a
+     button with none shows its icon alone.
      The drawer keeps its .nav-meta, even empty: it holds the right edge.
      A bar with the group folds in steps, each measured at natural widths:
        1. the full bar would wrap: it folds, the tools stay in the bar;
@@ -1680,6 +1685,21 @@
     bar.style.flexWrap = keep;
     return tall;
   }
+  // At 750px and under the brand lockup collapses. A bar that folds just
+  // above that must not unfold below it, so it is measured once more with
+  // the lockup showing (.is-fold-probe), at the width its contents ask for.
+  var BRAND_W = 750;
+  var _brandMq = window.matchMedia('(max-width: ' + BRAND_W + 'px)');
+  function _foldsWider(bar) {
+    if (!_brandMq.matches) return false;
+    var keep = bar.style.width;
+    bar.classList.add('is-fold-probe');
+    bar.style.width = 'max-content';
+    var wide = bar.getBoundingClientRect().width > BRAND_W + 1;
+    bar.style.width = keep;
+    bar.classList.remove('is-fold-probe');
+    return wide;
+  }
   function _roomKey(bar) {
     return bar.clientWidth + ':' + window.innerWidth + ':' + _pcMq.matches + ':' + _railShown;
   }
@@ -1699,7 +1719,7 @@
     else if (_pcMq.matches) next = true;
     else {
       bar.classList.remove('is-folded');
-      next = bar.getBoundingClientRect().height > FOLD_H;
+      next = bar.getBoundingClientRect().height > FOLD_H || _foldsWider(bar);
     }
     bar.classList.toggle('is-folded', next);
     if (!t) {

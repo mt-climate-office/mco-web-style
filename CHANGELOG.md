@@ -23,12 +23,22 @@ MINOR: additive and opt-in. Theme and core change. A bar without
   to ☰.
 - The bar carries `data-tools` (`bar`, `help` or `drawer`). `'mco:fold'`
   gains `detail.tools`, and `'mco:tools'` fires when the tools move.
+- The help button is named "Help" and its word is "Help". The row shows
+  whatever `.btn-label` an app wrote, so a button still named "About this
+  map" works, with its "?" alone until the app adds the word.
+- **Fix, for every compact bar, with or without the group**: a folded bar
+  stays folded at every narrower width. In 1.0.0 a bar that folded above
+  750 px could show in full again below it, where the brand collapses (the
+  exemplar with a mouse: folded from 920 px, full again at 720 px). At
+  750 px and under the bar now also folds if it would wrap at 751 px with
+  the brand showing. It still unfolds when the window is wide enough.
 - **Control bar in the rail**: the fit adds up its children instead of
   reading `scrollHeight`. In WebKit, 1.0.0 switched the readout on and off
   on every frame when it missed fitting by a few pixels (the demo at
   750×294). Help in the rail brought that to 750×342.
 - **Demo and exemplar** use the group. The exemplar's share button is named
   "Copy shareable link", as in the apps, so its word "Share" is in its name.
+  Their help buttons are named "Help".
 - **conformance.mjs**: an advisory, not scored, for a compact bar whose
   theme, share, export or help button is outside the group.
 - **a11y-audit.mjs**: probes for each step, the row, focus and the tools
