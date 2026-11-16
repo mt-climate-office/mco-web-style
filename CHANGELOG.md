@@ -6,6 +6,37 @@ policy in README.md.
 
 ## [Unreleased]
 
+### Bar tools
+
+MINOR: additive and opt-in. Theme and core change. A bar without
+`.mco-bar-tools` is laid out as in 1.0.0.
+
+- **`.mco-bar-tools`**: one group for the page's own buttons (theme, share,
+  export, help), the last child of a `data-rail="compact"` bar. They stay
+  in the folded bar while they fit. When they do not, all but help move
+  together to a centred row at the top of the ☰ drawer
+  (`.mco-drawer-tools`, named "Page tools"), each as its icon over its
+  word. Help leaves the bar only when badge, hot controls, search, help and
+  ☰ will not fit one row. In the rail, help joins the column.
+- The buttons themselves move, so Tab order matches the screen and
+  listeners stay. A focused tool that lands in a closed drawer hands focus
+  to ☰.
+- The bar carries `data-tools` (`bar`, `help` or `drawer`). `'mco:fold'`
+  gains `detail.tools`, and `'mco:tools'` fires when the tools move.
+- **Control bar in the rail**: the fit adds up its children instead of
+  reading `scrollHeight`. In WebKit, 1.0.0 switched the readout on and off
+  on every frame when it missed fitting by a few pixels (the demo at
+  750×294). Help in the rail brought that to 750×342.
+- **Demo and exemplar** use the group. The exemplar's share button is named
+  "Copy shareable link", as in the apps, so its word "Share" is in its name.
+- **conformance.mjs**: an advisory, not scored, for a compact bar whose
+  theme, share, export or help button is outside the group.
+- **a11y-audit.mjs**: probes for each step, the row, focus and the tools
+  working from both places, and a control against an earlier kit
+  (`KIT_BASE_REF`, default `v1.0.0`; `PROBE_ONLY=tools` runs these alone).
+
+### Code style
+
 Docs and tooling only. No published file changes.
 
 - **CODE-STYLE.md**: how app code is written. Section order and banners,

@@ -93,6 +93,20 @@ const brandOverride = /@media[^{]*750px[^{]*\{[^}]*\.brand/.test(css);
 check('Shell', '≤750 brand collapse untouched, or a tagged kit-override',
   !brandOverride || /kit-override[^\n]*brand|brand[^\n]*kit-override/i.test(css));
 
+// Bar tools (HOUSE-STYLE §3). Advisory: a compact bar whose theme, share,
+// export or help button sits outside .mco-bar-tools still works, as before.
+if (/<[^>]*class="[^"]*\bmco-navbar\b[^>]*data-rail="compact"|<[^>]*data-rail="compact"[^>]*class="[^"]*\bmco-navbar\b/.test(html)) {
+  const markup = html.replace(/<!--[\s\S]*?-->/g, ' ');
+  const group = (markup.match(/<div\b[^>]*class="[^"]*\bmco-bar-tools\b[\s\S]*?<\/div>/) || [''])[0];
+  const loose = [...markup.replace(group, ' ').matchAll(/<button\b[^>]*>/g)].map((m) => m[0])
+    .filter((b) => /\bid="btn-(?:theme|share|export)"/.test(b) || /class="[^"]*\bmco-btn-info\b/.test(b))
+    .map((b) => (b.match(/\bid="([^"]+)"/) || [0, '.mco-btn-info'])[1]);
+  results.push({ section: 'Shell (advisory)', label: 'theme, share, export and help buttons are in .mco-bar-tools',
+    ok: loose.length === 0, detail: loose.length ? `outside it: ${loose.join(', ')}` : '', advisory: true });
+} else {
+  na('Shell (advisory)', 'theme, share, export and help buttons are in .mco-bar-tools', 'no data-rail="compact" bar');
+}
+
 /* 3. Tokens */
 const accentLines = [...(css + '\n' + js).matchAll(/(border(?:-[a-z]+)*|outline(?:-color)?|stroke|(?<![-\w])color)\s*:\s*[^;]*var\(--accent\)/g)];
 check('Tokens', 'no --accent as a line or text color (use --accent-line)', accentLines.length === 0, `${accentLines.length} uses`);
@@ -310,7 +324,7 @@ for (const r of results) {
 }
 const scored = results.filter((r) => r.ok !== null && !r.advisory);
 const pass = scored.filter((r) => r.ok).length;
-const advisory = results.filter((r) => r.advisory && r.ok !== null);
+const advisory = results.filter((r) => r.advisory && r.ok !== null && r.section === 'Code style (advisory)');
 console.log(`\nconformance: ${pass}/${scored.length} automatic — ${htmlPath}`);
 console.log(`code style: ${advisory.filter((r) => r.ok).length}/${advisory.length} (advisory, not scored)`);
 console.log('Manual (CONFORMANCE.md): touch targets · steppers keyboard-operable · layer order · ' +

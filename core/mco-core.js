@@ -1590,7 +1590,34 @@
      Core watches every compact bar present at load (core loads at the end of
      <body>, so before first paint in practice); initNavRail watches its own.
      Re-measured on resize, on the bar's own size changes, on changes inside
-     it (0.21.2) and once web fonts land; a change fires 'mco:fold' ({detail: {folded}}) on the bar. */
+     it (0.21.2) and once web fonts land; a change fires 'mco:fold' ({detail: {folded}}) on the bar.
+
+     Bar tools (opt-in): the page's own single buttons (theme, share, export,
+     help) in one group, the bar's last child, after .mco-nav-drawer:
+       <div class="mco-bar-tools" role="group" aria-label="Page tools">
+         <button class="nav-btn" aria-label="Copy shareable link">
+           <svg …/><span class="btn-label">Share</span></button>
+         …
+         <button class="nav-btn mco-btn-info" aria-label="About this map">
+           <span aria-hidden="true">?</span><span class="btn-label">About</span></button>
+       </div>
+     Every child is one tool; the help button is the .mco-btn-info. In the
+     bar they are icon-only; each word must be part of the button's name.
+     The drawer keeps its .nav-meta, even empty: it holds the right edge.
+     A bar with the group folds in steps, each measured at natural widths:
+       1. the full bar would wrap: it folds, the tools stay in the bar;
+       2. the folded bar would wrap: every tool but help moves, together,
+          into a row at the top of the drawer, where the words show;
+       3. it would still wrap: help joins them.
+     In the rail help stays in the column and the rest are in the drawer.
+     The row is the kit's: <div class="mco-drawer-tools" role="group"
+     aria-label="Page tools">, the drawer's first child while it holds
+     anything. The buttons themselves move, so listeners and focus go with
+     them; a focused tool that lands in a closed drawer hands focus to ☰.
+     The bar carries data-tools: 'bar' (all in the bar), 'help' (help
+     alone) or 'drawer' (none). 'mco:fold' gains detail.tools, and
+     'mco:tools' ({detail: {tools}}) fires on the bar when it changes. A bar
+     without the group is untouched. */
   var FOLD_H = 64;
   var _pcMq = window.matchMedia('(max-width: 640px) and (orientation: portrait), (max-width: 640px) and (height > 560px)');
   var _folding = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
@@ -1600,10 +1627,74 @@
   function _foldHeld(bar) {
     return _barHold || _kbOpen || (_touchMq.matches && _isTextField(document.activeElement) && bar.contains(document.activeElement));
   }
-  function _fold(bar) {
+  var _hasWeak = typeof WeakMap !== 'undefined';
+  var _toolOrder = _hasWeak ? new WeakMap() : null, _toolSeq = 0;
+  var _toolRows = _hasWeak ? new WeakMap() : null;
+  var _foldRoom = _hasWeak ? new WeakMap() : null;
+  var _foldWatch = _hasWeak ? new WeakMap() : null;
+  // The bar's tools, in the order the app wrote them, wherever they sit now.
+  function _barTools(bar) {
+    var group = _hasWeak && bar.querySelector(':scope > .mco-bar-tools');
+    var drawer = group && bar.querySelector('.mco-nav-drawer');
+    if (!drawer) return null;
+    var row = _toolRows.get(bar);
+    if (!row) {
+      row = document.createElement('div');
+      row.className = 'mco-drawer-tools';
+      row.setAttribute('role', 'group');
+      row.setAttribute('aria-label', 'Page tools');
+      _toolRows.set(bar, row);
+    }
+    Array.prototype.forEach.call(group.children, function (n) {
+      if (!_toolOrder.has(n)) _toolOrder.set(n, ++_toolSeq);
+    });
+    var items = Array.prototype.slice.call(group.children).concat(Array.prototype.slice.call(row.children));
+    items.sort(function (a, b) { return _toolOrder.get(a) - _toolOrder.get(b); });
+    return { group: group, drawer: drawer, row: row, items: items };
+  }
+  function _fillTools(parent, nodes) {
+    nodes.forEach(function (n, i) {
+      if (parent.children[i] !== n) parent.insertBefore(n, parent.children[i] || null);
+    });
+  }
+  // where: 'bar' (every tool in the bar), 'help' (help alone) or 'drawer'.
+  function _placeTools(t, where) {
+    var inBar = [], inRow = [];
+    t.items.forEach(function (n) {
+      var stays = where === 'bar' || (where === 'help' && n.classList.contains('mco-btn-info'));
+      (stays ? inBar : inRow).push(n);
+    });
+    _fillTools(t.group, inBar);
+    _fillTools(t.row, inRow);
+    // An empty group would still take a gap in the bar.
+    t.group.hidden = !inBar.length && inRow.length > 0;
+    if (!inRow.length) { if (t.row.parentNode) t.row.parentNode.removeChild(t.row); }
+    else if (t.drawer.firstElementChild !== t.row) t.drawer.insertBefore(t.row, t.drawer.firstChild);
+  }
+  // Would the bar as it stands need a second row? Wrapping is switched on
+  // for the reading, so every control is measured at its natural width.
+  function _wraps(bar) {
+    var keep = bar.style.flexWrap;
+    bar.style.flexWrap = 'wrap';
+    var tall = bar.getBoundingClientRect().height > FOLD_H;
+    bar.style.flexWrap = keep;
+    return tall;
+  }
+  function _roomKey(bar) {
+    return bar.clientWidth + ':' + window.innerWidth + ':' + _pcMq.matches + ':' + _railShown;
+  }
+  // lazy: a window resize. A tools bar with the room it had last time is
+  // left alone, so a phone's URL bar sliding away moves no buttons.
+  function _fold(bar, lazy) {
     var was = bar.classList.contains('is-folded');
     var next;
     if (_foldHeld(bar)) return;
+    var t = _barTools(bar);
+    if (t && lazy && _foldRoom.get(bar) === _roomKey(bar)) return;
+    var hadTools = t && (bar.getAttribute('data-tools') || 'bar');
+    var active = document.activeElement;
+    var focused = t && t.items.filter(function (n) { return n.contains(active); })[0] ? active : null;
+    if (t) _placeTools(t, _railShown ? 'help' : 'bar');
     if (_railShown) next = false;
     else if (_pcMq.matches) next = true;
     else {
@@ -1611,18 +1702,40 @@
       next = bar.getBoundingClientRect().height > FOLD_H;
     }
     bar.classList.toggle('is-folded', next);
-    if (next !== was) bar.dispatchEvent(new CustomEvent('mco:fold', { detail: { folded: next } }));
+    if (!t) {
+      if (next !== was) bar.dispatchEvent(new CustomEvent('mco:fold', { detail: { folded: next } }));
+      return;
+    }
+    if (next && _wraps(bar)) {
+      _placeTools(t, 'help');
+      if (_wraps(bar)) _placeTools(t, 'drawer');
+    }
+    var inBar = t.group.children.length;
+    var tools = inBar === t.items.length ? 'bar' : inBar ? 'help' : 'drawer';
+    bar.setAttribute('data-tools', tools);
+    _foldRoom.set(bar, _roomKey(bar));
+    // The moves above are not the app's changes: the watcher skips them.
+    var watch = _foldWatch.get(bar);
+    if (watch) watch.takeRecords();
+    if (focused && document.activeElement !== focused) {
+      focused.focus({ preventScroll: true });
+      var menu = bar.querySelector('.mco-rail > :first-child');
+      if (document.activeElement !== focused && menu) menu.focus({ preventScroll: true });
+    }
+    if (next !== was) bar.dispatchEvent(new CustomEvent('mco:fold', { detail: { folded: next, tools: tools } }));
+    if (tools !== hadTools) bar.dispatchEvent(new CustomEvent('mco:tools', { detail: { tools: tools } }));
   }
   function _watchFold(bar) {
     if (!bar || bar.getAttribute('data-rail') !== 'compact') return;
     if (_folding) { if (_folding.has(bar)) return; _folding.add(bar); }
-    var raf = 0, tid = 0;
+    var raf = 0, tid = 0, lazy = true;
     // Deferred a frame: refolding inside a ResizeObserver callback would
     // resize what it observes and log a loop error. A timer backs the frame
     // up (0.21.2): WebKit runs no frames while a page is still loading, and
     // the fold taken before fonts and sheds held until the first one (2.7 s
     // on mco-snowpack-explorer), past the canary's measurement.
-    function later() {
+    function later(e) {
+      if (!e || e.type !== 'resize') lazy = false;
       if (raf) return;
       raf = requestAnimationFrame(run);
       tid = setTimeout(run, 100);
@@ -1631,7 +1744,9 @@
       if (!raf) return;
       cancelAnimationFrame(raf); clearTimeout(tid);
       raf = 0;
-      measure();
+      var l = lazy;
+      lazy = true;
+      _fold(bar, l);
     }
     // The fold must be a function of the bar's content and width alone
     // (0.21.2). Every measure trial-unfolds (_fold), but folded, the bar's
@@ -1668,13 +1783,16 @@
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(later).observe(bar);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
     window.addEventListener('load', later);
-    if (typeof MutationObserver !== 'undefined') new MutationObserver(function (recs) {
+    if (typeof MutationObserver === 'undefined') return;
+    var watch = new MutationObserver(function (recs) {
       if (bar.querySelector('.mco-nav-drawer.is-open')) return;
       // Measured now, not a frame later: this runs before the browser paints,
       // so content that would wrap the bar (live filters arriving) never shows
       // as a second row. _fold's own class change on the bar is skipped.
       for (var i = 0; i < recs.length; i++) if (recs[i].target !== bar) { loadBarFonts(); _fold(bar); return; }
-    }).observe(bar, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    });
+    watch.observe(bar, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    if (_foldWatch) _foldWatch.set(bar, watch);
   }
   Array.prototype.forEach.call(document.querySelectorAll('.mco-navbar[data-rail="compact"]'), _watchFold);
 
@@ -1713,17 +1831,19 @@
     }
     function inertSet(m) {
       var cbar = document.querySelector('.mco-controlbar');
+      var help = bar && bar.querySelector(':scope > .mco-bar-tools > *');
       return m === 'drawer'
         ? MCO.overlay.siblingsOf(toggle, [drawer, scrim, cbar])
-        : MCO.overlay.siblingsOf(drawer, [toggle, scrim, cbar]);
+        : MCO.overlay.siblingsOf(drawer, [toggle, scrim, cbar, help]);
     }
     var ov = MCO.overlay({
       el: drawer,
       opener: function () { return toggle; },
       initialFocus: opts.initialFocus || drawer,
-      // Rail: the rail column stays live beside the drawer. Drawer: only ☰
-      // does; the hot controls and the search button share its row. The
-      // bottom control bar (1.0.0) stays live in both, as part of the rail.
+      // Rail: the rail column stays live beside the drawer, its help button
+      // included. Drawer: only ☰ does; the hot controls, the search button
+      // and the bar tools share its row. The bottom control bar (1.0.0)
+      // stays live in both, as part of the rail.
       inert: function () { return inertSet(openMode); },
       fallbackFocus: toggle,
       onClose: function () { hide(); },
@@ -1855,6 +1975,20 @@
       var h = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0), n = 0;
       if (logo && logo.getClientRects().length) { h += logo.offsetHeight; n++; }
       if (rail && rail.getClientRects().length) { h += rail.scrollHeight; n++; }
+      var tools = nav.querySelector(':scope > .mco-bar-tools');
+      if (tools && tools.getClientRects().length) { h += tools.offsetHeight + (parseFloat(getComputedStyle(tools).marginTop) || 0); n++; }
+      return Math.ceil(h + (parseFloat(cs.rowGap) || 0) * Math.max(0, n - 1));
+    }
+    // What the column's contents need. Not scrollHeight: for a frame after
+    // the readouts come back, WebKit reports the clamped height, and the bar
+    // then flips between tight and not on every frame.
+    function need() {
+      var cs = getComputedStyle(bar), n = 0;
+      var h = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      Array.prototype.forEach.call(bar.children, function (k) {
+        if (!k.getClientRects().length || getComputedStyle(k).position === 'absolute') return;
+        h += k.getBoundingClientRect().height; n++;
+      });
       return Math.ceil(h + (parseFloat(cs.rowGap) || 0) * Math.max(0, n - 1));
     }
     function fit() {
@@ -1867,8 +2001,8 @@
       document.documentElement.style.setProperty('--rail-top-h', top + 'px');
       var room = window.innerHeight - top;
       bar.classList.remove('is-tight', 'is-scroll');
-      if (bar.scrollHeight > room) bar.classList.add('is-tight');
-      if (bar.scrollHeight > room) bar.classList.add('is-scroll');
+      if (need() > room) bar.classList.add('is-tight');
+      if (need() > room) bar.classList.add('is-scroll');
     }
     function measure() {
       raf = 0;
@@ -1887,6 +2021,7 @@
     var unsub = MCO.viewport.onChange(later);
     document.addEventListener('mco:keyboard', later);
     document.addEventListener('mco:fold', later, true);
+    document.addEventListener('mco:tools', later, true);
     var api = {
       measure: measure,
       destroy: function () {
@@ -1895,6 +2030,7 @@
         unsub();
         document.removeEventListener('mco:keyboard', later);
         document.removeEventListener('mco:fold', later, true);
+        document.removeEventListener('mco:tools', later, true);
         MCO.metrics.set('--tabbar-h', 0);
         MCO.metrics.set('--controlbar-h', 0);
         bar._mcoControlBar = null;

@@ -8,7 +8,8 @@
    pattern (a canonical address and a comment naming the old form are
    allowed), tools/fixtures/origin-bad links the old forms.
    The advisory code-style checks (CODE-STYLE.md) on tools/fixtures/style-good
-   and style-bad, and on the exemplar, which must pass them. */
+   and style-bad, and on the exemplar, which must pass them. The advisory
+   bar-tools check on the same three, and on a page with no compact bar. */
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -84,6 +85,16 @@ test('style: a call at a branch warns, and a commented-out call does not count',
 });
 test('style: the workflow check is left out where there is no repository', () => {
   assert.match(lineIn(run('exemplar'), /app-check\.yml at a release tag/), /^\s*– .*not a repository root/);
+});
+test('bar tools: buttons in .mco-bar-tools pass; a comment naming one is not markup', () => {
+  assert.match(lineIn(good, /buttons are in \.mco-bar-tools/), /^\s*✓/);
+  assert.match(lineIn(run('exemplar'), /buttons are in \.mco-bar-tools/), /^\s*✓/);
+});
+test('bar tools: buttons outside the group warn, naming them, and are not scored', () => {
+  assert.match(lineIn(poor, /buttons are in \.mco-bar-tools/), /^\s*⚠.*outside it: btn-theme, \.mco-btn-info\)/);
+});
+test('bar tools: left out where there is no compact bar', () => {
+  assert.match(line(/buttons are in \.mco-bar-tools/), /^\s*– /);
 });
 test('style: the exemplar passes every code-style check', () => {
   assert.match(lineIn(run('exemplar'), /^code style:/), /^code style: 3\/3/);

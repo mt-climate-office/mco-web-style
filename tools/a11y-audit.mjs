@@ -13,6 +13,7 @@
      npm init -y && npm i --no-save playwright@1.64.0 @axe-core/playwright@4.13.0
      npx playwright install --with-deps chromium webkit
    Then: node tools/a11y-audit.mjs */
+import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { dirname, extname, join, normalize } from 'node:path';
@@ -28,10 +29,26 @@ const MIME = {
   '.geojson': 'application/geo+json', '.png': 'image/png', '.svg': 'image/svg+xml',
 };
 
+// The bar-tools control compares this tree with an earlier kit. /@base/…
+// serves every file from KIT_BASE_REF; /@mix/… serves that ref's demo and
+// exemplar pages over this tree's kit files.
+const BASE_REF = process.env.KIT_BASE_REF || 'v1.0.0';
+const fromRef = (rel) => execFileSync('git', ['show', `${BASE_REF}:${rel}`], { cwd: root, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+let hasBaseRef = true;
+try { fromRef('core/mco-core.js'); } catch { hasBaseRef = false; }
+
 const server = createServer(async (req, res) => {
   try {
     let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (path.endsWith('/')) path += 'index.html';
+    const arm = path.match(/^\/@(base|mix)\/(.*)$/);
+    if (arm) path = '/' + arm[2];
+    if (arm && (arm[1] === 'base' || /^(demo|exemplar)\//.test(arm[2]))) {
+      if (arm[2].includes('..')) { res.writeHead(403).end(); return; }
+      res.writeHead(200, { 'content-type': MIME[extname(path)] || 'application/octet-stream' });
+      res.end(fromRef(arm[2]));
+      return;
+    }
     const file = normalize(join(root, path));
     if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
     const body = await readFile(file);
@@ -686,6 +703,15 @@ const port = server.address().port;
       const p = await ctx.newPage();
       await p.goto(`http://127.0.0.1:${port}/demo/?theme=dark`, { waitUntil: 'domcontentloaded' });
       await p.waitForTimeout(1500);
+      // Help is in the drawer only when the bar has no room for it: a wide
+      // hot control puts it there.
+      await p.evaluate(() => {
+        const rail = document.querySelector('.mco-rail'), s = document.createElement('select');
+        s.setAttribute('aria-label', 'Variable'); s.style.cssText = 'width:220px;height:var(--control-h);flex-shrink:0';
+        s.add(new Option('Air temperature'));
+        rail.insertBefore(s, rail.querySelector('.mco-search-toggle'));
+      });
+      await p.waitForTimeout(300);
       await p.tap('#btn-rail-menu'); await p.waitForTimeout(400);
       await p.tap('#btn-info'); await p.waitForTimeout(400);
       const opened = await p.evaluate(() => document.getElementById('info-modal').open);
@@ -695,6 +721,312 @@ const port = server.address().port;
       await ctx.close();
     }
     await vb.close();
+  }
+
+  /* ── Bar tools probes ─────────────────────────────────────────────────────
+     .mco-bar-tools on the demo and the exemplar: help in the bar at every
+     width and in the rail; the folded bar keeping the tools (step 1), then
+     moving all but help to the top row of the drawer (step 2), then help
+     (step 3), each forced with a hot control of a known width; the row's
+     name, labels, order and focus; the tools working from both places; the
+     typing hold; and a control: a bar without the group is laid out exactly
+     as KIT_BASE_REF's kit lays it out. PROBE_ONLY=tools runs just these. */
+  async function toolsProbes(engine, probe) {
+    const launch = () => ENGINES[engine].launch(engine === 'chromium'
+      ? { args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] } : {});
+    let tb = await launch();
+    let visits = 0;
+    const open = async (w, h, o = {}) => {
+      if (++visits % 12 === 0) { await tb.close(); tb = await launch(); }
+      const touch = o.touch !== false;
+      const ctx = await tb.newContext({ viewport: { width: w, height: h }, hasTouch: touch,
+        isMobile: touch && engine === 'chromium', reducedMotion: 'reduce' });
+      // The exemplar's first-visit intro would cover the bar.
+      await ctx.addInitScript(() => { try { localStorage.setItem('mco-exemplar-seen-intro', '1'); } catch (e) {} });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(String(e)));
+      if (o.noCore) await p.route('**/core/mco-core.js', (r) => r.abort());
+      await p.goto(`http://127.0.0.1:${port}${o.path || '/demo/'}?theme=dark`, { waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(o.wait || 1200);
+      return { ctx, p, errs };
+    };
+    const MENU = { '/demo/': '#btn-rail-menu', '/exemplar/': '#btn-menu' };
+    // A hot control of a fixed width, which is what narrows a real app's bar.
+    // A new element each time: WebKit can keep a <select>'s old width for a
+    // frame after its style changes.
+    const hot = (p, px) => p.evaluate((w) => {
+      const rail = document.querySelector('.mco-rail'), old = document.getElementById('probe-hot');
+      if (old) old.remove();
+      const s = document.createElement('select');
+      s.id = 'probe-hot'; s.setAttribute('aria-label', 'Variable');
+      s.style.cssText = `width:${w}px;height:var(--control-h);flex-shrink:0`;
+      s.add(new Option('Air temperature'));
+      rail.insertBefore(s, rail.querySelector('.mco-search-toggle'));
+    }, px);
+    // Where everything is: the bar, the tools in it, the row in the drawer.
+    const state = (p) => p.evaluate(() => {
+      const bar = document.querySelector('.mco-navbar[data-rail]'), br = bar.getBoundingClientRect();
+      const drawer = bar.querySelector('.mco-nav-drawer'), row = drawer.querySelector(':scope > .mco-drawer-tools');
+      const shown = (e) => e.getClientRects().length > 0;
+      const within = (e) => { const r = e.getBoundingClientRect(); return shown(e) && r.left >= br.left - 0.5 && r.right <= br.right + 0.5 && r.top >= br.top - 0.5 && r.bottom <= br.bottom + 0.5; };
+      const ids = (list) => [...list].map((e) => e.id);
+      const group = bar.querySelector(':scope > .mco-bar-tools');
+      const help = document.querySelector('.mco-btn-info'), hr = help.getBoundingClientRect();
+      return { folded: bar.classList.contains('is-folded'), tools: bar.getAttribute('data-tools'), barH: Math.round(br.height),
+        rail: MCO.viewport.isRail(), overflow: document.documentElement.scrollWidth - innerWidth,
+        inBar: ids(group.children), allInside: [...group.children].every(within),
+        inRow: row ? ids(row.children) : [], rowFirst: !!row && drawer.firstElementChild === row,
+        rowRole: row ? row.getAttribute('role') : null, rowName: row ? row.getAttribute('aria-label') : null,
+        helpInBar: help.parentNode === group && within(help), helpSize: [Math.round(hr.width), Math.round(hr.height)], helpTop: Math.round(hr.top),
+        controlsShown: shown(bar.querySelector('.controls')) && !drawer.classList.contains('is-open') };
+    });
+    const focusId = (p) => p.evaluate(() => document.activeElement.id || document.activeElement.tagName);
+    // Safari's Tab skips buttons; Option+Tab stops on every control.
+    const TAB = engine === 'webkit' ? 'Alt+Tab' : 'Tab';
+
+    // 1. Help is in the bar at every width, and in the rail.
+    for (const path of ['/demo/', '/exemplar/']) {
+      for (const [w, h, touch] of [[320, 568, true], [360, 740, true], [390, 844, true], [768, 1024, true], [1440, 900, false]]) {
+        const { ctx, p, errs } = await open(w, h, { path, touch });
+        const s = await state(p);
+        probe(`tools ${path} ${w}×${h}: help is in the bar, one row (${s.barH}px), no sideways scroll, tools ${s.tools} (${s.inBar.join(' ')})`,
+          s.helpInBar && s.barH <= 64 && s.overflow <= 0 && s.allInside && !s.rail && errs.length === 0, JSON.stringify({ s, errs }));
+        await ctx.close();
+      }
+      for (const [w, h] of [[844, 390], [750, 342]]) {
+        const { ctx, p, errs } = await open(w, h, { path });
+        const s = await state(p);
+        // The control bar under the rail, read over 30 frames: it must not
+        // flip between showing and hiding its readout.
+        const cb = await p.evaluate(async () => {
+          const c = document.querySelector('.mco-controlbar');
+          if (!c || !c.getClientRects().length) return null;
+          const tops = new Set();
+          for (let i = 0; i < 30; i++) { await new Promise((r) => requestAnimationFrame(r)); tops.add(Math.round(c.getBoundingClientRect().top)); }
+          return [...tops];
+        });
+        probe(`tools ${path} ${w}×${h}: help is in the rail, ${s.helpSize.join('×')}px, clear of a steady control bar; the other tools are the drawer's first row`,
+          s.rail && s.helpInBar && s.tools === 'help' && s.inBar.join() === 'btn-info' && s.helpSize[0] >= 44 && s.helpSize[1] >= 44
+            && (cb === null || (cb.length === 1 && s.helpTop + s.helpSize[1] <= cb[0])) && s.rowFirst && s.inRow.length >= 2 && errs.length === 0, JSON.stringify({ s, cb, errs }));
+        await p.click(MENU[path]); await p.waitForTimeout(300);
+        await p.keyboard.press(TAB);
+        const first = await focusId(p);
+        const live = await p.evaluate(() => !document.querySelector('.mco-btn-info').closest('[inert]'));
+        probe(`tools ${path} ${w}×${h}: the rail drawer's first Tab stop is the first tool (${first}); help stays live beside it`,
+          first === s.inRow[0] && live, JSON.stringify({ first, live }));
+        await ctx.close();
+      }
+    }
+
+    // 2. Step 1: the folded bar keeps every tool.
+    for (const [path, w] of [['/demo/', 1024], ['/exemplar/', 800]]) {
+      const { ctx, p } = await open(w, 768, { path, touch: false });
+      const s = await state(p);
+      probe(`tools ${path} ${w}×768: step 1, the bar is folded and every tool is still in it (${s.inBar.join(' ')})`,
+        s.folded && s.tools === 'bar' && s.inRow.length === 0 && s.allInside && !s.controlsShown && s.barH <= 64, JSON.stringify(s));
+      await ctx.close();
+    }
+    {
+      const { ctx, p } = await open(1440, 900, { touch: false });
+      const s = await state(p);
+      probe('tools /demo/ 1440×900: the full bar shows controls and tools, with no words on the tools',
+        !s.folded && s.tools === 'bar' && s.controlsShown && s.inBar.length === 4
+          && await p.evaluate(() => [...document.querySelectorAll('.mco-bar-tools .btn-label')].every((l) => l.getClientRects().length === 0)), JSON.stringify(s));
+      await ctx.close();
+    }
+
+    // The fold is the same at a width whichever way the window got there.
+    {
+      const { ctx, p } = await open(1300, 900, { touch: false });
+      const seen = {};
+      const widths = []; for (let w = 1240; w >= 1040; w -= 10) widths.push(w);
+      for (const ws of [widths, [...widths].reverse(), widths, [...widths].reverse()]) {
+        for (const w of ws) {
+          await p.setViewportSize({ width: w, height: 900 }); await p.waitForTimeout(200);
+          const s = await p.evaluate(() => { const b = document.querySelector('.mco-navbar[data-rail]'); return (b.classList.contains('is-folded') ? 'folded' : 'full') + ':' + b.getAttribute('data-tools') + ':' + (b.getBoundingClientRect().height <= 64); });
+          (seen[w] = seen[w] || new Set()).add(s);
+        }
+      }
+      const mixed = Object.entries(seen).filter(([, v]) => v.size > 1).map(([w, v]) => `${w}: ${[...v].join(' / ')}`);
+      const folds = Object.entries(seen).filter(([, v]) => [...v][0].startsWith('folded')).map(([w]) => +w);
+      probe(`tools /demo/ 1240↔1040 in 10px steps, twice each way: one state per width (folds from ${Math.max(...folds)}px down), one row throughout`,
+        mixed.length === 0 && folds.length > 0 && Object.values(seen).every((v) => [...v][0].endsWith(':true')), mixed.join(' | '));
+      await ctx.close();
+    }
+
+    // 3. Step 2: all but help move together to the drawer's top row.
+    {
+      const { ctx, p, errs } = await open(390, 844);
+      const events = () => p.evaluate(() => window.__ev);
+      await p.evaluate(() => {
+        window.__ev = [];
+        const bar = document.querySelector('.mco-navbar[data-rail]');
+        bar.addEventListener('mco:tools', (e) => window.__ev.push('tools:' + e.detail.tools));
+        bar.addEventListener('mco:fold', (e) => window.__ev.push('fold:' + e.detail.folded + ':' + e.detail.tools));
+      });
+      await p.focus('#btn-theme');
+      await hot(p, 110); await p.waitForTimeout(300);
+      const s = await state(p);
+      probe(`tools 390×844 + a 110px hot control: step 2, help alone in the bar, the rest in the drawer together (${s.inRow.join(' ')}), one row (${s.barH}px)`,
+        s.tools === 'help' && s.inBar.join() === 'btn-info' && s.inRow.join() === 'btn-share,btn-export,btn-theme' && s.helpInBar && s.barH <= 64 && s.overflow <= 0, JSON.stringify(s));
+      probe(`tools 390×844: 'mco:tools' fired once with the new place and 'mco:fold' did not (${(await events()).join(' ')})`,
+        (await events()).join() === 'tools:help', JSON.stringify(await events()));
+      probe(`tools 390×844: a focused tool that moved into the closed drawer hands focus to ☰ (${await focusId(p)})`,
+        (await focusId(p)) === 'btn-rail-menu', await focusId(p));
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      const onDrawer = await focusId(p);
+      const walk = [];
+      for (let i = 0; i < 4; i++) { await p.keyboard.press(TAB); walk.push(await focusId(p)); }
+      const row = await p.evaluate(() => {
+        const row = document.querySelector('.mco-drawer-tools'), drawer = row.parentNode;
+        const rr = row.getBoundingClientRect(), cs = getComputedStyle(drawer), dr = drawer.getBoundingClientRect();
+        const btns = [...row.children].map((b) => { const r = b.getBoundingClientRect(), l = b.querySelector('.btn-label'), lr = l ? l.getBoundingClientRect() : null;
+          return { id: b.id, top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), word: l ? l.textContent.trim() : '',
+            wordShown: !!lr && lr.width > 0 && lr.height > 0 && l.scrollWidth <= l.clientWidth, icon: !!b.querySelector('svg, [aria-hidden="true"]'),
+            inName: !!l && (b.getAttribute('aria-label') || '').toLowerCase().includes(l.textContent.trim().toLowerCase()) }; });
+        const mid = (btns.length ? (row.firstElementChild.getBoundingClientRect().left + row.lastElementChild.getBoundingClientRect().right) / 2 : 0);
+        const inner = (dr.left + parseFloat(cs.paddingLeft) + dr.right - parseFloat(cs.paddingRight)) / 2;
+        return { btns, off: Math.round(mid - inner), top: Math.round(rr.top - dr.top - parseFloat(cs.paddingTop)), heading: !!row.querySelector('h1,h2,h3,h4,.mco-panel-title') };
+      });
+      probe(`tools 390×844: ☰ focuses the drawer (${onDrawer}), then Tab walks ${walk.join(' → ')}`,
+        onDrawer === 'nav-drawer' && walk.join() === 'btn-share,btn-export,btn-theme,demo-search', JSON.stringify({ onDrawer, walk }));
+      probe(`tools 390×844: the row is the drawer's first child, role=group named "${s.rowName}", no heading, one line, centred (off by ${row.off}px)`,
+        s.rowFirst && s.rowRole === 'group' && s.rowName === 'Page tools' && !row.heading && row.top === 0
+          && row.btns.every((b) => b.top === row.btns[0].top) && Math.abs(row.off) <= 1, JSON.stringify({ s, row }));
+      probe(`tools 390×844: each button in the row shows its icon and its word (${row.btns.map((b) => b.word).join(', ')}), ≥ 40px, the word part of its name`,
+        row.btns.every((b) => b.wordShown && b.icon && b.inName && b.w >= 40 && b.h >= 40), JSON.stringify(row.btns));
+      const ab = (await new AxeBuilder({ page: p }).analyze()).violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+      probe('tools 390×844: axe with the tools row showing: no serious/critical', ab.length === 0, ab.map((v) => v.id + ' ' + v.nodes.map((n) => n.target.join(' ')).join(';')).join(', '));
+
+      // The buttons work from the drawer, and keep their listeners and focus.
+      const before = await p.evaluate(() => document.documentElement.getAttribute('data-theme'));
+      await p.click('#btn-theme'); await p.waitForTimeout(200);
+      const after = await p.evaluate(() => document.documentElement.getAttribute('data-theme'));
+      await p.focus('#btn-theme');
+      await p.evaluate(() => window.dispatchEvent(new Event('load'))); await p.waitForTimeout(300);
+      const kept = await p.evaluate(() => ({ focus: document.activeElement.id, inRow: !!document.activeElement.closest('.mco-drawer-tools') }));
+      probe(`tools 390×844: the theme button works from the drawer (${before} → ${after}) and keeps focus through a re-measure`,
+        before !== after && kept.focus === 'btn-theme' && kept.inRow, JSON.stringify({ before, after, kept }));
+      await p.click('#btn-share'); await p.waitForTimeout(300);
+      const toast = await p.evaluate(() => { const t = document.querySelector('.mco-toast'); return t ? t.textContent.trim() : ''; });
+      probe(`tools 390×844: share works from the drawer (toast: "${toast}")`, /cop/i.test(toast), toast);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+      const esc = await p.evaluate(() => ({ focus: document.activeElement.id, open: document.getElementById('nav-drawer').classList.contains('is-open') }));
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      await p.mouse.click(40, 400); await p.waitForTimeout(300);
+      const scrim = await p.evaluate(() => ({ focus: document.activeElement.id, open: document.getElementById('nav-drawer').classList.contains('is-open') }));
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      const tog = await p.evaluate(() => ({ focus: document.activeElement.id, open: document.getElementById('nav-drawer').classList.contains('is-open') }));
+      probe('tools 390×844: Esc, the scrim and ☰ each close the drawer and return focus to ☰',
+        [esc, scrim, tog].every((x) => !x.open && x.focus === 'btn-rail-menu'), JSON.stringify({ esc, scrim, tog }));
+      // Help works from the bar.
+      await p.click('#btn-info'); await p.waitForTimeout(300);
+      const dlg = await p.evaluate(() => document.getElementById('info-modal').open);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+      probe(`tools 390×844: help opens its dialog from the bar and focus returns to it (${await focusId(p)})`, dlg && (await focusId(p)) === 'btn-info', String(dlg));
+
+      // Back to step 1: the tools return to the bar in the order written.
+      await p.evaluate(() => document.getElementById('probe-hot').remove()); await p.waitForTimeout(300);
+      const s1 = await state(p);
+      probe(`tools 390×844 without the hot control: the tools are back in the bar in their own order (${s1.inBar.join(' ')}), the row is gone`,
+        s1.tools === 'bar' && s1.inBar.join() === 'btn-share,btn-export,btn-theme,btn-info' && s1.inRow.length === 0
+          && await p.evaluate(() => !document.querySelector('.mco-drawer-tools')), JSON.stringify(s1));
+      await p.click('#btn-theme'); await p.waitForTimeout(200);
+      probe('tools 390×844: the theme button works from the bar after moving back',
+        (await p.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== after, '');
+      probe('tools 390×844: no page errors through the moves', errs.length === 0, errs.join(' | '));
+      await ctx.close();
+    }
+
+    // 4. Step 3: help leaves only when the bar cannot hold it.
+    {
+      const { ctx, p, errs } = await open(320, 568);
+      await hot(p, 150); await p.waitForTimeout(300);
+      const s = await state(p);
+      probe(`tools 320×568 + a 150px hot control: step 3, help joins the row, last (${s.inRow.join(' ')}); one row (${s.barH}px), no sideways scroll`,
+        s.tools === 'drawer' && s.inBar.length === 0 && s.inRow.join() === 'btn-share,btn-export,btn-theme,btn-info' && s.rowFirst && s.barH <= 64 && s.overflow <= 0, JSON.stringify(s));
+      await p.click('#btn-rail-menu'); await p.waitForTimeout(300);
+      const fits = await p.evaluate(() => { const row = document.querySelector('.mco-drawer-tools'), d = row.parentNode.getBoundingClientRect();
+        return [...row.children].every((b) => { const r = b.getBoundingClientRect(); return r.left >= d.left && r.right <= d.right && r.top === row.children[0].getBoundingClientRect().top; }); });
+      await p.click('#btn-info'); await p.waitForTimeout(300);
+      const dlg = await p.evaluate(() => document.getElementById('info-modal').open);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+      probe(`tools 320×568: four tools fit one row of the drawer; help opens its dialog from there and focus returns to it (${await focusId(p)})`,
+        fits && dlg && (await focusId(p)) === 'btn-info', JSON.stringify({ fits, dlg }));
+      await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+      await hot(p, 60); await p.waitForTimeout(300);
+      const s2 = await state(p);
+      probe(`tools 320×568 + a 60px hot control: back to step 2, help in the bar (${s2.tools})`, s2.tools === 'help' && s2.helpInBar, JSON.stringify(s2));
+      probe('tools 320×568: no page errors', errs.length === 0, errs.join(' | '));
+      await ctx.close();
+    }
+
+    // 5. The typing hold covers the tools too.
+    {
+      const { ctx, p } = await open(390, 844);
+      await p.evaluate(() => {
+        const vv = window.visualViewport, h = document.documentElement.clientHeight - 300;
+        Object.defineProperty(vv, 'height', { configurable: true, get: () => h });
+        vv.dispatchEvent(new Event('resize'));
+      });
+      await p.waitForTimeout(300);
+      await hot(p, 110); await p.waitForTimeout(300);
+      const held = (await state(p)).tools;
+      await p.evaluate(() => {
+        const vv = window.visualViewport;
+        Object.defineProperty(vv, 'height', { configurable: true, get: () => document.documentElement.clientHeight });
+        vv.dispatchEvent(new Event('resize'));
+      });
+      await p.waitForTimeout(500);
+      const freed = (await state(p)).tools;
+      probe(`tools 390×844: with a keyboard up nothing moves (${held}); when it goes down the bar is measured again (${freed})`,
+        held === 'bar' && freed === 'help', JSON.stringify({ held, freed }));
+      await ctx.close();
+    }
+
+    // 6. First paint in the rail, before core has run: help alone.
+    {
+      const { ctx, p } = await open(844, 390, { noCore: true });
+      const seen = await p.evaluate(() => [...document.querySelectorAll('.mco-bar-tools > *')].filter((e) => e.getClientRects().length).map((e) => e.id));
+      probe(`tools 844×390 without core: the rail shows help alone (${seen.join(' ')})`, seen.join() === 'btn-info', seen.join());
+      await ctx.close();
+    }
+
+    // 7. Control: a bar without the group is laid out as the earlier kit lays it out.
+    if (!hasBaseRef) console.log(`[${engine} tools] SKIP — control against ${BASE_REF}: that ref is not in this checkout`);
+    else {
+      const rects = async (arm, path, w, h, touch) => {
+        const { ctx, p } = await open(w, h, { path: `/@${arm}${path}`, touch });
+        // The exemplar's bar holds live counts: read it once they are in.
+        await p.waitForFunction(() => { const c = document.getElementById('count-stamp'); return !c || !/loading/.test(c.textContent); }, null, { timeout: 15000 }).catch(() => {});
+        await p.waitForTimeout(300);
+        const read = () => p.evaluate(() => {
+          const bar = document.querySelector('.mco-navbar[data-rail]');
+          const r = (e) => { const q = e.getBoundingClientRect(); return [q.x, q.y, q.width, q.height].map((n) => Math.round(n * 10) / 10).join(','); };
+          return { group: !!bar.querySelector('.mco-bar-tools'), cls: bar.className, tools: bar.getAttribute('data-tools'), bar: r(bar),
+            parts: [...bar.querySelectorAll('*:not(option)')].map((e) => (e.id || e.getAttribute('class') || e.tagName) + '@' + r(e)).join('|') };
+        });
+        const closed = await read();
+        let opened = null;
+        if (await p.evaluate(() => document.querySelector('.mco-rail').getClientRects().length > 0 || getComputedStyle(document.querySelector('.mco-rail')).display === 'contents')) {
+          const menu = await p.evaluate(() => { const b = document.querySelector('.mco-rail > :first-child'); return b.getClientRects().length ? '#' + b.id : null; });
+          if (menu) { await p.click(menu); await p.waitForTimeout(300); opened = await read(); }
+        }
+        await ctx.close();
+        return { closed, opened };
+      };
+      for (const path of ['/demo/', '/exemplar/']) {
+        for (const [w, h, touch] of [[390, 844, true], [844, 390, true], [768, 1024, true], [1440, 900, false]]) {
+          const a = await rects('base', path, w, h, touch), b = await rects('mix', path, w, h, touch);
+          const same = JSON.stringify(a) === JSON.stringify(b);
+          probe(`tools control ${path} ${w}×${h}: ${BASE_REF}'s page, which has no tools group, has the same bar and drawer boxes under this kit as under ${BASE_REF}'s (${a.closed.parts.split('|').length} boxes${a.opened ? ', drawer opened' : ''})`,
+            same && !a.closed.group && b.closed.tools === null, same ? '' : JSON.stringify({ a, b }).slice(0, 1500));
+        }
+      }
+    }
+    await tb.close();
   }
 
 /* Every engine in BROWSERS (default: chromium,webkit). WebKit is Safari's
@@ -713,6 +1045,15 @@ for (const engine of BROWSERS) {
       if (!ok) failed = true;
       console[ok ? 'log' : 'error'](`[${engine} 1.0.0] ${ok ? 'OK' : 'FAIL'} — ${label}${ok ? '' : ' ' + detail}`);
     });
+    await browser.close();
+    continue;
+  }
+  const toolsProbe = (label, ok, detail) => {
+    if (!ok) failed = true;
+    console[ok ? 'log' : 'error'](`[${engine} tools] ${ok ? 'OK' : 'FAIL'} — ${label}${ok ? '' : ' ' + detail}`);
+  };
+  if (process.env.PROBE_ONLY === 'tools') {
+    await toolsProbes(engine, toolsProbe);
     await browser.close();
     continue;
   }
@@ -1115,6 +1456,7 @@ for (const engine of BROWSERS) {
     if (!ok) failed = true;
     console[ok ? 'log' : 'error'](`[${engine} 1.0.0] ${ok ? 'OK' : 'FAIL'} — ${label}${ok ? '' : ' ' + detail}`);
   });
+  await toolsProbes(engine, toolsProbe);
 
   await browser.close();
 }
