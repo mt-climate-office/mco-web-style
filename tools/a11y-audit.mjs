@@ -989,6 +989,9 @@ const port = server.address().port;
     // collapses at 750px, where its full bar would fit again.
     {
       const { ctx, p } = await open(1000, 800, { path: '/exemplar/', touch: false });
+      // The bar holds live station counts, which widen it: sweep once they are in.
+      const settled = (pg) => pg.waitForFunction(() => !/loading/.test(document.getElementById('count-stamp').textContent), null, { timeout: 15000 }).catch(() => {}).then(() => pg.waitForTimeout(300));
+      await settled(p);
       const at = async (w) => { await p.setViewportSize({ width: w, height: 800 }); await p.waitForTimeout(200);
         return p.evaluate(() => { const b = document.querySelector('.mco-navbar[data-rail]'); return b.classList.contains('is-folded') && b.getBoundingClientRect().height <= 64; }); };
       const down = []; for (let w = 1000; w >= 650; w -= 10) down.push([w, await at(w)]);
@@ -999,6 +1002,7 @@ const port = server.address().port;
       const full = !(await at(1300));
       await ctx.close();
       const fresh = await open(720, 800, { path: '/exemplar/', touch: false });
+      await settled(fresh.p);
       const freshFolded = await fresh.p.evaluate(() => document.querySelector('.mco-navbar[data-rail]').classList.contains('is-folded'));
       await fresh.ctx.close();
       probe(`tools /exemplar/ 1000→650 in 10px steps: folds at ${first ? first[0] : '?'}px and stays folded below, 720px included; the same on the way back up; full again at 1300px; a page opened at 720px is folded`,
