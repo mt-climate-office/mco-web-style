@@ -613,6 +613,17 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
 .brand-subtitle { font-size: 0.6875rem; font-weight: 400; letter-spacing: 0.04em; font-style: italic; color: var(--text-dim); white-space: nowrap; }
 .controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; row-gap: 0.3rem; }
 .nav-meta { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; margin-left: auto; }
+/* Bar tools (opt-in): the page's single buttons (theme, share, export,
+   help) in one group, the bar's last child, after .mco-nav-drawer. Icon-only
+   in the bar at every width; core moves them into .mco-drawer-tools as the
+   bar runs out of room (§6, MCO.initNavRail). The group follows .nav-meta,
+   which holds the right edge. Its margin is 0 or auto in every layout,
+   never a length: after the fold class changes WebKit restyles this group
+   a frame late, and a margin that changed the bar's width would fold it at
+   one width going down and another going up. */
+.mco-bar-tools { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.mco-bar-tools .btn-label { display: none; }
+.mco-bar-tools .nav-btn:not(.mco-btn-info):has(> .btn-label) { padding: 0.4rem; min-width: var(--control-h); justify-content: center; }
 
 /* Buttons. Pressed/hover borders use --accent-line, NOT --accent: the brand
    blue only clears ~2.3–2.9:1 against dark surfaces (WCAG 1.4.11 needs 3:1). */
@@ -1394,6 +1405,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
      divider's margin is derived from it. */
   .mco-navbar { padding-right: 0.6rem; --nav-gap: 0.5rem; }
   .nav-meta { gap: 0.3rem; }
+  .mco-bar-tools { gap: 0.3rem; }
 }
 /* Mobile brand collapse: the logo badge alone carries the identity, because at
    phone widths the controls need every pixel. Both the title and the subtitle
@@ -1420,6 +1432,15 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
     white-space: nowrap; border: 0;
   }
   .mco-navbar > .nav-divider { display: none; }
+}
+/* Core's fold measure (.is-fold-probe, set and cleared in one task, never
+   painted): the lockup as it stands above 750px. A bar that folds at 751px
+   stays folded below it. KEEP IN SYNC with BRAND_W in mco-core.js. */
+@media (max-width: 750px) {
+  .mco-navbar.is-fold-probe .brand {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto;
+  }
+  .mco-navbar.is-fold-probe > .nav-divider { display: block; }
 }
 @media (max-width: 640px) {
   .refresh-status { display: none; }   /* reclaim space on phones */
@@ -1517,6 +1538,13 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] .mco-rail > :first-child { order: -2; }
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] .mco-rail > .mco-search-toggle { display: flex; order: -1; }
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] .mco-rail .nav-btn { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
+  /* Bar tools: help joins the column under .mco-rail, at its spacing. Core
+     puts the other tools in the drawer; they are hidden until it has. */
+  :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] > .mco-bar-tools {
+    flex-direction: column; gap: 0.35rem; margin-left: 0; margin-top: calc(0.35rem - var(--nav-gap));
+  }
+  :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] > .mco-bar-tools .nav-btn { width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; }
+  :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail="compact"]:not([data-tools]) > .mco-bar-tools > :not(.mco-btn-info) { display: none; }
 
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] .mco-nav-drawer {
     display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
@@ -1598,6 +1626,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
 @media (max-height: 560px) and (orientation: landscape) and (hover: none) {
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] .mco-rail .nav-btn,
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .nav-btn { width: 44px; min-width: 44px; min-height: 44px; }
+  :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] > .mco-bar-tools .nav-btn { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
   /* The badge matches (1.0.0): one 44px column. */
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] > .logo-link .logo-img { width: 44px; height: 44px; }
 }
@@ -1623,7 +1652,9 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
        </div>
        <div class="nav-divider" aria-hidden="true"></div>
        <div class="mco-nav-drawer" id="nav-drawer">brand · .controls (search field) · .nav-meta</div>
+       <div class="mco-bar-tools" role="group" aria-label="Page tools">…optional: theme, share, export, help…</div>
      </header>
+   With .mco-bar-tools the row is logo · hot controls · search · tools · ☰.
    The query is compact ∧ ¬rail, written out: COMPACT_MQ minus RAIL_MQ.
    KEEP IN SYNC with MCO.viewport.COMPACT_MQ and RAIL_MQ. The bar drops its
    backdrop blur here: a backdrop-filter would make the bar the containing
@@ -1637,6 +1668,9 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   .mco-navbar[data-rail="compact"] .mco-rail { display: contents; }
   .mco-navbar[data-rail="compact"] .mco-rail > :first-child { order: 1; }
   .mco-navbar[data-rail="compact"] .mco-rail > .mco-search-toggle { margin-left: auto; }
+  /* Bar tools sit between the search button and ☰. */
+  .mco-navbar[data-rail="compact"] > .mco-bar-tools { margin-left: 0; }
+  .mco-navbar[data-rail="compact"] > .mco-rail:not(:has(> .mco-search-toggle)) ~ .mco-bar-tools { margin-left: auto; }
 
   .mco-navbar[data-rail="compact"] .mco-nav-drawer {
     display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
@@ -1685,6 +1719,9 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
    auto margin and ☰ sat mid-bar. Its field is in the closed drawer, and the
    button opens the drawer on it (MCO.initNavRail's search option). */
 .mco-navbar[data-rail="compact"].is-folded .mco-rail > .mco-search-toggle { display: flex; margin-left: auto; }
+/* Bar tools sit between the search button and ☰. */
+.mco-navbar[data-rail="compact"].is-folded > .mco-bar-tools { margin-left: 0; }
+.mco-navbar[data-rail="compact"].is-folded > .mco-rail:not(:has(> .mco-search-toggle)) ~ .mco-bar-tools { margin-left: auto; }
 
 .mco-navbar[data-rail="compact"].is-folded .mco-nav-drawer {
   display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
@@ -1715,6 +1752,26 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
 .mco-navbar[data-rail="compact"].is-folded .mco-nav-drawer .refresh-status { display: inline-flex; }
 @starting-style {
   .mco-navbar[data-rail="compact"] .mco-nav-drawer.is-open { transform: translateX(12px); opacity: 0; }
+}
+
+/* Page tools in the drawer: the bar tools that did not fit, as one centred
+   row at the top of .mco-nav-drawer. Core makes the row and moves the
+   buttons. Each is its icon over its word, so four fit a 320px phone; the
+   help button drops its circle to match the rest. */
+.mco-drawer-tools { display: flex; justify-content: center; gap: 0.4rem; }
+.mco-navbar[data-rail="compact"] .mco-nav-drawer > .mco-drawer-tools > .nav-btn,
+.mco-navbar[data-rail="compact"] .mco-nav-drawer > .mco-drawer-tools > .nav-btn:has(> .btn-label) {
+  flex: 0 1 4.75rem; min-width: 0; width: auto; height: auto; min-height: 48px;
+  flex-direction: column; justify-content: center; gap: 3px; padding: 5px 4px;
+  border-radius: var(--radius-md); border-color: var(--ctrl-border); color: var(--text-secondary);
+  line-height: 1;
+}
+.mco-navbar[data-rail="compact"] .mco-nav-drawer > .mco-drawer-tools > .nav-btn:hover {
+  background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary);
+}
+.mco-navbar[data-rail="compact"] .mco-nav-drawer > .mco-drawer-tools > .nav-btn > .btn-label {
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.6875rem; font-weight: var(--fw-medium); line-height: 1.2;
 }
 
 /* Bottom control bar (1.0.0) — .mco-controlbar, a direct child of <body>,

@@ -32,6 +32,8 @@ pass's job. Each item cites the rule it checks.
 - [ ] The brand title is the page's `<h1 class="brand-title">`, not a `<span>` (§3)
 - [ ] Right-hand group is `.nav-meta`, not `.nav-actions` (§3)
 - [ ] Info button is `.mco-btn-info` (§3)
+- [ ] ✋ The help button's accessible name is "Help", and so is its `.btn-label` word (§3 *Bar tools*)
+- [ ] Theme, share, export and help buttons are in `.mco-bar-tools`, the bar's last child, each with a `.btn-label` word that is part of its name (§3 *Bar tools*). Advisory: ⚠, not scored
 - [ ] The ≤750px brand collapse is untouched, or overridden with a `/* kit-override: … */` comment (§3)
 - [ ] ✋ Buttons that shed `.btn-label` below 1400px carry a permanent `aria-label` (§3)
 - [ ] ✋ **Map tools:** the bar is one row, ≤ 64px, at every width (390px and each width from 641 to 1440, mouse and touch): `data-rail="compact"` folds to logo · hot controls · search · ☰ (badge left, ☰ right) wherever the full bar would wrap, the rest in `.mco-nav-drawer` (§3 *The one-row phone bar*). No app-local row swaps (`order` / `flex-basis`) remain
@@ -94,4 +96,4 @@ The checker is deliberately conservative. A false ✗ costs one look, and a
 false ✓ hides a shipped failure. When it is wrong, fix the regex here, not the
 app. It reads the entry HTML, its inline `<style>`, and the local scripts and
 stylesheets the page loads. Its code-style checks ([CODE-STYLE.md](CODE-STYLE.md))
-are advisory: ⚠, not scored.
+and its bar-tools check are advisory: ⚠, not scored.

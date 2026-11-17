@@ -371,9 +371,10 @@ asserts the drawer and panel rows across 390, 768 and 1440):
 
 | Pattern | Phone (compact) | Tablet | Desktop |
 |---|---|---|---|
-| Bar | Always folded: badge, hot controls, search, ☰ right. Short landscape: the same bar on its side, a rail at the right edge | Folded when it won't fit, same folded layout | Full bar |
+| Bar | Always folded: badge, hot controls, search, help, ☰ right; the other bar tools too when they fit. Short landscape: the same bar on its side, a rail at the right edge, help in it | Folded when it won't fit, same folded layout | Full bar |
+| Help | In the bar, or in the rail | In the bar | In the bar |
 | Time controls | Bottom control bar (portrait); the foot of the rail (landscape) | Bottom control bar wherever the bar folds | In the full bar |
-| ☰ drawer | Right, under the bar (beside the rail in landscape); focus on the drawer, not search | Same | n/a |
+| ☰ drawer | Right, under the bar (beside the rail in landscape); focus on the drawer, not search. Bar tools that left the bar are its top row | Same | n/a |
 | Station panel | Full height under the bar, map hidden, bar live | Side-docked at the end edge, map live | Same as tablet |
 | Panel header | Title + 44 px close button, top right; no grip | Identical | Identical |
 | Legend | A "Legend" group in the ☰ drawer, a Legend button on the map | Floating panel | Floating panel |
@@ -411,8 +412,8 @@ controls must use a tier.
 | ≤ 1060px | chrome padding and gaps tighten |
 | ≤ 750px | the whole brand lockup — title, subtitle, and divider; the logo badge remains |
 | ≤ 640px | `.refresh-status`; a navbar search field collapses to a disclosure (`.mco-search-collapse` + `MCO.initSearchCollapse`) and reopens as an overlay bar; **compact mode** begins |
-| compact, not short landscape — and any width where the bar would wrap (0.21.1) | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, logo · hot controls · search · ☰; the rest in a right drawer; the time controls in the **bottom control bar** (1.0.0) |
-| height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px column at the **right** edge (1.0.0; the left until then): badge, ☰, search, time controls; also compact |
+| compact, not short landscape — and any width where the bar would wrap (0.21.1) | opt-in **compact drawer** (`.mco-navbar[data-rail="compact"]`, 0.21.0): one row, logo · hot controls · search · bar tools · ☰; the rest in a right drawer; the time controls in the **bottom control bar** (1.0.0) |
+| height ≤ 560px, landscape | opt-in **rail** (`.mco-navbar[data-rail]`, 0.10.0): the bar becomes a 56px column at the **right** edge (1.0.0; the left until then): badge, ☰, search, help, time controls; also compact |
 
 Because `.btn-label` sheds below 1400 px, **any button that relies on it for
 its name must carry a permanent `aria-label`** — otherwise the button becomes
@@ -611,9 +612,10 @@ of the screen. Map apps opt in with `data-rail` on `.mco-navbar`: at
 `MCO.viewport.RAIL_MQ` (the landscape half of the compact query) the bar is
 **the whole bar turned on its side**, a fixed 56 px column at the right
 edge, clear of the right safe area, and the body is padded clear of it.
-- **Top to bottom:** the logo badge, ☰, the search button, then the time
-  controls: `.mco-rail`'s hot controls, then the `.mco-controlbar`, which
-  sits at the foot of the column. Every rail button is 44 px on touch.
+- **Top to bottom:** the logo badge, ☰, the search button, `.mco-rail`'s
+  hot controls, the help button (*Bar tools*, below), then the time
+  controls in the `.mco-controlbar`, which sits at the foot of the column.
+  Every rail button is 44 px on touch.
 - **Everything else** sits in `.mco-nav-drawer`, which opens **from the
   right, beside the rail**. It is `display: contents` outside rail mode, so
   the normal bar is unchanged.
@@ -659,7 +661,10 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
   So a tablet, or a desktop window too narrow for the app's controls, gets
   the ☰ bar rather than a second row. **Apps write no row swaps**
   (`order` / `flex-basis` at 1060 or 1400): the sheds still apply first, so
-  the bar folds only when they are not enough.
+  the bar folds only when they are not enough. **Once folded, it stays
+  folded at every narrower width**: at 750 px and under, where the brand
+  collapses, the bar also folds if it would wrap at 751 px with the brand
+  showing. It unfolds again when the window is wide enough for the full bar.
 - **The row, left to right:** the logo badge (it always holds the left
   edge), the rest of `.mco-rail` (one hot control at most: a mode or variable
   select; the time controls go in the bottom control bar, 1.0.0),
@@ -667,6 +672,27 @@ on `.mco-navbar`, which keeps the rail and adds the drawer. Plain
   child of `.mco-rail`, moved to the right edge). The search button shows
   wherever the bar folds, at any width (0.21.2), and in the rail (1.0.0).
   The same `.mco-rail` children make the column at short landscape.
+- **Bar tools** (`.mco-bar-tools`, opt-in). The page's own single buttons
+  (theme, share, export, help) go in one group, the bar's last child, after
+  `.mco-nav-drawer`. Keep `.nav-meta` in the drawer, even empty: it holds
+  the right edge. In the bar the tools are icon-only at every width,
+  between search and ☰. Each has a `.btn-label` word that is part of its
+  accessible name. **The help button is named "Help"**, and its word is
+  "Help" (Kyle, 2026-11-16). The row shows the word the app wrote; a button
+  with no `.btn-label` shows its icon alone. The fold then runs in steps,
+  each one measured:
+  1. The full bar would wrap: it folds, and the tools stay in the bar.
+  2. The tools do not fit: all but help move together to the top of the
+     drawer, as one centred row named "Page tools", icon over word.
+  3. Help joins them only when badge, hot controls, search, help and ☰
+     will not fit one row.
+
+  In the rail, help is in the column and the rest are in the drawer.
+  **Help stays in the bar in every layout that has room for it.** The kit
+  moves the buttons themselves, so Tab order matches the screen and
+  listeners stay. The bar carries `data-tools` (`bar`, `help` or `drawer`)
+  and fires `'mco:tools'` when it changes. A bar without the group is
+  unchanged. This revises the 12 Nov 2026 phone bar of badge, search, ☰.
 - **Everything in `.mco-nav-drawer`** (brand, `.controls`, `.nav-meta`)
   opens as a right drawer under the bar, from ☰. The kit undoes the bar's sheds
   there, so the lockup, button labels, the "Updated" word and
