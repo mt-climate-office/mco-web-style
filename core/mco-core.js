@@ -1,16 +1,20 @@
 /* ============================================================================
-   mco-web-style · core/mco-core.js · v0.1.0
+   mco-web-style · core/mco-core.js
    Framework-free shared utilities for Montana Climate Office web apps.
 
    Classic script (no ESM, no build, zero dependencies) — load it with a
    pinned, SRI-hashed <script> tag BEFORE your app script; everything lands
-   on window.MCO. Extracted from the mesonet-explorer / mesonet-status /
-   mesonet-photo-explorer / mco-snowpack-explorer family; canonical behaviors
-   documented in HOUSE-STYLE.md.
+   on window.MCO. Canonical behaviors are documented in HOUSE-STYLE.md.
 
    Contents: constants · storage · strings · Mountain-time helpers · fetch ·
-   reduced motion (live) · viewport (compact/touch) · announcements + toast ·
-   theme · info modal · collapsible · URL state.
+   reduced motion (live) · viewport (compact/touch) · keyboard · live-region
+   plumbing · toast · theme · tokens from JS · page title, social meta,
+   credit · announcements · notice · hidden-table twin · legend toggles ·
+   first-paint hold · overlay metrics · overlays (focus, inert, Esc) ·
+   drawer · nav rail · bottom control bar · legend in the drawer · station
+   panel (sheet) · loading · stepper · segmented fallback · info modal ·
+   over-map panel height cap · collapsible panel · collapsible search ·
+   search model · search combobox · URL state.
    ========================================================================== */
 (function () {
   'use strict';
@@ -68,8 +72,7 @@
   // Shift a 'YYYY-MM-DD' string by whole days. The noon anchor sidesteps DST
   // edges; the result is formatted from LOCAL getters, not toISOString(), which
   // would re-project to UTC and land a day off for viewers at UTC+13/+14 and
-  // UTC-12 (found in the mesonet-photo-explorer migration, then named
-  // mco-mesonet-photos).
+  // UTC-12.
   MCO.shiftDate = function (dateStr, deltaDays) {
     var d = new Date(dateStr + 'T12:00:00');
     d.setDate(d.getDate() + deltaDays);
@@ -82,7 +85,7 @@
       hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
     });
   };
-  /* The freshness stamp (0.21.0): one wording for the family, in Mountain
+  /* The freshness stamp: one wording for the family, in Mountain
      time whatever the viewer's zone, the zone abbreviation from Intl.
        MCO.formatUpdatedMT(ms)  → 'Updated 2:45 PM MST'          (ms is today in MT)
                                 → 'Updated Nov 2, 2:45 PM MST'   (any other day)
@@ -191,30 +194,31 @@
      KEEP THE QUERY IN SYNC in three places: here, the breakpoint comment in
      mco-theme.css §6, and snippets/anti-flash.html.
      Stamps .is-compact / .is-touch on <html> for CSS hooks. The inline
-     anti-flash snippet stamps them first (0.7.0), so CSS keyed on them is
+     anti-flash snippet stamps them first, so CSS keyed on them is
      right from first paint; this script — loaded at the end of <body> —
      re-stamps on load and keeps them live across resizes. */
   var COMPACT_MQ = '(max-width: 640px), (max-height: 560px)';
   var _compactMq = window.matchMedia(COMPACT_MQ);
   var _touchMq = window.matchMedia('(hover: none)');
-  // The short-landscape rail (0.10.0; at the RIGHT edge from 1.0.0): the
-  // landscape half of COMPACT_MQ.
+  // The short-landscape rail, at the RIGHT edge: the landscape half of
+  // COMPACT_MQ.
   var RAIL_MQ = '(max-height: 560px) and (orientation: landscape)';
   var _railMq = window.matchMedia(RAIL_MQ);
   var _vpSubs = new Set();
 
-  /* K7 hold (1.0.0). A phone keyboard can turn a portrait viewport into a
+  /* The typing hold. A phone keyboard can turn a portrait viewport into a
      short "landscape" one (390x664 becomes 390x374 in a browser that
-     resizes the layout viewport), which matches RAIL_MQ: the bar rebuilt
-     itself as the rail under the visitor's thumb, and the drawer holding the
-     field they were typing in closed. So while someone is typing (a text
-     field has focus on a touch screen, or MCO.keyboard reports a keyboard)
-     the bar does not ENTER the rail: html.mco-bar-hold switches the rail
-     CSS off and the folded bar stays as it was. The hold lifts when typing
-     ends; the rail then takes over and the fold is measured afresh, so a
-     hold never leaves a stale layout behind. Only that direction is held: a
-     viewport can stop matching RAIL_MQ only by a real rotation, which
-     rebuilds the bar as it always has. isRail() reports the bar as shown. */
+     resizes the layout viewport), which matches RAIL_MQ. Unheld, the bar
+     would rebuild itself as the rail under the visitor's thumb, and the
+     drawer holding the field they are typing in would close. So while
+     someone is typing (a text field has focus on a touch screen, or
+     MCO.keyboard reports a keyboard) the bar does not ENTER the rail:
+     html.mco-bar-hold switches the rail CSS off and the folded bar stays
+     put. The hold lifts when typing ends; the rail then takes over and the
+     fold is measured afresh, so a hold never leaves a stale layout behind.
+     Only that direction is held: a viewport can stop matching RAIL_MQ only
+     by a real rotation, which rebuilds the bar. isRail() reports the bar as
+     shown. */
   var _kbOpen = false;
   var _barHold = false;
   var _railShown = _railMq.matches;
@@ -273,8 +277,8 @@
     isCompact: function () { return _compactMq.matches; },
     isTouch: function () { return _touchMq.matches; },
     RAIL_MQ: RAIL_MQ,
-    // The rail as SHOWN (1.0.0): RAIL_MQ, unless the K7 hold keeps the
-    // folded bar while someone types. Also compact.
+    // The rail as SHOWN: RAIL_MQ, unless the typing hold keeps the folded
+    // bar while someone types. Also compact.
     isRail: function () { return _railShown; },
     // Subscribe to compact/touch/rail flips. Returns an unsubscribe function.
     onChange: function (fn) {
@@ -283,7 +287,7 @@
     },
   };
 
-  /* ── Keyboard (1.0.0) ─────────────────────────────────────────────────────
+  /* ── Keyboard ──────────────────────────────────────────────────────────────
      Keeps bottom-docked surfaces above an on-screen keyboard, ported from
      mesonet-dashboard (web/src/ui/layout/keyboard.ts, core/keyboardInset.ts),
      names unchanged. iOS Safari shrinks the VISUAL viewport when the keyboard
@@ -330,8 +334,9 @@
   function _kbUpdate() {
     var vv = window.visualViewport;
     var root = document.documentElement;
-    // A pinch zoom shrinks the visual viewport too; that is not a keyboard
-    // (1.0.0, beyond the dashboard's helper: the control bar would hide).
+    // A pinch zoom shrinks the visual viewport too. That is not a keyboard,
+    // and reading it as one would hide the control bar. The dashboard's
+    // helper has no such test.
     var inset = vv.scale > 1.05 ? 0 : keyboardInset(root.clientHeight, vv.height, vv.offsetTop);
     root.style.setProperty('--vv-h', Math.round(vv.height) + 'px');
     Array.prototype.forEach.call(document.querySelectorAll('.mco-search-list'), _sizeList);
@@ -368,13 +373,13 @@
     isOpen: function () { return _kbOpen; },
     inset: function () { return Math.max(0, _kbInset); },
   };
-  // Started at load as well as by MCO.ready() (1.0.0 round 2): an app that
-  // calls ready() after its data arrives left a keyboard opened before that
-  // unseen, and a search list took its no-keyboard height.
+  // Started at load as well as by MCO.ready(): an app that calls ready()
+  // after its data arrives would otherwise miss a keyboard opened before
+  // that, and a search list would take its no-keyboard height.
   MCO.keyboard.start();
 
-  /* ── Live-region plumbing (0.8.0) ──────────────────────────────────────────
-     Two defects every hand-made region shared (found by mesonet-dashboard):
+  /* ── Live-region plumbing ──────────────────────────────────────────────────
+     Two defects a hand-made region has:
      1. Setting the same text twice is no DOM change, so a repeated message
         ("Link copied", twice) is not re-read. Clear first, then set the text
         a beat later, as a separate mutation.
@@ -404,7 +409,7 @@
   // show(msg, ms?, {announce: false}) keeps the toast out of the
   // accessibility tree for that message — for an app that has already said
   // the same thing through MCO.announce, so screen readers don't hear it
-  // twice (snowpack explorer's pinned-reading double announce).
+  // twice.
   MCO.createToast = function (opts) {
     opts = opts || {};
     var duration = opts.duration || 2800;
@@ -442,7 +447,7 @@
   };
 
   // Singleton convenience — most pages want exactly one toast. Created at
-  // load (0.8.0) so its live region exists before the first message.
+  // load so its live region exists before the first message.
   var _toast = MCO.createToast();
   MCO.showToast = function (msg, ms, opts) {
     _toast.show(msg, ms, opts);
@@ -456,19 +461,19 @@
   // The theme a visitor with no saved or URL choice gets: the OS preference,
   // as the anti-flash snippet resolves it. Compare against it to keep a
   // default theme out of the URL — write ?theme= only when the current theme
-  // differs (0.8.0; was identical copies in three consumers).
+  // differs.
   MCO.osTheme = function () {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
-  // The same, after the page's own default (0.19.0): <html
-  // data-theme-default="light"> wins over the OS preference, as the
-  // anti-flash snippet resolves it. Compare URL writes against this one.
+  // The same, after the page's own default: <html data-theme-default="light">
+  // wins over the OS preference, as the anti-flash snippet resolves it.
+  // Compare URL writes against this one.
   MCO.defaultTheme = function () {
     var def = document.documentElement.getAttribute('data-theme-default');
     return ['dark', 'light', 'high-contrast'].indexOf(def) !== -1 ? def : MCO.osTheme();
   };
-  // Fires `mco:themechange` on document (0.9.0) with detail {theme,
-  // previous}, so a chart, a canvas export or a map re-style listens once
+  // Fires `mco:themechange` on document with detail {theme, previous},
+  // so a chart, a canvas export or a map re-style listens once
   // instead of every toggle call site remembering it.
   MCO.setTheme = function (theme, opts) {
     var previous = MCO.getTheme();
@@ -479,15 +484,15 @@
     }
   };
 
-  /* ── Tokens from JS (0.9.0) ────────────────────────────────────────────────
-     MCO.cssVar('--text-primary') — the trimmed computed value (three apps
-     each wrapped this). MCO.chartTokens() — the chrome a chart or a canvas
-     export needs, read live from the current theme. CHROME only: data
+  /* ── Tokens from JS ────────────────────────────────────────────────────────
+     MCO.cssVar('--text-primary') — the trimmed computed value.
+     MCO.chartTokens() — the chrome a chart or a canvas export needs, read
+     live from the current theme. CHROME only: data
      colors come from MCO.palette. On a theme change, re-read them; for
      ECharts, dispose and re-init the chart (carrying zoom and legend state)
-     rather than setTheme/setOption, which lost state and mis-drew dual-axis
-     charts on the dashboard. ECharts' default legend dim (--border, ≈1.6:1)
-     fails: use textMuted as inactiveColor. */
+     rather than setTheme/setOption, which lose state and mis-draw dual-axis
+     charts. ECharts' default legend dim (--border, ≈1.6:1) fails: use
+     textMuted as inactiveColor. */
   MCO.cssVar = function (name, el) {
     return getComputedStyle(el || document.documentElement).getPropertyValue(name).trim();
   };
@@ -502,7 +507,7 @@
     };
   };
 
-  /* ── Page title, social meta, credit (0.9.0) ───────────────────────────────
+  /* ── Page title, social meta, credit ───────────────────────────────────────
      HOUSE-STYLE §1. Tab: "<Detail> · <Short> · <Family>" with the short
      family (MT Mesonet | MCO). Card: "<Detail> · <Short> · <Long family>"
      (Montana Mesonet | Montana Climate Office); og:site_name the long family
@@ -534,8 +539,7 @@
     upsertMeta('property', 'og:site_name', long);
     if (o.description) { upsertMeta('property', 'og:description', o.description); upsertMeta('name', 'twitter:description', o.description); }
     // og:url follows the shared state; the canonical link is the page's
-    // stable production address and moves only when asked (0.11.2: url used
-    // to rewrite it too, pulling canonical off the production host).
+    // stable production address and moves only when asked.
     if (o.url) upsertMeta('property', 'og:url', o.url);
     if (o.canonical) {
       var c = document.head.querySelector('link[rel="canonical"]');
@@ -561,7 +565,7 @@
     var source = o && o.source;
     return (source ? source + ' · ' : '') + 'Montana Climate Office · climate.umt.edu';
   };
-  // The order the 3-state toggle steps through (0.10.0).
+  // The order the 3-state toggle steps through.
   MCO.THEME_CYCLE = ['dark', 'light', 'high-contrast'];
   var THEME_NAMES = { dark: 'dark', light: 'light', 'high-contrast': 'high contrast' };
   function nextTheme(cycle) {
@@ -584,7 +588,7 @@
   //     map.setStyle(MCO.map.cartoStyleUrl());
   //     map.once('style.load', addCustomLayers);   // setStyle wipes sources
   //   }});
-  // cycle: true (0.10.0) makes it a 3-state toggle, dark → light → high
+  // cycle: true makes it a 3-state toggle, dark → light → high
   // contrast, so high contrast is reachable from the page and not only from
   // ?theme= or storage. iconContrast shows in light (next: high contrast;
   // the moon is used if it is absent), the moon in high contrast (next:
@@ -619,7 +623,7 @@
   };
 
   /* ── Screen-reader announcements ───────────────────────────────────────────
-     MCO.announce(text, {politeness}) is the page's ONE announcer (0.8.0):
+     MCO.announce(text, {politeness}) is the page's ONE announcer:
      what just changed on a canvas or WebGL surface a screen reader can't see
      ("42 stations shown", "Station X opened"). HOUSE-STYLE §5.1 lists what
      must be announced. Pair with the hidden-table twin (§5.2).
@@ -656,8 +660,8 @@
   };
 
   // A separate polite region, for the rare page that needs more than one
-  // (prefer MCO.announce). Since 0.8.0 its announce() clears before setting,
-  // like MCO.announce, so a repeated message is re-read.
+  // (prefer MCO.announce). Its announce() clears before setting, like
+  // MCO.announce, so a repeated message is re-read.
   MCO.createLiveRegion = function () {
     var el = makeRegion('polite');
     var state = {};
@@ -667,7 +671,7 @@
     };
   };
 
-  /* ── Notice (0.8.0) ────────────────────────────────────────────────────────
+  /* ── Notice ────────────────────────────────────────────────────────────────
      A persistent banner that can hold an action: load failures with Retry,
      data caveats, outages (.mco-notice in mco-theme.css). The toast is for
      transient status; a notice stays until it is resolved or dismissed.
@@ -788,7 +792,7 @@
     return { element: el, close: close };
   };
 
-  /* ── Hidden-table twin (0.8.0) ─────────────────────────────────────────────
+  /* ── Hidden-table twin ─────────────────────────────────────────────────────
      The screen-reader twin of a canvas or WebGL layer (HOUSE-STYLE §5.2): one
      row per drawn feature, rebuilt from the same features the canvas drew,
      never wired to a live region (MCO.announce says what changed; the table
@@ -945,7 +949,7 @@
     return { element: wrap, render: render };
   };
 
-  /* ── Legend toggles (0.8.0) ────────────────────────────────────────────────
+  /* ── Legend toggles ────────────────────────────────────────────────────────
      Click a legend row to show/hide its category; double-click isolates it
      (double-click the isolated row again to show everything). Shift+Enter is
      the keyboard twin of the double-click (§5.8). Rows are buttons styled by
@@ -1045,7 +1049,7 @@
     };
   };
 
-  /* ── First-paint hold (0.9.0) ──────────────────────────────────────────────
+  /* ── First-paint hold ──────────────────────────────────────────────────────
      The anti-flash snippet adds html.mco-booting before first paint; while it
      is on, [data-hold] elements keep their layout but don't paint
      (visibility, so nothing shifts), and [data-skeleton] placeholders show.
@@ -1058,30 +1062,32 @@
   var _readyP = new Promise(function (r) { _readyResolve = r; });
   MCO.ready = function () {
     document.documentElement.classList.remove('mco-booting');
-    MCO.keyboard.start();   // 1.0.0
+    MCO.keyboard.start();
     _readyResolve();
     return _readyP;
   };
   MCO.whenReady = function () { return _readyP; };
 
-  /* ── Overlay metrics (0.9.0) ───────────────────────────────────────────────
+  /* ── Overlay metrics ───────────────────────────────────────────────────────
      Layout measurements published as custom properties on <html>, so CSS can
      keep floating things clear of each other: --chrome-h (sticky navbar →
      scroll-padding-top), --sheet-h (a bottom-docked sheet; 0 from the kit's
-     sheet since 1.0.0, which is full height on compact), --sheet-end (the
-     open end-docked sheet's width, 0.21.1), --tabbar-h (the bottom control
-     bar, 1.0.0, or an app's own tab bar), --controlbar-h (the control bar
-     while it sits in the rail, 1.0.0). They are layout metrics, not theme
-     tokens (tokens.json lists them under `metrics`). html.mco-autolift opts
-     into lifting the toast and MapLibre's bottom corners above --sheet-h +
-     --tabbar-h; a page with a kit control bar turns it on (1.0.0).
+     sheet, which is full height on compact), --sheet-end (the open
+     end-docked sheet's width), --tabbar-h (the bottom control bar, or an
+     app's own tab bar), --controlbar-h (the control bar while it sits in
+     the rail). They are layout metrics, not theme tokens (tokens.json lists
+     them under `metrics`). html.mco-autolift opts into lifting the toast
+     and MapLibre's bottom corners above --sheet-h + --tabbar-h; a page with
+     a kit control bar turns it on.
        MCO.metrics.observe('--chrome-h', navbarEl)   // ResizeObserver; returns stop()
        MCO.metrics.set('--sheet-h', 212)             // px
        MCO.metrics.get('--sheet-h')                  // → 212 */
   MCO.metrics = {
     set: function (name, px) {
+      var was = name === '--sheet-end' ? MCO.metrics.get(name) : 0;
       document.documentElement.style.setProperty(name, Math.max(0, Math.round(px || 0)) + 'px');
       if (name === '--sheet-h' || name === '--tabbar-h') _clampLift();
+      if (name === '--sheet-end') _foldAttrib(MCO.metrics.get(name) - was);
     },
     get: function (name) {
       return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
@@ -1095,30 +1101,56 @@
       return function () { ro.disconnect(); };
     },
   };
-  /* Autolift clamp (0.13.1). html.mco-autolift lifts MapLibre's bottom
+  /* Autolift clamp. html.mco-autolift lifts MapLibre's bottom
      corners and [data-autolift] panels by --overlay-bottom. A panel taller
      than the room left above the sheet would ride off the top of the map (a
-     234px legend in the 750x342 rail rode to -153px), so each lifted element
-     gets its own --lift: the overlay height, capped at the room between its
-     resting top and its container's top, less 8px. Its resting top is
+     234px legend in the 750x342 rail would sit at -153px), so each lifted
+     element gets its own --lift: the overlay height, capped at the room
+     between its resting top and its container's top, less 8px. Its resting
+     top is
      offsetTop, which transforms and `translate` don't move. A fixed element
      (no offsetParent) measures from the viewport. Without JS, CSS falls back
      to the uncapped --overlay-bottom.
-     A control group above it counts too (1.0.0): a MapLibre top corner
+     A control group above it counts too: a MapLibre top corner
      (zoom, fit) in the same container that overlaps the element across is
      a ceiling, so an attribution or panel under a zoom group on the same
-     side stops 8px below it instead of riding over it (mesonet-explorer carried an
-     --attrib-lift-max override for exactly this). */
+     side stops 8px below it instead of riding over it. */
+  // An end-docked panel moves the map's right-hand corners left by its
+  // width. On a tablet that can put the open attribution text over a
+  // bottom-left legend. Where it would, the attribution folds to its ⓘ
+  // button, as MapLibre folds it on the first map move. `shift` is how far
+  // the corner is about to move: its CSS transition has not run yet. The
+  // text can wrap taller once it has less room, which only the settled
+  // layout shows, so the check runs again after the transition.
+  var _foldTid = 0;
+  function _foldAttrib(shift) {
+    if (shift > 0) { clearTimeout(_foldTid); _foldTid = setTimeout(function () { _foldAttrib(0); }, 300); }
+    if (shift < 0) return;
+    var open = document.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact.maplibregl-compact-show');
+    if (!open.length) return;
+    var panels = document.querySelectorAll('.mco-panel');
+    Array.prototype.forEach.call(open, function (a) {
+      var ar = a.getBoundingClientRect();
+      var hit = Array.prototype.some.call(panels, function (p) {
+        if (!p.getClientRects().length) return false;
+        var pr = p.getBoundingClientRect();
+        return ar.left - shift < pr.right && ar.right - shift > pr.left && ar.top < pr.bottom && ar.bottom > pr.top;
+      });
+      if (!hit) return;
+      a.classList.remove('maplibregl-compact-show');
+      a.removeAttribute('open');
+    });
+  }
   var _LIFTED = '[data-autolift], .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right';
   var _CEILINGS = '.maplibregl-ctrl-top-left, .maplibregl-ctrl-top-right';
   var _liftRO = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(function () { _clampLift(); }) : null;
   var _liftSeen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
-  // New targets are observed on the next frame, never inside a delivery
-  // (1.0.0 RC 5): _clampLift runs from this observer's own callback, and a
-  // target observed there (a top corner that became a ceiling) is a
-  // notification WebKit cannot deliver in that pass, so it logged
-  // "ResizeObserver loop completed with undelivered notifications". A timer
-  // backs the frame (WebKit runs no frames while a page loads).
+  // New targets are observed on the next frame, never inside a delivery:
+  // _clampLift runs from this observer's own callback, and a target observed
+  // there (a top corner that became a ceiling) is a notification WebKit
+  // cannot deliver in that pass, so it logs "ResizeObserver loop completed
+  // with undelivered notifications". A timer backs the frame (WebKit runs no
+  // frames while a page loads).
   var _liftQueue = [], _liftRaf = 0, _liftTid = 0;
   function _flushLift() {
     cancelAnimationFrame(_liftRaf); clearTimeout(_liftTid);
@@ -1145,9 +1177,22 @@
     });
     return best;
   }
+  // A map made after the bars have published their heights has no corners
+  // to clamp yet. Watch for the first one, clamp once it is there, and stop.
+  var _cornerMO = null;
+  function _awaitCorners() {
+    if (_cornerMO || typeof MutationObserver === 'undefined') return;
+    _cornerMO = new MutationObserver(function () {
+      if (!document.querySelector('.maplibregl-ctrl-bottom-right')) return;
+      _cornerMO.disconnect();
+      _clampLift();
+    });
+    _cornerMO.observe(document.documentElement, { childList: true, subtree: true });
+  }
   function _clampLift() {
     var root = document.documentElement;
     if (!root.classList.contains('mco-autolift')) return;
+    if (!document.querySelector('.maplibregl-ctrl-bottom-right')) _awaitCorners();
     var lift = MCO.metrics.get('--sheet-h') + MCO.metrics.get('--tabbar-h');
     var els = document.querySelectorAll(_LIFTED), room = [], i;
     for (i = 0; i < els.length; i++) {
@@ -1179,12 +1224,12 @@
   }
   window.addEventListener('resize', _clampLift);
 
-  // A sticky navbar (0.10.0) publishes its own height, so scroll-padding-top
+  // A sticky navbar publishes its own height, so scroll-padding-top
   // keeps anchor targets and focused elements out from under it (WCAG 2.4.11).
   var _stickyBar = document.querySelector('.mco-navbar.is-sticky');
   if (_stickyBar) MCO.metrics.observe('--chrome-h', _stickyBar);
 
-  /* ── Overlays: focus, inert, Esc (0.9.0) ───────────────────────────────────
+  /* ── Overlays: focus, inert, Esc ───────────────────────────────────────────
      Native <dialog> (MCO.initInfoModal) handles focus itself. Everything else
      that floats — drawers, sheets, popups, flyouts — gets it from here:
 
@@ -1205,7 +1250,7 @@
      A native <dialog> always wins — an overlay under an open dialog ignores
      Esc unless it lives inside the dialog. A handler that already consumed
      Esc (preventDefault — the search combobox does) stops it here too. So:
-     dialog > flyout > sheet full > drawer > sheet peek > popup, by opening
+     dialog > flyout > sheet > drawer > popup, by opening
      order. Inert roots are reference-counted, so two overlays sharing a root
      release it symmetrically. Focus returns to the opener, or to
      opts.fallbackFocus / #main when the opener has left the DOM.
@@ -1290,8 +1335,8 @@
       roots = [];
       if (blocks) { _blocking--; blocks = false; }
       if (!o || o.restoreFocus !== false) {
-        // <body> (a deep-link or programmatic open) and a now-hidden opener
-        // (the sheet grip) can't take focus usefully: use the fallback (0.11.3).
+        // <body> (a deep-link or programmatic open) and a hidden opener
+        // can't take focus usefully: use the fallback.
         var usable = opener && opener !== document.body && opener.isConnected && !opener.inert &&
           opener.getClientRects().length > 0;
         var back = usable ? opener : (opts.fallbackFocus || document.getElementById('main'));
@@ -1328,21 +1373,20 @@
   MCO.overlay.isBlocking = function () {
     return _blocking > 0 || !!document.querySelector('dialog[open]');
   };
-  /* A modal <dialog> opened from inside an open drawer or panel (1.0.0
-     round 2): the overlay had made the rest of the page inert, the dialog
-     included, so it opened unusable (mco-snowpack-explorer's "About this
-     data" in the legend, once the legend lived in the ☰ drawer). A modal
-     dialog makes everything outside it inert itself, so while one is open
-     the overlay's inert roots on its ancestor chain are lifted, and put
-     back when it closes. Focus goes into the dialog (its close button, as
-     MCO.initInfoModal does), and the browser returns it to the opener in
-     the drawer on close. */
+  /* A modal <dialog> opened from inside an open drawer or panel: the
+     overlay has made the rest of the page inert, the dialog included, so
+     it would open unusable (an "About this data" dialog in a legend that
+     lives in the ☰ drawer). A modal dialog makes everything outside it
+     inert itself, so while one is open the overlay's inert roots on its
+     ancestor chain are lifted, and put back when it closes. Focus goes
+     into the dialog (its close button, as MCO.initInfoModal does), and the
+     browser returns it to the opener in the drawer on close. */
   var _dlgLifted = new Map();   // dialog -> [roots lifted for it]
   // Only a MODAL dialog (showModal) inerts the page itself; a non-modal one
   // (show(), an open attribute) does not, so lifting roots for it would let
   // the page behind a drawer go live. An engine without :modal lifts
-  // nothing (the behaviour before this fix). :modal is already true when the
-  // observer runs after showModal(), in Chromium and WebKit.
+  // nothing. :modal is already true when the observer runs after
+  // showModal(), in Chromium and WebKit.
   function _isModal(d) { try { return d.matches(':modal'); } catch (e) { return false; } }
   function _syncDialogs() {
     Array.prototype.forEach.call(document.querySelectorAll('dialog'), function (d) {
@@ -1368,8 +1412,8 @@
     new MutationObserver(_syncDialogs).observe(document.documentElement,
       { subtree: true, attributes: true, attributeFilter: ['open'] });
   }
-  // The chrome that stays live over a phone panel (1.0.0): the top bar and
-  // the bottom control bar.
+  // The chrome that stays live over a phone panel: the top bar and the
+  // bottom control bar.
   function _chrome() {
     return [document.querySelector('.mco-navbar'), document.querySelector('.mco-controlbar')].filter(Boolean);
   }
@@ -1390,7 +1434,7 @@
     return out;
   }
 
-  /* ── Off-canvas drawer (0.9.0) ─────────────────────────────────────────────
+  /* ── Off-canvas drawer ─────────────────────────────────────────────────────
      The sanctioned home for a control-dense bar on a phone (HOUSE-STYLE §3).
 
        <button class="nav-btn icon-only" id="btn-drawer" aria-label="Filters"
@@ -1407,7 +1451,7 @@
          modal: 'compact',     // 'always' | 'compact' (off-canvas on compact, a docked
                                // column otherwise) | 'never' (off-canvas, non-modal)
          inertRoots: null,     // default: everything beside the drawer's ancestor chain;
-                               // an array, or a function called each time (0.11.3)
+                               // an array, or a function called each time
          initialFocus: null,   // default: first focusable inside
          onChange: function (open, docked) { map.resize(); },
        });
@@ -1505,8 +1549,9 @@
     if (scrim) scrim.addEventListener('click', onScrim);
     var unsub = MCO.viewport.onChange(applyMode);
     applyMode();
-    // A page that loads already off-canvas never flips docked state, so the
-    // markup's drawer stayed visible to Tab until first opened (0.11.3).
+    // A page that loads already off-canvas never flips docked state, so
+    // without this the markup's drawer would stay visible to Tab until first
+    // opened.
     if (!docked && !openState) {
       drawer.hidden = true;
       if (toggle) toggle.setAttribute('aria-expanded', 'false');
@@ -1526,7 +1571,7 @@
     };
   };
 
-  /* ── Short-landscape nav rail (0.10.0; right edge 1.0.0) ───────────────────
+  /* ── Short-landscape nav rail ──────────────────────────────────────────────
      The bar becomes a rail at the RIGHT edge of a landscape phone
      (.mco-navbar[data-rail], markup in mco-theme.css §6): the whole bar on
      its side, badge, ☰, the search button, then the time controls (a
@@ -1539,17 +1584,17 @@
 
        var rail = MCO.initNavRail({
          toggle: menuBtn, drawer: navDrawerEl, scrim: scrimEl,   // scrim optional
-         search: { toggle: searchBtn, input: searchInput },      // optional (0.21.0)
+         search: { toggle: searchBtn, input: searchInput },      // optional
          onChange: function (open) {},
        });
        → {open(focusEl?, {opener}?), close({restoreFocus}), toggle, isOpen,
           isRail, isDrawerMode, destroy}
 
-     Compact drawer (0.21.0, opt-in): data-rail="compact" ALSO keeps the bar
-     one row — at portrait compact (MCO.viewport.COMPACT_MQ minus the rail's
-     short landscape; the query is in mco-theme.css §6) and, from 0.21.1, at
-     any width where the full bar would wrap (.is-folded, fold-to-fit
-     above) — in this order:
+     Compact drawer (opt-in): data-rail="compact" ALSO keeps the bar one
+     row — at portrait compact (MCO.viewport.COMPACT_MQ minus the rail's
+     short landscape; the query is in mco-theme.css §6) and at any width
+     where the full bar would wrap (.is-folded, fold-to-fit below) — in
+     this order:
        logo badge (always the left edge) · the rest of .mco-rail (hot
        controls, in a row) · .mco-search-toggle (LAST in .mco-rail, pushed
        right) · ☰ (.mco-rail's FIRST child, moved to the right edge).
@@ -1558,22 +1603,22 @@
      AND the rest of the bar inert (only ☰ stays live); Esc, the scrim or ☰
      close it; focus back to whichever button opened it. isDrawerMode() is
      true there, and open() works in both modes. Plain data-rail (no value)
-     is unchanged: a rail at short landscape, the normal bar elsewhere.
+     is a rail at short landscape and the normal bar elsewhere.
 
      search: the bar's .mco-search-toggle, last in .mco-rail, whose search
-     field lives in the drawer. It shows in the folded bar and (1.0.0) in the
-     rail. A press opens the drawer on the input, and
-     focus comes back to the search button. Don't also hand that button to
+     field lives in the drawer. It shows in the folded bar and in the rail.
+     A press opens the drawer on the input, and focus comes back to the
+     search button. Don't also hand that button to
      MCO.initSearchCollapse: in a compact bar ≤640px is always rail or
      drawer mode, so the field never collapses to an overlay.
 
-     K7 (1.0.0): while someone types (MCO.viewport's hold, above) the bar
+     Typing hold: while someone types (MCO.viewport's hold, above) the bar
      does not flip into the rail, and a mode change does not close an open
      drawer: it is re-anchored for the new mode instead, so the field keeps
      its focus. The bottom control bar stays live beside an open drawer, as
      the rail's own controls do.
 
-     Focus on open (0.21.2): ☰ and open() with no element focus the drawer
+     Focus on open: ☰ and open() with no element focus the drawer
      itself (tabindex=-1, named after ☰ while open), never its first field,
      so a phone keyboard doesn't rise over a drawer opened to browse.
      open(input) and the search button focus the field; an initialFocus
@@ -1583,7 +1628,7 @@
      first and calls rail.open(searchInput); choosing a search result closes
      with {restoreFocus: false} and hands the toggle to whatever opens next;
      a drawer button that opens a dialog closes the drawer first. */
-  /* Fold-to-fit (0.21.1): one row at every width. A compact bar
+  /* Fold-to-fit: one row at every width. A compact bar
      (data-rail="compact") is .is-folded — the compact layout of mco-theme.css
      §6 — on portrait compact, AND wherever the full bar would wrap: it is
      measured unfolded, and folds when taller than FOLD_H. Never in the rail.
@@ -1593,7 +1638,8 @@
      Core watches every compact bar present at load (core loads at the end of
      <body>, so before first paint in practice); initNavRail watches its own.
      Re-measured on resize, on the bar's own size changes, on changes inside
-     it (0.21.2) and once web fonts land; a change fires 'mco:fold' ({detail: {folded}}) on the bar.
+     it and once web fonts land. A change fires 'mco:fold' ({detail:
+     {folded}}) on the bar.
 
      Bar tools (opt-in): the page's own single buttons (theme, share, export,
      help) in one group, the bar's last child, after .mco-nav-drawer:
@@ -1620,15 +1666,15 @@
      anything. The buttons themselves move, so listeners and focus go with
      them; a focused tool that lands in a closed drawer hands focus to ☰.
      The bar carries data-tools: 'bar' (all in the bar), 'help' (help
-     alone) or 'drawer' (none). 'mco:fold' gains detail.tools, and
+     alone) or 'drawer' (none). 'mco:fold' carries detail.tools, and
      'mco:tools' ({detail: {tools}}) fires on the bar when it changes. A bar
      without the group is untouched. */
   var FOLD_H = 64;
   var _pcMq = window.matchMedia('(max-width: 640px) and (orientation: portrait), (max-width: 640px) and (height > 560px)');
   var _folding = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
   // Typing in this bar (its drawer's search field) or with the keyboard up:
-  // the fold holds (K7, 1.0.0). A trial unfold would rebuild the drawer under
-  // the field; the end of typing measures again (_foldSubs).
+  // the fold holds (the typing hold). A trial unfold would rebuild the drawer
+  // under the field; the end of typing measures again (_foldSubs).
   function _foldHeld(bar) {
     return _barHold || _kbOpen || (_touchMq.matches && _isTextField(document.activeElement) && bar.contains(document.activeElement));
   }
@@ -1751,9 +1797,9 @@
     var raf = 0, tid = 0, lazy = true;
     // Deferred a frame: refolding inside a ResizeObserver callback would
     // resize what it observes and log a loop error. A timer backs the frame
-    // up (0.21.2): WebKit runs no frames while a page is still loading, and
-    // the fold taken before fonts and sheds held until the first one (2.7 s
-    // on mco-snowpack-explorer), past the canary's measurement.
+    // up: WebKit runs no frames while a page is still loading, so a fold
+    // taken before fonts and sheds would hold until the first one, seconds
+    // later.
     function later(e) {
       if (!e || e.type !== 'resize') lazy = false;
       if (raf) return;
@@ -1768,12 +1814,13 @@
       lazy = true;
       _fold(bar, l);
     }
-    // The fold must be a function of the bar's content and width alone
-    // (0.21.2). Every measure trial-unfolds (_fold), but folded, the bar's
-    // text sits in the closed drawer, and a browser loads a web font only
-    // for text it renders: the faces the full bar needs never loaded, every
-    // trial measured fallback widths, and the same page folded on some loads
-    // and not others. So core loads the faces the bar's text uses (only
+    // The fold must be a function of the bar's content and width alone.
+    // Every measure trial-unfolds (_fold), but folded, the bar's text sits
+    // in the closed drawer, and a browser loads a web font only for text it
+    // renders. Left alone, the faces the full bar needs would never load,
+    // every trial would measure fallback widths, and the same page would
+    // fold on some loads and not others. So core loads the faces the bar's
+    // text uses (only
     // those; a page that shows the full bar loads them anyway) and measures
     // again when they land, or fail. Window load and changes inside the bar
     // (an app's sheds, a segmented group swapped for its <select>) measure
@@ -1832,10 +1879,10 @@
       return compactBar && bar.classList.contains('is-folded') && !MCO.viewport.isRail();
     }
     function mode() { return MCO.viewport.isRail() ? 'rail' : isDrawerMode() ? 'drawer' : null; }
-    // ☰ focuses the drawer itself, not its first field (0.21.2): on a phone
-    // a focused search field raises the keyboard over the drawer the visitor
-    // opened to browse. The search button and open(input) still focus the
-    // field; an explicit initialFocus is still honoured.
+    // ☰ focuses the drawer itself, not its first field: on a phone a focused
+    // search field raises the keyboard over the drawer the visitor opened to
+    // browse. The search button and open(input) still focus the field; an
+    // explicit initialFocus is still honoured.
     var named = { role: false, label: false };
     function nameDrawer(on) {
       if (on) {
@@ -1862,8 +1909,8 @@
       initialFocus: opts.initialFocus || drawer,
       // Rail: the rail column stays live beside the drawer, its help button
       // included. Drawer: only ☰ does; the hot controls, the search button
-      // and the bar tools share its row. The bottom control bar (1.0.0)
-      // stays live in both, as part of the rail.
+      // and the bar tools share its row. The bottom control bar stays live
+      // in both, as part of the rail.
       inert: function () { return inertSet(openMode); },
       fallbackFocus: toggle,
       onClose: function () { hide(); },
@@ -1918,7 +1965,7 @@
       if (!openState) return;
       var m = mode();
       if (m === openMode) { if (m === 'drawer') anchor(m); return; }
-      // K7 (1.0.0): never close the drawer under someone typing in it. Still
+      // Typing hold: never close the drawer under someone typing in it. Still
       // a drawer in the new mode, it is re-anchored and keeps its focus.
       if (m && _typing()) {
         openMode = m;
@@ -1950,9 +1997,9 @@
     };
   };
 
-  /* ── Bottom control bar (1.0.0) ────────────────────────────────────────────
-     The time controls of a map tool on a phone (Kyle, 2026-11-12: "time
-     controls only"): a date stepper, photos' direction. The app owns the
+  /* ── Bottom control bar ────────────────────────────────────────────────────
+     The time controls of a map tool on a phone, and only those: a date
+     stepper, photos' direction. The app owns the
      markup, a direct child of <body>; the kit owns where it sits and how
      it behaves:
        <div class="mco-controlbar" role="group" aria-label="Date">
@@ -1981,8 +2028,8 @@
     if (!bar || bar._mcoControlBar) return bar && bar._mcoControlBar;
     document.documentElement.classList.add('mco-autolift');
     var raf = 0;
-    // In the rail (1.0.0 round 2): the control bar never covers the rail's
-    // top group. --rail-top-h is what that group needs (badge, ☰, search
+    // In the rail the control bar never covers the rail's top group.
+    // --rail-top-h is what that group needs (badge, ☰, search
     // and any hot controls, at full size); the bar's max-height is the rest
     // of the screen. Short of room, the readouts go first (.is-tight,
     // visually hidden, still read), then the bar scrolls (.is-scroll, with
@@ -2061,13 +2108,12 @@
   };
   Array.prototype.forEach.call(document.querySelectorAll('.mco-controlbar'), function (b) { MCO.initControlBar({ bar: b }); });
 
-  /* ── Legend in the drawer (1.0.0) ──────────────────────────────────────────
+  /* ── Legend in the drawer ──────────────────────────────────────────────────
      On a phone (MCO.viewport.isCompact()) a floating legend traps the map:
-     mco-snowpack-explorer's 549px one is taller than a 320x568 screen.
-     There it moves into a "Legend" group at the end of the ☰ drawer, as
-     mesonet-explorer's does, and a small "Legend" button takes its place on
-     the map, opening the drawer at that group. Above compact the floating
-     .mco-panel is unchanged (and the 0.21.2 height cap still applies).
+     a 549px one is taller than a 320x568 screen. There it moves into a
+     "Legend" group at the end of the ☰ drawer, and a small "Legend" button
+     takes its place on the map, opening the drawer at that group. Above
+     compact the floating .mco-panel stays, and the height cap applies.
        var legend = MCO.initLegendDrawer({
          panel: legendPanel,          // the floating .mco-panel
          rail: rail,                  // MCO.initNavRail's handle
@@ -2135,8 +2181,8 @@
         h: left <= right ? 'left' : 'right', x: Math.max(0, Math.round(Math.min(left, right))) };
       track();
     }
-    // Keep clear of the map's own bottom-corner controls (1.0.0 round 2):
-    // the attribution, a scale, whatever MapLibre or the app puts in a
+    // Keep clear of the map's own bottom-corner controls: the attribution,
+    // a scale, whatever MapLibre or the app puts in a
     // .maplibregl-ctrl-bottom-* corner, as they appear, wrap or resize, and
     // as autolift moves them. Measured live, so a corner lifted over the
     // control bar and the button lifted with it compare in place.
@@ -2236,10 +2282,10 @@
     };
   };
 
-  /* ── Station panel: MCO.initSheet (0.9.0; one state from 1.0.0) ────────────
+  /* ── Station panel: MCO.initSheet ──────────────────────────────────────────
      The detail surface at every width. Above compact it docks at the end
      edge, full height under the bar, and the map stays live beside it. On
-     compact (1.0.0) it is a full-height panel under the bar: from the bar's
+     compact it is a full-height panel under the bar: from the bar's
      bottom (the top, beside a rail) to the bottom of the screen, or the top
      of the bottom control bar, and the whole width left of a rail. One
      state, no peek, no drag, no grip; the bar and the control bar stay live,
@@ -2259,12 +2305,12 @@
          publishMetric: true,  // --sheet-end (end-docked width) and --sheet-h (0) on <html>
          inertRoots: null,     // made inert while open on compact (modal there);
                                // default: everything beside the sheet's ancestor chain.
-                               // An array, or (0.11.3) a function called each time. The
+                               // An array, or a function called each time. The
                                // bar and the control bar are taken out of it whatever
-                               // you pass (1.0.0). To keep a <dialog> the sheet opens
+                               // you pass. To keep a <dialog> the sheet opens
                                // usable (a lightbox):
                                //   () => MCO.overlay.siblingsOf(el, [lightboxDialog])
-         onState: function (state) {},   // 'full' | 'closed' (never 'peek', 1.0.0)
+         onState: function (state) {},   // 'full' | 'closed' (never 'peek')
        });
        sheet.open({ opener: dotButton });   // → {open, close, setState, state, destroy}
 
@@ -2273,10 +2319,11 @@
        a console warning names a sheet without one). It is the only way to
        close on a touch screen; Esc and Back (the app's history entry) close
        it too.
-     - Deprecated shims (1.0.0, until 2.0): open('peek' | 'full', o),
-       setState('peek') and a peekHeight option are accepted. Every open is
-       the one state; state() is 'full' or 'closed'. A .mco-sheet-grip in
-       old markup is hidden and inert to the kit; data-peek means nothing.
+     - Deprecated shims, kept until the next major release: open('peek' |
+       'full', o), setState('peek') and a peekHeight option are accepted.
+       Every open is the one state; state() is 'full' or 'closed'. A
+       .mco-sheet-grip in old markup is hidden and inert to the kit;
+       data-peek means nothing.
      - Focus: open moves it to the title (tabindex=-1); close returns it to the
        opener, else the fallback (opts.fallbackFocus, e.g. the map canvas).
      - --sheet-h stays 0 (the panel is not a bottom strip), so autolift never
@@ -2298,7 +2345,7 @@
       if (state === 'closed' || !compact()) return [];
       var r = typeof opts.inertRoots === 'function' ? opts.inertRoots()
         : opts.inertRoots || MCO.overlay.siblingsOf(sheet);
-      // The bar and the control bar stay live over the panel (1.0.0), even
+      // The bar and the control bar stay live over the panel, even
       // when the app names its own roots: search in the bar swaps the
       // station, the time controls keep working.
       return _withoutKeep(r, _chrome());
@@ -2311,8 +2358,8 @@
       onClose: function () { finishClose(); },
     });
 
-    // The panel hangs under the navbar wherever it is (0.21.1): --chrome-h is
-    // only published for a sticky bar, and an in-flow bar covered the head.
+    // The panel hangs under the navbar wherever it is: --chrome-h is only
+    // published for a sticky bar, and an in-flow bar would cover the head.
     // Beside the rail there is nothing above it. --sheet-end is the width an
     // end-docked panel covers, so the right-hand map controls can step clear
     // of it (mco-theme.css).
@@ -2385,7 +2432,7 @@
 
     sheet.addEventListener('click', onClick);
     sheet.addEventListener('transitionend', function (e) { if (e.target === sheet) metric(); });
-    // A flip re-applies the open state (and tells onState, as before 1.0.0).
+    // A flip re-applies the open state (and tells onState).
     var unsub = MCO.viewport.onChange(function () {
       if (state === 'closed') metric(); else apply();
     });
@@ -2402,7 +2449,7 @@
     };
   };
 
-  /* ── Loading (0.9.0) ───────────────────────────────────────────────────────
+  /* ── Loading ───────────────────────────────────────────────────────────────
      var load = MCO.loading(mapWrap, { label: 'Loading stations', place: 'over' });
      load.start();  … load.done();  or  load.fail('Station data failed to load.', { retry: boot });
      - aria-busy on the container while loading.
@@ -2448,19 +2495,20 @@
     };
   };
 
-  /* ── Stepper (0.9.0; arrow keys 1.0.0) ─────────────────────────────────────
+  /* ── Stepper ───────────────────────────────────────────────────────────────
      Prev/next buttons for a date or hour:
        var step = MCO.initStepper({ prev, next,
          onStep: function (d) { date = MCO.shiftDate(date, d); render(); },
          canStep: function (d) { return d < 0 ? date > MIN : date < MAX; },
-         arrowKeys: true,      // 1.0.0: ← / → step it too (default false)
-         unit: 'day' });       // 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' | ms
+         arrowKeys: true,      // ← / → step it too (default false)
+         unit: 'day' });       // 'second' | 'minute' | 'hour' | 'day' |
+                               // 'week' | 'month' | 'year' | ms
      Click and Enter/Space step once; a held pointer repeats (400 ms, then
      every 80 ms — a steady rate, no acceleration). Buttons are disabled at
      the bounds (refresh() after outside changes). Pair with a role=status
      readout of the new value. Buttons: .nav-btn.mco-step.
 
-     ← / → (1.0.0, Kyle 2026-11-13: every date stepper in the family). With
+     ← / → (the house rule for every date stepper in the family). With
      arrowKeys, the left and right arrow keys step it from anywhere on the
      page, and its buttons carry aria-keyshortcuts="ArrowLeft" / "ArrowRight".
      ONE stepper takes the keys: of the arrowKeys steppers whose buttons are
@@ -2559,8 +2607,8 @@
       var had = document.activeElement;
       if (opts.prev) opts.prev.disabled = !canStep(-1);
       if (opts.next) opts.next.disabled = !canStep(1);
-      // Disabling the focused button would drop keyboard focus to <body>
-      // (0.11.2): hand it to the other button, the way back from the bound.
+      // Disabling the focused button would drop keyboard focus to <body>:
+      // hand it to the other button, the way back from the bound.
       if (had && had.disabled && (had === opts.prev || had === opts.next)) {
         var other = had === opts.prev ? opts.next : opts.prev;
         if (other && !other.disabled) other.focus();
@@ -2588,7 +2636,7 @@
       });
       btn.addEventListener('pointerup', stop);
       // A press dragged off the button never clicks: clear the hold flag, or
-      // the next keyboard activation is swallowed as its click (0.11.3).
+      // the next keyboard activation is swallowed as its click.
       ['pointerleave', 'pointercancel'].forEach(function (ev) {
         btn.addEventListener(ev, function () { stop(); held = false; });
       });
@@ -2610,7 +2658,7 @@
     }
     return {
       refresh: refresh,
-      // 1.0.0: stop answering ← / → (the buttons keep working).
+      // Stops answering ← / → (the buttons keep working).
       destroy: function () {
         if (!entry) return;
         _arrowSteppers = _arrowSteppers.filter(function (s) { return s !== entry; });
@@ -2627,9 +2675,9 @@
     return i === -1 ? arr.concat([v]) : arr.slice(0, i).concat(arr.slice(i + 1));
   };
 
-  /* ── Segmented fallback (0.9.0) ────────────────────────────────────────────
-     A segmented group that doesn't fit below 1060px becomes a <select>
-     (photo explorer's pattern), with one source of truth:
+  /* ── Segmented fallback ────────────────────────────────────────────────────
+     A segmented group that doesn't fit below 1060px becomes a <select>,
+     with one source of truth:
        MCO.initSegmentedFallback({ group, select, onChange: function (v) {} });
      group: a .seg-btns.is-radio fieldset (radios) or .seg-btns of
      [data-value][aria-pressed] buttons. Each mirrors the other, [hidden] goes
@@ -2694,10 +2742,10 @@
   /* ── Info modal (native <dialog>) ──────────────────────────────────────────
      Opener-captured focus restore (works with multiple openers), backdrop
      click to close, [data-close-modal] delegation for close buttons. Open
-     puts focus on the close button (.modal-close / [data-close-modal],
-     0.21.0), whichever way the dialog opened.
+     puts focus on the close button (.modal-close / [data-close-modal]),
+     whichever way the dialog opened.
 
-     First-visit intro (0.21.0, opt-in):
+     First-visit intro (opt-in):
        var modal = MCO.initInfoModal({ dialog, trigger,
          intro: { key: 'mco-<app>-intro', skip: hasDeepLink } });
      auto-opens the dialog once per key, at init. It stands down when skip
@@ -2716,7 +2764,7 @@
 
     // e: the trigger's click. WebKit does not focus a tapped button, so the
     // active element is then whatever held focus before (a drawer); the
-    // trigger itself is the opener focus returns to (1.0.0 RC 5).
+    // trigger itself is the opener focus returns to.
     function open(e) {
       var a = document.activeElement;
       opener = e && e.currentTarget && e.currentTarget.focus && a !== e.currentTarget ? e.currentTarget : a;
@@ -2749,13 +2797,13 @@
     return { open: open, close: function () { dialog.close(); }, intro: maybeIntro };
   };
 
-  /* ── Over-map panel height cap (0.21.2) ─────────────────────────────────────
-     On a phone a legend belongs in the ☰ drawer (MCO.initLegendDrawer, 1.0.0);
-     this cap still guards every floating panel at every width.
+  /* ── Over-map panel height cap ─────────────────────────────────────────────
+     On a phone a legend belongs in the ☰ drawer (MCO.initLegendDrawer).
+     This cap guards every floating panel at every width.
      A bottom-anchored .mco-panel (a legend) grows upward, and one taller than
-     its map pushed its own head, collapse toggle included, off the top of
-     the screen or under the bar, where nothing could close it. A MapLibre
-     control group above it on the same side (zoom, top-left since 1.0.0)
+     its map would push its own head, collapse toggle included, off the top
+     of the screen or under the bar, where nothing could close it. A MapLibre
+     control group above it on the same side (zoom, top-left by default)
      is a ceiling as well, so the legend never covers it. Core watches
      every .mco-panel present at load. When a bottom-anchored one would rise
      past the top of the room it has (its container's top, or the bottom of
@@ -2793,7 +2841,7 @@
       if (br.height < window.innerHeight / 2 && br.bottom > top) top = br.bottom;
     }
     // A MapLibre control group above it on the same side (zoom, top-left
-    // since 1.0.0) is a ceiling too: the legend stops under it.
+    // by default) is a ceiling too: the legend stops under it.
     var pr = panel.getBoundingClientRect();
     Array.prototype.forEach.call((host || document).querySelectorAll(_CEILINGS), function (c) {
       if (!c.firstElementChild) return;
@@ -2836,8 +2884,7 @@
       Array.prototype.forEach.call(panel.children, function (c) { ro.observe(c); });
       if (panel.offsetParent) ro.observe(panel.offsetParent);
     }
-    // The map's control corners arrive after this runs (1.0.0): re-cap when
-    // they do.
+    // The map's control corners arrive after this runs: re-cap when they do.
     if (typeof MutationObserver !== 'undefined' && panel.offsetParent) {
       new MutationObserver(function (recs) {
         for (var i = 0; i < recs.length; i++) {
@@ -2992,7 +3039,7 @@
     };
   };
 
-  /* ── Search model (0.8.0) ──────────────────────────────────────────────────
+  /* ── Search model ──────────────────────────────────────────────────────────
      Pure filtering + ranking for MCO.initSearchBox, ported from the
      mesonet-dashboard's comboboxModel (unit-tested there). No DOM.
        items: [{id, label, group?, keywords?, meta?}]
@@ -3005,7 +3052,7 @@
      With no query, every item in its group, groups in first-appearance
      order; with a query, one ranked list (shorter label, then alphabetical,
      breaks ties). `best` indexes the top match in `flat`.
-     Sections (0.16.0, also from the dashboard's model), for one field over
+     Sections (also from the dashboard's model), for one field over
      two kinds of thing, such as stations and places (MCO.places):
        items: [{…, section?, queryOnly?}]
        MCO.searchModel.filter(items, q, limit, sectionLimits)
@@ -3015,7 +3062,7 @@
      `best` is still the top rank (an earlier section wins a tie);
      sectionLimits ({Places: 8}) caps a section, and `total` still counts
      every match. queryOnly items are left out of the no-query list. Items
-     with neither field behave exactly as before. */
+     with neither field are not affected. */
   var SM = MCO.searchModel = {};
   SM.normalize = function (s) {
     return String(s).normalize('NFD').replace(/\p{M}/gu, '').replace(/['’`]/g, '').toLowerCase();
@@ -3123,10 +3170,9 @@
     return total === 1 ? '1 result' : total + ' results';
   };
 
-  /* ── Search combobox (0.8.0) ───────────────────────────────────────────────
+  /* ── Search combobox ───────────────────────────────────────────────────────
      The APG editable combobox with list autocomplete, on the dashboard's
-     model. Five map apps hand-rolled this; their defects differed (a "no
-     match" row with no role, aria-selected missing, no count announcement).
+     model.
 
        <div class="mco-search">
          <span class="mco-search-icon" aria-hidden="true"></span>
@@ -3142,7 +3188,7 @@
          onSelect: function (id) { openStation(id); },
          value: function () { return selectedId; },   // marks the current item ✓
          label: 'Stations', limit: 200, announce: true,
-         sectionLimits: { Places: 8 },        // 0.16.0: see the search model
+         sectionLimits: { Places: 8 },        // see the search model
        });
 
      Keys: Down/Up open the list and wrap (Alt+Down opens in place);
@@ -3223,7 +3269,7 @@
             var m = document.createElement('span');
             m.className = 'mco-search-meta';
             m.textContent = item.meta != null ? item.meta : item.id;
-            // A separator for the accessible name only (0.16.1): without it
+            // A separator for the accessible name only: without it
             // the name and textContent run together ("Bozeman" + "HydroMet").
             // sr-only is absolutely positioned, so it is not a flex item and
             // the row's layout is unchanged.
@@ -3249,7 +3295,7 @@
         n.textContent = note;
         list.appendChild(n);
       }
-      _sizeList(list);   // under the keyboard: the room above it (1.0.0)
+      _sizeList(list);   // under the keyboard: the room above it
       syncActive();
     }
     function syncActive() {
@@ -3260,8 +3306,8 @@
       var el = active >= 0 ? document.getElementById(optionId(active)) : null;
       if (isOpen && el) {
         input.setAttribute('aria-activedescendant', el.id);
-        // Scroll the listbox only (0.21.2). scrollIntoView also scrolls every
-        // scrolling ancestor and the page, which on a phone dragged the field
+        // Scroll the listbox only. scrollIntoView also scrolls every
+        // scrolling ancestor and the page, which on a phone drags the field
         // under the keyboard or out of a drawer.
         var lr = list.getBoundingClientRect(), er = el.getBoundingClientRect();
         var top = lr.top + list.clientTop, bottom = top + list.clientHeight;
@@ -3389,7 +3435,7 @@
   /* ── URL state ─────────────────────────────────────────────────────────────
      Convention (HOUSE-STYLE.md §4): read once at boot with precedence
      URL param > localStorage > default, validating every value; mirror state
-     back on every mutation and map moveend. Two writers (0.8.0):
+     back on every mutation and map moveend. Two writers:
        replaceUrlState — view adjustments: camera, filters, theme, date.
        pushUrlState    — drill-down, where Back should undo: a station detail
                          opening from a "no detail" state, a section switch.
@@ -3410,15 +3456,15 @@
 
   // The URL for params: a clean pathname (no '?') when params is empty, so an
   // all-defaults view has a tidy URL. keepHash carries the current #fragment
-  // over (a tab kept in the hash); without it the hash is dropped, as before
-  // 0.8.0. (Flipping that default is left for a later MAJOR: not in 1.0.0.)
+  // over (a tab kept in the hash); without it the hash is dropped. Flipping
+  // that default is a major change.
   function urlFor(params, opts) {
     var qs = new URLSearchParams(params).toString();
     return location.pathname + (qs ? '?' + qs : '') + (opts && opts.keepHash ? location.hash : '');
   }
 
   // Mirror state into the query string without adding a history entry.
-  // history.state is kept (0.8.0; it used to be nulled), so a replace while a
+  // history.state is kept, so a replace while a
   // pushed detail is open doesn't erase what pushUrlState stored. Pass
   // {state} to set it.
   MCO.replaceUrlState = function (params, opts) {
@@ -3426,7 +3472,7 @@
     history.replaceState(state, '', urlFor(params, opts));
   };
 
-  // A new history entry, so Back undoes it (0.8.0). For drill-down only: push
+  // A new history entry, so Back undoes it. For drill-down only: push
   // on the FIRST step from a "no detail" state and replace while the detail
   // stays open, or every station click floods the history (§4). {state} is
   // stored on the entry — mark it ({mcoDetail: id}) so a close button can

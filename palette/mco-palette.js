@@ -1,5 +1,5 @@
 /* ============================================================================
-   mco-web-style · palette/mco-palette.js · v0.1.0
+   mco-web-style · palette/mco-palette.js
    Approved data palettes for Montana Climate Office apps (HOUSE-STYLE §6).
 
    Classic script, zero dependencies, no build, no DOM. Lands on
@@ -13,10 +13,9 @@
    exception to "tokens only". Spectral is banned and deliberately absent.
 
    Roles stay app-local: "air temperature is rose" is domain knowledge. The
-   kit ships the ramps, the per-theme spans that clear 3:1 as marks, the
-   station networks (NETWORK), and — DEPRECATED (0.21.1), kept working
-   until 1.0.0 — the 0.21.0 map category sets (CATEGORY_SETS), which Kyle
-   declined: category colors are app-local (HOUSE-STYLE §6).
+   kit ships the ramps, the per-theme spans that clear 3:1 as marks, and the
+   station networks (NETWORK). The map category sets (CATEGORY_SETS) are
+   DEPRECATED: category colors are app-local (HOUSE-STYLE §6).
    ========================================================================== */
 (function () {
   'use strict';
@@ -45,7 +44,7 @@
     // Crameri, F. (2018). Scientific colour maps (v8). doi:10.5281/zenodo.1243862.
     // MIT. 11 evenly spaced stops of the 256-step tables. Data-encoding (§6).
     batlow: ramp('sequential', ['#011959', '#103d5f', '#185562', '#30685c', '#577647', '#828231', '#b38e2f', '#e09651', '#fba689', '#fdb9c2', '#faccfa']),
-    // roma (0.12.0, a kit addition; the dashboard has no copy): dark red-brown
+    // roma (a kit addition; the dashboard has no copy): dark red-brown
     // through a pale middle to deep blue. 11 stops at round(i × 25.5) of the
     // v8 table (cmcrameri roma.txt). Diverging, midpoint at the pale middle.
     // MCO's status ramps (status, maintenance time-since; umrb's stages) are
@@ -231,17 +230,17 @@
     return out;
   };
 
-  /* ── Station networks (#31) ────────────────────────────────────────────────
+  /* ── Station networks ───────────────────────────────────────────────────────
      The one cross-app role set: network = shape + color, data value = fill.
      Shape survives grayscale; the legend swatch uses the same data-shape
      (.mco-legend-swatch). From the dashboard's registry (roles.ts
      NETWORK_COLOR / NETWORK_SHAPE): Tol bright blue / vibrant orange /
      vibrant teal. AgriMet's #EE7733 is 2.87:1 on white, so light darkens it to
      #CC6622. Data-encoding (§6).
-     DEPRECATED for station markers (0.21.0): markers no longer encode the
-     network (MCO.map.stationPaint draws every station alike), so `shape` and
-     the per-network marker `color` only feed the deprecated
-     MCO.map.markerPaint. Kept, unchanged, until 1.0.0. `label` stays current. */
+     DEPRECATED for station markers: markers do not encode the network
+     (MCO.map.stationPaint draws every station alike), so `shape` and the
+     per-network marker `color` only feed the deprecated MCO.map.markerPaint.
+     `label` stays current. */
   var NETWORK_SHAPE = { hydromet: 'circle', agrimet: 'hollow', cooperator: 'ring' };
   var NETWORK_COLOR = {
     dark: { hydromet: '#4477AA', agrimet: '#EE7733', cooperator: '#009988' },
@@ -265,7 +264,7 @@
     return n ? { label: n.label, color: n.color, shape: n.shape } : null;
   };
 
-  /* ── OKLCH and the reserved hue (0.21.0; RESERVED_HUE deprecated 0.21.1) ──
+  /* ── OKLCH and the reserved hue (RESERVED_HUE is deprecated) ────────────────
      The orange/brown family belongs to the tribal-lands fill
      (MCO.map.overlayPaints().tribalFill, #b88a5e / #9b6b3e, OKLCH hue ≈ 63°).
      No station or cell category may use it (HOUSE-STYLE §6). RESERVED_HUE is
@@ -284,12 +283,10 @@
     return lch[1] >= R.minChroma && lch[2] >= R.from && lch[2] <= R.to;
   };
 
-  /* ── Category sets for the map tools (0.21.0) ──────────────────────────────
+  /* ── Category sets for the map tools (deprecated) ───────────────────────────
      Named, per-theme category palettes for mesonet-status,
-     mesonet-maintenance and mesonet-umrb-build (owner decision, 2026-11: move
-     every station and cell category off the orange/brown family the
-     tribal-lands fill keeps). Apps take their legend, paint and pill colors
-     from here instead of hard-coding hexes or sampling roma.
+     mesonet-maintenance and mesonet-umrb-build. Every station and cell
+     category stays off the orange/brown family the tribal-lands fill keeps.
 
      One vocabulary across the three tools, so a color means the same thing
      everywhere: green = the good end (fresh, operational, visited,
@@ -375,7 +372,7 @@
     },
   };
 
-  // DEPRECATED (0.21.1): category colors are app-local (HOUSE-STYLE §6).
+  // DEPRECATED: category colors are app-local (HOUSE-STYLE §6).
   // CATEGORY_SETS[name][theme] → [{key, label, color}], in legend order;
   // a cell set also carries .fillOpacity on each theme's array.
   P.CATEGORY_SETS = {};

@@ -26,10 +26,10 @@ tags), inline [`snippets/anti-flash.html`](snippets/anti-flash.html), and add
 
 ```html
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.1.0/theme/mco-theme.css"
-      integrity="sha384-WX2ClnLE7X3vkRXzHEfUIeqRxuvM5OcSUVWmdbZQiFdqo+OaAyb2+GZexTcjrYJz" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.1.0/core/mco-core.js"
-        integrity="sha384-Y0+6TDc0xyv3bq3FQBaH3f/wjp9D9Ce76Fe5HuZS35+gGTBm9asV5Ar4CsHm8TyW" crossorigin="anonymous"></script>
+      href="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.1.1/theme/mco-theme.css"
+      integrity="sha384-SzDKR28wwlGdF7OkE1auBP3jztb0mBqYVu93PFQsGtw+H/AvE3x+eEmkAwe51kl4" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.1.1/core/mco-core.js"
+        integrity="sha384-Nk83STg5HZ5lrHKiiGjgNZ1J80WCPlKUNp00h/nnYYQZ2TQsvlCi5QmWdmjgUa9u" crossorigin="anonymous"></script>
 ```
 
 Everything lands on `window.MCO` (classic scripts — no bundler, no imports).
@@ -127,7 +127,7 @@ A consumer's unit tests (vitest, `node:test`) use the same pinned bytes the
 page loads, not a copy. The kit has no package, so:
 
 1. Fetch the pinned files once, for example
-   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.1.0/core/mco-core.js`
+   `https://cdn.jsdelivr.net/gh/mt-climate-office/mco-web-style@1.1.1/core/mco-core.js`
    and `…@0.19.0/photos/mco-photos.js`, into a cache directory, and check
    each against the `integrity` hash your `index.html` pins (sha384, base64)
    before using it. A mismatch fails the run.
@@ -180,17 +180,17 @@ CSS custom properties, kept in lockstep by CI.
 | `exemplar/` | Reference station-map app — every HOUSE-STYLE convention composed, with §-cited comments | new-app template |
 | `tools/` | CI gates (tokens, contrast, SRI, axe + keyboard probes), `conformance.mjs` (score a consumer), `consumer-verify.mjs` (verify-harness skeleton) | kit maintainers, migrators |
 
-## SRI hashes — v1.1.0
+## SRI hashes — v1.1.1
 
 ```
-theme/mco-theme.css      sha384-WX2ClnLE7X3vkRXzHEfUIeqRxuvM5OcSUVWmdbZQiFdqo+OaAyb2+GZexTcjrYJz
-core/mco-core.js         sha384-Y0+6TDc0xyv3bq3FQBaH3f/wjp9D9Ce76Fe5HuZS35+gGTBm9asV5Ar4CsHm8TyW
-map/mco-map.js           sha384-eWrG2T3udOw4ET+hy7Sq0BR/c4jCKD2+Cy4TEV2m4Dd6BL5VXGZXS2n8B8y+8v4z
-map/cog-protocol.js      sha384-9yj+drZu0fzoorpjvVuopXW7He6R73EklvzwXBRNgQIvCIunOVzdJXi0oVhvM2BW
-palette/mco-palette.js   sha384-bMyfpU5iEKAQiHDJZLqmCMt3sTGm+HBi2GIY7I9xLyV+JYrbGgHOX9+/XVXy8CYV
-photos/mco-photos.js     sha384-37IVeEM6TGCn5N4m1wEWJHp/LUzOsamBdkDmzbU+qHENAP1PfLQVMjVIX0SY3X/2
-places/mco-places.js     sha384-4Amo71pLoRONH4SjB2I+Ai9FpSNqDDGGqQVxq4z0Yu/0c7GtGgLUYtNX/wQDUHVg
-summary/mco-summary.js   sha384-9qE6iFiGkwK/CB8QUbb3Ue7Dd8n8XeXgyVkoBs9TJFcCIO3d+XlfpHfRvnnMplcj
+theme/mco-theme.css      sha384-SzDKR28wwlGdF7OkE1auBP3jztb0mBqYVu93PFQsGtw+H/AvE3x+eEmkAwe51kl4
+core/mco-core.js         sha384-Nk83STg5HZ5lrHKiiGjgNZ1J80WCPlKUNp00h/nnYYQZ2TQsvlCi5QmWdmjgUa9u
+map/mco-map.js           sha384-e0qIyit6dZojkXI677UlnDsT21wfxDYDRH6tisxwamJWoUkFoM+T6A3YgkEs6KtE
+map/cog-protocol.js      sha384-lwN2FaUyI4JiDktg2vvSnSVAZ0izKJ9v7Uz/b+p6Z0d3P73PYZFMJoCBVtu3VeU8
+palette/mco-palette.js   sha384-mtdhOYFvyU0JAkjqYKGQdb01xBkaJEHn9EKyEXVFQw4TCdz3l0M+T/tYHlHhj6aJ
+photos/mco-photos.js     sha384-ozh/CC3Rkx2Nr0HhRWGblyI7Qv4lUCRObmP01WH882/F3tDGUVGJngiKlTF6z+xz
+places/mco-places.js     sha384-o466EG179AbHeGgIqShv/SOZJey7dpFZmoau7VQ/MndZu2FhUoTjRaHrBVBGnGxz
+summary/mco-summary.js   sha384-Ddz8IQRrF2NGqAKlZHghk0YqkH8nbk/pEYc5RsZgRAcSDYYgxNx2rK52UcUq2Bk0
 ```
 
 Recompute with `tools/sri.sh`. CI (`tools/check-sri.mjs`) fails if this table,

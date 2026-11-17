@@ -1,5 +1,5 @@
 /* ============================================================================
-   mco-web-style · map/mco-map.js · v0.1.0
+   mco-web-style · map/mco-map.js
    MapLibre GL helpers for Montana Climate Office map apps.
 
    Classic script, zero dependencies, no build. Lands on window.MCO.map.
@@ -7,8 +7,9 @@
    which ships as ES modules only: MCO.map.loadMapLibre() below imports the
    family pin and resolves once window.maplibregl exists. Nothing here touches
    maplibregl at load time, so this file may load before MapLibre does. Does
-   NOT require mco-core.js (deliberately standalone: the one shared concern,
-   reading the current theme, is inlined).
+   NOT require mco-core.js: the theme, reduced-motion and token reads are
+   inlined. MCO.notice, MCO.showToast, MCO.escStack, MCO.viewport and
+   MCO.palette are used when they are loaded.
 
    API keys NEVER belong in this file or any shared code. themedStyleUrl()
    takes fully-formed style URLs so keys stay in the consuming app.
@@ -29,9 +30,9 @@
   var _rm = _rmMq.matches;
   _rmMq.addEventListener('change', function (e) { _rm = e.matches; });
 
-  /* ── Loading MapLibre (0.8.0) ──────────────────────────────────────────────
-     MapLibre 6 dropped the UMD build: there is no <script src> that defines a
-     maplibregl global any more. loadMapLibre() dynamic-imports the family pin
+  /* ── Loading MapLibre ──────────────────────────────────────────────────────
+     MapLibre 6 ships no UMD build: no <script src> defines a maplibregl
+     global. loadMapLibre() dynamic-imports the family pin
      from this classic script, publishes the module namespace as
      window.maplibregl (so every maplibregl.* call keeps working), and returns
      a promise of it. Idempotent: every call shares one import.
@@ -94,11 +95,11 @@
     return 'https://basemaps.cartocdn.com/gl/' + variant + '/style.json';
   };
 
-  /* ── Basemap label corrections (0.20.0) ────────────────────────────────────
+  /* ── Basemap label corrections ─────────────────────────────────────────────
      CARTO builds its tiles from OpenStreetMap and serves one dated build for
      weeks, so vandalism that OSM reverts in minutes can sit on every MCO map
-     until CARTO rebuilds. On 2026-10-26 build 20261001-03 labelled Townsend
-     "Fuck Townsend". correctBasemapLabels() rewrites the text-field of every
+     until CARTO rebuilds. One build labelled Townsend "Fuck Townsend".
+     correctBasemapLabels() rewrites the text-field of every
      symbol layer so a label that matches a key here exactly shows its value
      instead. watchBasemap() applies it on every style.load, so theme switches
      and retries keep it; a map that loads styles without watchBasemap calls it
@@ -175,14 +176,13 @@
     };
   };
 
-  // The clean-URL half (0.8.0): cameraParams(map), or {} when the camera is
+  // The clean-URL half: cameraParams(map), or {} when the camera is
   // where a fresh load would put it — so a default view writes no lng/lat/zoom
   // at all. "Where a fresh load would put it" is cameraForBounds(bounds,
   // fitOpts): the same answer fitBounds acts on, so it stays right as the
   // container resizes (a collapsed sidebar means a wider map and a different
   // fit). Pass the SAME bounds/fitOpts as initialCamera and the fit control.
   // Tolerance: 0.02 zoom, 0.01° — under the URL's own precision.
-  // Was atDefaultExtent(), copied into three consumers.
   M.cameraParamsIfDefault = function (map, opts) {
     opts = opts || {};
     var bounds = opts.bounds || M.MT_FIT_BOUNDS;
@@ -205,10 +205,9 @@
 
   // House default: zoom buttons, no compass (rotation is off in these apps;
   // a compass that never turns is noise), in the TOP-LEFT corner of the map
-  // at every width (1.0.0, Kyle 2026-11-13: not beside the right-hand rail;
-  // it was 'top-right'). opts.position still picks another corner, e.g.
-  // {position: 'top-right'} for the old one. addFitControl fuses into this
-  // group, so it moves with it.
+  // at every width. opts.position picks another corner, e.g.
+  // {position: 'top-right'}. addFitControl fuses into this group, so it
+  // moves with it.
   M.addNavigation = function (map, opts) {
     opts = opts || {};
     var control = new maplibregl.NavigationControl({
@@ -255,12 +254,11 @@
      (debounced — `resize` fires continuously during a window drag). Call
      refresh() inside map.on('load'); returns {refresh, fitZoom, dispose}.
 
-     Hardened in 0.8.0 against two defects mesonet-explorer's local copy
-     already guarded:
+     Two guards:
      - Re-entrancy. An animated fitBounds raises more zoomend events while
-       still in flight, each still below fitZoom, so the snap re-fired and
-       stuttered. A latch holds from the snap to the next moveend, and a
-       0.01 tolerance keeps a settled fit from counting as "below".
+       still in flight, each still below fitZoom, and each would re-fire the
+       snap. A latch holds from the snap to the next moveend, and a 0.01
+       tolerance keeps a settled fit from counting as "below".
      - Chrome-only resizes. A phone's URL bar showing or hiding changes the
        container's HEIGHT only (by well under 120px). fitZoom is recomputed
        but the camera is left alone.
@@ -322,9 +320,9 @@
     };
   };
 
-  /* ── Basemap failure (0.8.0) ───────────────────────────────────────────────
-     Every MCO map started its data load from map.on('load'), which never
-     fires if the basemap style 404s or hangs: the loading bar spun forever.
+  /* ── Basemap failure ───────────────────────────────────────────────────────
+     map.on('load') never fires if the basemap style 404s or hangs, so an app
+     that starts its data load there would spin its loading bar forever.
      watchBasemap() retries the style, then falls back to blankStyle() (a
      background in --bg-deep, which DOES load, so data layers and boundaries
      still draw on 'style.load'), and shows a persistent notice with Retry.
@@ -333,7 +331,7 @@
          styleUrl: MCO.map.cartoStyleUrl,   // what to (re)load; read at retry time
          retries: 1, retryDelayMs: 5000,    // house defaults
          timeoutMs: 15000,                  // a style that never answers counts as failed
-         correctLabels: true,               // correctBasemapLabels() on each style.load (0.20.0)
+         correctLabels: true,               // correctBasemapLabels() on each style.load
          onFail: function () {},            // after the fallback is in place
        });
 
@@ -447,7 +445,7 @@
     };
   };
 
-  /* ── Popups & safe content (0.8.0) ─────────────────────────────────────────
+  /* ── Popups & safe content ─────────────────────────────────────────────────
      House rule (HOUSE-STYLE §7): popup, tooltip, sheet and table content is
      built with DOM APIs and textContent. setHTML / innerHTML only ever take
      static, author-written strings — never a string with an API value in it,
@@ -535,11 +533,10 @@
     return frag;
   };
 
-  /* ── Cursor tooltip (0.8.0) ────────────────────────────────────────────────
+  /* ── Cursor tooltip ────────────────────────────────────────────────────────
      The pointer-following .mco-tooltip over map features: the element, the
      mousemove → queryRenderedFeatures dispatcher, cursor+14 positioning
      (flipped at the viewport edge), cursor: pointer, and mouseleave cleanup.
-     Was the same ~30 lines in every map app.
 
        MCO.map.initCursorTooltip(map, {
          layers: ['stations-dots'],          // queried in order; missing layers skipped
@@ -618,8 +615,8 @@
     };
   };
 
-  /* ── Station markers (0.9.0; network shapes deprecated 0.21.0) ─────────────
-     HOUSE-STYLE §7 (0.21.0): station markers carry NO network encoding.
+  /* ── Station markers (network shapes are deprecated) ───────────────────────
+     HOUSE-STYLE §7: station markers carry NO network encoding.
      HydroMet and AgriMet draw the same; networks are filters (chips) and
      detail text. stationPaint() is the one circle paint for every station:
        map.addLayer({ id: 'stations', type: 'circle', source: 's',
@@ -630,15 +627,16 @@
      expression) to encode a data value. Paints read the theme when called:
      re-call after a theme switch, like every paint.
 
-     DEPRECATED (0.21.0, kept working until 2.0): markerPaint(network)'s
-     per-network shapes (circle / hollow / ring in MCO.palette.NETWORK
-     colors) and colocatedHaloPaint()'s second-network ring. New code uses
-     stationPaint(); colocated sites are one marker with a count badge and a
-     spider (MCO.map.colocation, below), not a halo with click-cycling.
+     DEPRECATED, kept working until the next major release:
+     markerPaint(network)'s per-network shapes (circle / hollow / ring in
+     MCO.palette.NETWORK colors) and colocatedHaloPaint()'s second-network
+     ring. New code uses stationPaint(). Colocated sites are one marker with
+     a count badge and a spider (MCO.map.colocation, below), not a halo with
+     click-cycling.
 
      selectionPaint() is the selected-station ring, from --selection-ring
-     read at paint time (never a literal — explorer's '#5aaee8' is the dark
-     value and wrong on light). focusPaint() is the keyboard-focus halo, in
+     read at paint time (never a literal: '#5aaee8' is the dark value and
+     wrong on light). focusPaint() is the keyboard-focus halo, in
      --accent-line, distinct from selection. hitPaint() is an invisible
      layer at least 22px across on touch, for a tappable target. */
   function token(name, fallback) {
@@ -664,7 +662,7 @@
       'circle-stroke-width': opts.strokeWidth != null ? opts.strokeWidth : 1.2,
     };
   };
-  // Deprecated shapes (0.21.0): use stationPaint(). Kept so existing layers draw.
+  // Deprecated shapes: use stationPaint(). Kept so existing layers draw.
   M.markerPaint = function (network, opts) {
     opts = opts || {};
     var n = networkOf(network);
@@ -695,7 +693,7 @@
     opts = opts || {};
     return { 'circle-radius': opts.radius != null ? opts.radius : 11, 'circle-color': 'rgba(0,0,0,0)' };
   };
-  // DEPRECATED (0.21.0): colocated sites are a count badge + spider
+  // DEPRECATED: colocated sites are a count badge + spider
   // (MCO.map.colocation). Outer ring in the second network's color; prop
   // names the feature property holding that network's key ('net2' = 'agrimet').
   M.colocatedHaloPaint = function (opts) {
@@ -708,14 +706,13 @@
       'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': match, 'circle-stroke-width': 2 };
   };
 
-  /* ── Colocated stations: count badge + spider (0.21.0) ─────────────────────
+  /* ── Colocated stations: count badge + spider ──────────────────────────────
      An AgriMet and a HydroMet at one site are ONE marker with a count badge
      ("2"); hovering it (or tapping, on touch) fans the members out around it
-     as a "spider". Extracted from mesonet-status, whose copy maintenance and
-     explorer share near-verbatim. The app keeps its own GeoJSON source,
-     feature properties, layers and paints, popups and sheets; this module
-     groups, writes the source, owns the two spider sources, and runs the
-     hover / click / Esc behaviour.
+     as a "spider". The app keeps its own GeoJSON source, feature properties,
+     layers and paints, popups and sheets. This module groups, writes the
+     source, owns the two spider sources, and runs the hover / click / Esc
+     behaviour.
 
        var coloc = MCO.map.colocation(map, {
          source: 'stations',                      // the app's GeoJSON source id
@@ -756,14 +753,14 @@
      Spider: the members other than the anchor sit on a circle radiusPx (26)
      from the anchor in screen pixels, first at the top, rebuilt on every
      frame the camera moves. Feet carry the app's properties with
-     colocationCount 1 and colocationIndex 0, as status's did.
+     colocationCount 1 and colocationIndex 0.
 
      Interaction (interactive: false turns it off and leaves open/close):
      - Hover (mouse only): an anchor opens its spider; leaving every station
        layer closes it after graceMs (250), so the cursor can travel to a foot.
      - Click/tap: a foot → onSelect(foot). A stacked anchor → open the spider
-       AND onSelect(anchor), as status does: on touch the first tap both fans
-       the site out and opens the anchor's detail, so nothing needs hover.
+       AND onSelect(anchor): on touch the first tap both fans the site out
+       and opens the anchor's detail, so nothing needs hover.
        anchorClick: 'spider' makes a first click only fan it out. A plain dot
        closes any spider and → onSelect. Empty map → close + onEmpty.
      - Esc closes the spider (MCO.escStack when mco-core is loaded, so it
@@ -1125,11 +1122,11 @@
   };
   Object.keys(C).forEach(function (k) { M.colocation[k] = C[k]; });
 
-  /* ── Fly to a station, then open its detail (0.21.0) ───────────────────────
-     The ?station= deep link, search pick and sr-table row all do this. The
-     apps' copies flew and opened on the first moveend, which can fire before
-     the camera arrives (another camera move ending, a zoom-floor snap): the
-     audit saw deep links that zoomed but opened nothing.
+  /* ── Fly to a station, then open its detail ────────────────────────────────
+     The ?station= deep link, search pick and sr-table row all do this.
+     Opening on the first moveend is wrong: it can fire before the camera
+     arrives (another camera move ending, a zoom-floor snap), and the deep
+     link then zooms but opens nothing.
 
        MCO.map.flyToAndOpen(map, {
          center: [s.longitude, s.latitude],
@@ -1213,8 +1210,8 @@
         map.on('moveend', onMoveEnd);
         map.triggerRepaint();           // make sure an 'idle' follows
         // The jump's moveend fired before onMoveEnd was attached, so start
-        // its settle timer here (0.21.1): a map still busy decoding tiles
-        // otherwise opened only at idle or timeoutMs, ~20s on photos.
+        // its settle timer here. A map still busy decoding tiles would
+        // otherwise open only at idle or timeoutMs.
         onMoveEnd();
       } else {
         map.flyTo(Object.assign({ speed: o.speed || 1.4 }, cam));
@@ -1225,12 +1222,12 @@
   };
 
   /* ── Hillshade ─────────────────────────────────────────────────────────────
-     Live-shaded topography from elevation data — the treatment that finally
-     works in every theme, because the colors are derived per theme rather
-     than baked into a raster. Chosen 2026-08 over Esri World Hillshade
-     (dark variant grays out the dark basemap) and USGS 3DEP (light-only,
-     US-only). House shading method: 'igor' (subtle, overlay-friendly).
-     Layer order: basemap → hillshade → boundaries → data. */
+     Live-shaded topography from elevation data. It works in every theme
+     because the colors are derived per theme, not baked into a raster. Esri
+     World Hillshade's dark variant grays out the dark basemap, and USGS 3DEP
+     is light-only and US-only. House shading method: 'igor' (subtle,
+     overlay-friendly). Layer order: basemap → hillshade (under the basemap's
+     labels) → boundaries → data. */
 
   // Keyless global DEM: AWS Terrain Tiles (Mapzen), terrarium encoding.
   M.TERRARIUM_DEM = {
@@ -1299,7 +1296,9 @@
     try {
       map.addLayer(layer, before);
     } catch (e) {
-      // hillshade-method needs MapLibre ≥ 5.2 — fall back to default shading.
+      // hillshade-method needs MapLibre ≥ 5.2. The loader's pin has it, so
+      // this fallback to default shading runs only for an older maplibregl
+      // the page supplied.
       delete layer.paint['hillshade-method'];
       map.addLayer(layer, before);
     }
@@ -1333,9 +1332,9 @@
   };
 
   // Symbol layout for tribal-nation labels: Census names shortened to common
-  // usage. Font stack exists in the CARTO basemap glyph set: CARTO stopped
-  // serving 'Open Sans Semibold' (404, 2026-10-22), so this matches the bold
-  // label face CARTO's own dark-matter/positron/voyager styles use.
+  // usage. Font stack exists in the CARTO basemap glyph set: CARTO does not
+  // serve 'Open Sans Semibold' (404), so this matches the bold label face
+  // CARTO's own dark-matter/positron/voyager styles use.
   // MapLibre requests the whole stack as one URL; check it returns 200.
   M.TRIBAL_LABEL_LAYOUT = {
     'text-field': ['match', ['get', 'NAME'],

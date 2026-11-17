@@ -1,21 +1,23 @@
 /* ============================================================================
-   mco-web-style · theme/mco-theme.css · v0.1.0
+   mco-web-style · theme/mco-theme.css
    The Montana Climate Office shared web house style.
 
    Consumed via pinned CDN tag + SRI (see README.md). Rules for using and
    extending this file live in HOUSE-STYLE.md; guardrails in AGENTS.md.
 
    Layers, top to bottom:
+     Fonts                   — the kit-hosted faces and their fallbacks
      1. Design tokens        — dark (:root), light, high-contrast themes
      2. Stacking ladder      — z-index tiers for every floating surface
+     2b. Type & spacing scale
      3. Reset & accessibility utilities
      4. MapLibre control polish
      5. Component shells     — navbar, toast, tooltip, modal, panel, scrim
      6. Responsive & touch
 
-   Fonts ARE loaded here (since 0.7.0): Outfit + Space Mono are kit-hosted
-   in fonts/ and declared at the top of §1, resolved relative to this file so
-   they version with it. Consumers preload the two latin files from
+   Fonts ARE loaded here: Outfit + Space Mono are kit-hosted in fonts/ and
+   declared in the Fonts block, resolved relative to this file so they
+   version with it. Consumers preload the two latin files from
    snippets/head.html; the tokens carry system fallbacks.
    ========================================================================== */
 
@@ -26,9 +28,9 @@
    (snippets/head.html); latin-ext is fetched only when a page actually uses
    a character in its unicode-range.
 
-   font-display: block, not swap. From Google Fonts with display=swap every
-   MCO app painted its text in the system font and re-set it in Outfit a beat
-   later — the title visibly jumped. Preloaded from the same origin as this
+   font-display: block, not swap. With display=swap a page paints its text
+   in the system font and re-sets it in Outfit a beat later, and the title
+   visibly jumps. Preloaded from the same origin as this
    render-blocking stylesheet, the fonts normally arrive before first paint;
    when they don't, block costs a few ms of invisible text rather than a
    re-set of every line, and the browser still falls back after ~3s if a file
@@ -55,12 +57,12 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Metric-matched fallbacks (0.7.1). During the block period text is invisible
+/* Metric-matched fallbacks. During the block period text is invisible
    but still LAID OUT — in the next family in the stack. Plain Arial sets the
    navbar title ~6% wider and its line box 3px shorter than Outfit, so items
-   beside the title shifted when the webfont landed (seen on mesonet-status
-   under a throttled connection). These faces rescale a local metric-stable
-   font (Arial; Helvetica and Liberation Sans share its metrics) to Outfit's
+   beside the title shift when the webfont lands. These faces rescale a
+   local metric-stable font (Arial; Helvetica and Liberation Sans share its
+   metrics) to Outfit's
    proportions, so the layout reserved during the block period is the one
    Outfit then fills.
    - size-adjust: Outfit/Arial advance-width ratio over a corpus of real MCO UI
@@ -69,7 +71,7 @@
    - ascent/descent/line-gap-override: Outfit's own metrics (1.000 / 0.260 /
      0, Space Mono 1.120 / 0.361 / 0) divided by size-adjust, which scales the
      overrides too. Line boxes then match exactly (verified: 15px vs 15px,
-     where plain Arial gave 12px).
+     where plain Arial gives 12px).
    - The ITALIC face is fitted to the one italic string in the house style,
      the lockup subtitle ("A service of the Montana Climate Office", §1 —
      every public MCO app carries it),
@@ -80,11 +82,11 @@
    Line boxes match exactly in every face. Widths: upright text lands within a
    few percent either way, since no single scale turns Arial's letterforms
    into Outfit's — uppercase Outfit is ~6% narrower than Arial capitals, so an
-   uppercase title (weight 500) still reserves ~3–5% too much. Measured on
-   all six consumers under a throttled connection (150 ms, 200 KB/s), the
-   navbar item beside the lockup moved 16.6px when Outfit landed with plain
-   Arial and 0.1px with these faces; mesonet-maintenance, whose uppercase
-   title is wider than the subtitle, 11.9px → 5.2px. Space Mono vs Courier
+   uppercase title (weight 500) still reserves ~3–5% too much. Measured
+   under a throttled connection (150 ms, 200 KB/s), the navbar item beside
+   the lockup moves 16.6px when Outfit lands with plain Arial and 0.1px
+   with these faces. A bar whose uppercase title is wider than the subtitle
+   moves 11.9px with Arial and 5.2px with these faces. Space Mono vs Courier
    New is exact (both monospaced: 0.612em vs 0.600em advance). */
 @font-face {
   font-family: 'Outfit Fallback'; font-style: normal; font-weight: 400 500;
@@ -115,18 +117,18 @@
 /* ── 1. Design tokens ─────────────────────────────────────────────────────
    Dark is the default theme. `data-theme` on <html> switches; the anti-flash
    snippet (snippets/anti-flash.html) sets it before first paint. On any
-   other element it makes a theme island (0.18.0, below the theme blocks).
+   other element it makes a theme island (below the theme blocks).
 
    Contrast contract (enforced by tools/check-contrast.mjs in CI):
      --text-primary, --text-secondary  ≥ 4.5:1 on deep, surface, AND raised
      --text-muted,  --text-dim         ≥ 4.5:1 on deep and surface ONLY —
                                          never use them on --bg-raised
      --accent-line                     ≥ 3:1 on all three surfaces (1.4.11)
-                                         and on every --band-* (0.19.0)
-     --text-* on --band-sky/-prairie/-sage ≥ 4.5:1 (0.19.0; muted/dim too)
+                                         and on every --band-*
+     --text-* on --band-sky/-prairie/-sage ≥ 4.5:1 (muted/dim too)
      --prairie-line, --sage-line,
      --rust-line                       ≥ 4.5:1 on deep, surface, raised and
-                                         every band (0.19.0)
+                                         every band
      --text-on-prairie                 ≥ 4.5:1 on --prairie
      --text-on-accent                  ≥ 4.5:1 on --accent
      --danger, --warning, --success    ≥ 4.5:1 on deep, surface, raised, and
@@ -139,7 +141,7 @@
 :root {
   --font-ui:        'Outfit', 'Outfit Fallback', system-ui, -apple-system, sans-serif;
   --font-mono:      'Space Mono', 'Space Mono Fallback', ui-monospace, monospace;
-  /* Display-size readings (≥ 1.75rem hero and tile values, 0.10.0): Outfit,
+  /* Display-size readings (≥ 1.75rem hero and tile values): Outfit,
      with tabular figures from .mco-num-display. Space Mono stays for every
      other numeral (tables, IDs, timestamps, axes, scale labels, <kbd>). */
   --font-display-num: 'Outfit', 'Outfit Fallback', system-ui, -apple-system, sans-serif;
@@ -149,14 +151,14 @@
   --radius-lg:      12px;
 }
 
-/* Dark values, on the root and on any element marked data-theme="dark"
-   (0.18.0). Every theme block is a plain attribute selector, so a
+/* Dark values, on the root and on any element marked data-theme="dark".
+   Every theme block is a plain attribute selector, so a
    data-theme on ANY element re-declares that theme's tokens there and its
-   subtree inherits them: a "theme island" (HOUSE-STYLE §4). On <html> this
-   is the same cascade as before: :root, [data-theme="dark"], light and
-   high-contrast are all (0,1,0), so the later light/high-contrast block
-   still wins on the root by source order. Theme-invariant tokens (fonts,
-   radii, transition) stay in the :root block above, so an island never
+   subtree inherits them: a "theme island" (HOUSE-STYLE §4). On <html>,
+   :root, [data-theme="dark"], light and high-contrast are all (0,1,0), so
+   the later light/high-contrast block wins on the root by source order.
+   Theme-invariant tokens (fonts, radii, transition) stay in the :root
+   block above, so an island never
    resets an app's override of them. */
 :root,
 [data-theme="dark"] {
@@ -179,13 +181,13 @@
   --accent-fill-hover: #114f80;   /* .nav-btn.is-primary hover; --text-on-accent ≥ 4.5:1 on it */
   --selection-ring: #5aaee8;
   --brand-gradient: linear-gradient(90deg, var(--accent-dk), var(--accent), var(--accent-light), var(--accent));
-  --glass:          rgba(30,37,48,0.92);   /* legible WITHOUT the blur (0.10.0) */
+  --glass:          rgba(30,37,48,0.92);   /* legible WITHOUT the blur */
   --shadow:         0 4px 24px rgba(0,0,0,0.4);
   --dot-stroke:     #ffffff;
   --input-bg:       #232a35;
   --scrim:          rgba(0,0,0,0.55);
   --ctrl-icon-filter: invert(1);
-  /* Status tones (0.8.0) — CHROME, not data (HOUSE-STYLE §2): form errors,
+  /* Status tones — CHROME, not data (HOUSE-STYLE §2): form errors,
      notices, the basemap-failure banner. Never the only channel: pair with
      a tone word or icon. Each tone is ≥ 4.5:1 on deep/surface/raised and on
      its own -fill; --text-on-* is ≥ 4.5:1 on that fill (check-contrast). */
@@ -198,7 +200,7 @@
   --success:        #36ba6d;
   --success-fill:   #213737;
   --text-on-success: #e8ecf0;
-  /* Landscape tones (0.19.0): CHROME, not data (HOUSE-STYLE §2), sampled
+  /* Landscape tones: CHROME, not data (HOUSE-STYLE §2), sampled
      from the station cameras. --band-* are section grounds that mark a
      real boundary on a content page; --prairie is a fill behind
      --text-on-prairie (a primary call to action); the -line tones are
@@ -261,9 +263,8 @@
 }
 
 /* High-contrast: pure-black surfaces, brightened accent, near-white text.
-   Adapted from mco-drought-dashboard (the family's first HC theme), with the
-   accent tints re-derived from THIS theme's accent (#5bb4ff = rgb(91,180,255))
-   rather than the legacy value the dashboard still carries.
+   Adapted from mco-drought-dashboard. The accent tints are derived from
+   THIS theme's accent (#5bb4ff = rgb(91,180,255)).
    --text-on-accent flips to black: white fails on the brightened accent. */
 [data-theme="high-contrast"] {
   --bg-deep:        #000000;
@@ -310,12 +311,12 @@
   --rust-line:       #ffad85;
 }
 
-/* Theme islands (0.18.0). Tokens alone don't re-colour an island's text:
+/* Theme islands. Tokens alone don't re-colour an island's text:
    `color` inherits as a computed value from body, so it would keep the
    page theme's --text-primary. An island takes its own, and tells the UA
-   which native controls and scrollbars to draw. The root is excluded
-   (<html> behaves exactly as before), and :where() keeps this at zero
-   specificity, so any app or kit rule that sets color wins. An island
+   which native controls and scrollbars to draw. The root is excluded, and
+   :where() keeps this at zero specificity, so any app or kit rule that
+   sets color wins. An island
    paints no background of its own: give it one (or a photo, or a map),
    because its contrast is its theme's contrast against its own surfaces. */
 :where([data-theme="dark"], [data-theme="high-contrast"]):where(:not(:root)) {
@@ -347,15 +348,14 @@
   --z-toast:       400;   /* toast — above everything                      */
 }
 
-/* ── 2b. Type & spacing scale (0.9.0) ─────────────────────────────────────
+/* ── 2b. Type & spacing scale ─────────────────────────────────────────────
    Theme-invariant, so :root only (tools/check-tokens.mjs knows them as the
    `scale` group, like the z-index ladder). Each step names a cluster the kit
-   already uses, so adopting one is near-invisible. 0.9.0 ADDS them for apps;
-   the kit's own rules move onto them in 1.0.0 (0.72→0.75 and 0.78→0.8125 are
-   visible snaps, so that sweep is MAJOR). --nav-gap stays, defaulting to
-   --space-4. */
+   uses, so adopting one is near-invisible. Moving a rule onto a step can be
+   a visible snap (0.72→0.75rem, 0.78→0.8125rem), which makes it a major
+   change. --nav-gap defaults to --space-4. */
 :root {
-  --fs-2xs:     0.55rem;   /* unused by the kit since 0.10.0 (the lockup subtitle is 11px) */
+  --fs-2xs:     0.55rem;   /* unused by the kit (the lockup subtitle is 11px) */
   --fs-xs:      0.65rem;   /* mono meta, tooltip sub */
   --fs-sm:      0.75rem;   /* brand title, panel titles, seg/tooltip, captions */
   --fs-md:      0.8125rem;   /* buttons, toast, eyebrow h3 */
@@ -376,7 +376,7 @@
   --space-5:    1rem;
   --space-6:    1.5rem;
   --space-7:    2rem;
-  /* One control height (0.21.0): every .nav-btn, .seg-btn, .mco-chip and
+  /* One control height: every .nav-btn, .seg-btn, .mco-chip and
      .mco-search-input in the navbar and its drawer. 40px on touch, set
      below on html:root (which outranks :root without matching it here). */
   --control-h:  34px;
@@ -421,13 +421,13 @@ body {
    a new control added later would ship without one. */
 :focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
 /* WebKit focuses a date/time input's sub-fields, so the input itself never
-   matches :focus-visible and showed no ring (0.11.2). Keyboard and pointer
+   matches :focus-visible and would show no ring. Keyboard and pointer
    both open the field for typing, so :focus is the right trigger here. */
 input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], [type="week"]):focus {
   outline: 2px solid var(--accent-line); outline-offset: 2px;
 }
 
-/* Phone text fields at 16px (0.21.2). iOS Safari zooms the page into any
+/* Phone text fields at 16px. iOS Safari zooms the page into any
    field whose text is under 16px when it takes focus, and the family's bar
    and drawer fields run 0.78–0.85rem. Phones only: touch AND compact, the
    COMPACT_MQ rule (≤ 640px wide or ≤ 560px tall). On a touch tablet or
@@ -456,7 +456,7 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
 }
 .mco-skip-link:focus { top: 0.5rem; }
 
-/* Display numerals (0.10.0, #36): a hero reading in Outfit with tabular
+/* Display numerals: a hero reading in Outfit with tabular
    figures, so digits keep their column as values tick (the hosted subset
    carries tnum) without Space Mono's terminal spacing at 2–4rem. Size is
    the app's (≥ 1.75rem; --fs-2xl is 2rem). Below that, numerals stay mono. */
@@ -498,16 +498,16 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
 .maplibregl-ctrl-attrib { background: var(--glass) !important; color: var(--text-muted) !important; }
 .maplibregl-ctrl-attrib a { color: var(--text-secondary) !important; text-decoration: underline; text-underline-offset: 2px; }
 .maplibregl-ctrl-attrib button.maplibregl-ctrl-attrib-button { filter: var(--ctrl-icon-filter, none); }
-/* Attribution links are underlined (0.8.0): against the surrounding credit
+/* Attribution links are underlined: against the surrounding credit
    text they differ by color alone, 1.74:1 on dark and 1.25:1 on
    high-contrast, and WCAG 1.4.1 wants 3:1 or a non-color cue. axe flags it
    once hillshade's "Terrain: Mapzen/AWS Open Data" credit turns the bar into
    a text block. Same remedy as prose links in .info-section. */
 
-/* Popups (0.8.0): MapLibre's popup is white with a black tip in every theme.
+/* Popups: MapLibre's popup is white with a black tip in every theme.
    Repainted from tokens, and put on the --z-detail tier: the vendor sheet
-   gives popups NO z-index, so the map controls (z 2) drew over them. Close
-   button 44px on touch. Content comes from MCO.map.popupContent()
+   gives popups NO z-index, so the map controls (z 2) would draw over them.
+   Close button 44px on touch. Content comes from MCO.map.popupContent()
    (.mco-popup / .mco-facts below), never setHTML of API strings (§7). */
 .maplibregl-popup { z-index: var(--z-detail); }
 .maplibregl-popup-content {
@@ -582,7 +582,7 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
   flex-wrap: wrap; row-gap: 0.4rem;
   z-index: var(--z-chrome-top);
 }
-/* Sticky (0.10.0, #4), opt-in for long-scrolling pages; full-viewport map
+/* Sticky, opt-in for long-scrolling pages; full-viewport map
    apps keep the in-flow bar. It stays on --z-chrome-top, clears the notch,
    and core publishes its height as --chrome-h, which html's
    scroll-padding-top reads. Needs the DOCUMENT to scroll: a body with
@@ -606,9 +606,7 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
    becomes −0.1rem, holding the 0.4rem rhythm either way. */
 .mco-navbar > .nav-divider { margin-inline: calc(0.4rem - var(--nav-gap)); }
 .brand { display: flex; flex-direction: column; justify-content: center; flex-shrink: 0; line-height: 1.2; }
-/* 12px title, 11px subtitle (0.10.0; were 10.4 and 8.8px, below a legible
-   floor — #37). The lockup is wider for it: apps tuned to a wrap point
-   re-check their ladder. */
+/* 12px title, 11px subtitle. Anything smaller is below a legible floor. */
 .brand-title    { font-size: var(--fs-sm); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; margin: 0; }
 .brand-subtitle { font-size: 0.6875rem; font-weight: 400; letter-spacing: 0.04em; font-style: italic; color: var(--text-dim); white-space: nowrap; }
 .controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; row-gap: 0.3rem; }
@@ -640,12 +638,12 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
 .nav-btn svg { flex-shrink: 0; stroke: currentColor; }
 .nav-btn.icon-only { padding: 0.4rem; min-width: 34px; justify-content: center; }
 .nav-btn[aria-pressed="true"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
-/* Navigation state (0.10.0, #3): a tab that is a LINK to a view carries
+/* Navigation state: a tab that is a LINK to a view carries
    aria-current="page", not aria-pressed (a toggle). Same look either way. */
 .nav-btn[aria-current="page"] { background: var(--accent-hover); border-color: var(--accent-line); color: var(--text-primary); }
 a.nav-btn { text-decoration: none; }
 .nav-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
-/* Primary action (0.8.0): the one button per view that does the thing — Apply,
+/* Primary action: the one button per view that does the thing — Apply,
    Download, Retry. A filled --accent with --text-on-accent, the pairing the
    contrast contract guarantees in all three themes. Never color: #fff on
    --accent: it is 2.2:1 in high contrast, where the accent brightens and
@@ -676,7 +674,7 @@ a.nav-btn { text-decoration: none; }
 .seg-btn:last-child  { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-right-width: 1px; }
 .seg-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
 
-/* Radio segmented (0.9.0): a single-choice group as a native radio fieldset —
+/* Radio segmented: a single-choice group as a native radio fieldset —
    free arrow keys, one Tab stop. Styled exactly like the aria-pressed
    segmented group:
      <fieldset class="seg-btns is-radio"><legend class="sr-only">Units</legend>
@@ -695,10 +693,10 @@ a.nav-btn { text-decoration: none; }
 .seg-btns.is-radio > .seg-btn:last-of-type { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-right-width: 1px; }
 .seg-btns.is-radio > label.seg-btn:has(> input:checked) { background: var(--accent); border-color: var(--accent-line); color: var(--text-on-accent); }
 
-/* Stepper buttons (0.9.0) — MCO.initStepper. Square .nav-btn, 34px (40 on touch). */
+/* Stepper buttons — MCO.initStepper. Square .nav-btn, 34px (40 on touch). */
 .nav-btn.mco-step { padding: 0.4rem; min-width: 34px; justify-content: center; }
 
-/* Chips (0.9.0): pill toggles in a labelled group; apps own the selection.
+/* Chips: pill toggles in a labelled group; apps own the selection.
      <div class="mco-chips" role="group" aria-labelledby="net-label">
        <button class="mco-chip" aria-pressed="true">HydroMet <span class="mco-chip-count">142</span></button>
    Pressed adds a ✓ (alt text empty), so the state isn't color alone.
@@ -717,14 +715,14 @@ a.nav-btn { text-decoration: none; }
 .mco-chip-count { font-family: var(--font-mono); font-size: 0.9em; font-variant-numeric: tabular-nums; }
 .mco-chip[aria-busy="true"] { cursor: progress; }
 .mco-chip[aria-busy="true"] .mco-chip-count { visibility: hidden; }
-/* A chip with no count still shows it is loading (0.11.3). */
+/* A chip with no count still shows it is loading. */
 .mco-chip[aria-busy="true"]:not(:has(.mco-chip-count))::after { content: "\2026"; content: "\2026" / ""; }
 
-/* One control height in the bar (0.21.0). Inside .mco-navbar (its nav
+/* One control height in the bar. Inside .mco-navbar (its nav
    drawer included) buttons, segmented groups, chips, steppers and the
-   search field all stand --control-h: 34px, 40px on touch. Was 34 / 30 /
-   28 / 32, so a bar mixing them read as four sizes. Outside the bar the
-   seg-btn, chip and legend-row sizes above are unchanged. */
+   search field all stand --control-h: 34px, 40px on touch, so a bar mixing
+   them reads as one size. Outside the bar the seg-btn, chip and legend-row
+   sizes above apply. */
 .mco-navbar :is(.nav-btn, .mco-chip) { min-height: var(--control-h); }
 .mco-navbar .seg-btn { height: var(--control-h); min-height: var(--control-h); }
 .mco-navbar .nav-btn.mco-step { min-width: var(--control-h); }
@@ -732,7 +730,7 @@ a.nav-btn { text-decoration: none; }
 
 /* Refresh/liveness status: read-only, deliberately subordinated. Add .static
    when the view isn't live (historical modes) to stop the pulse. The text is
-   MCO.formatUpdatedMT (0.21.0), one wording family-wide:
+   MCO.formatUpdatedMT, one wording family-wide:
      <span class="refresh-status"><span class="dot" aria-hidden="true"></span>
        <span><span class="refresh-word">Updated</span> 2:45 PM MST</span></span>
    ≤1400px the bar sheds "Updated" visually (still read); the time stays. */
@@ -772,7 +770,7 @@ a.nav-btn { text-decoration: none; }
 }
 .mco-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* Footer (0.9.0): data-source credit, then the MCO credit (MCO.credit()),
+/* Footer: data-source credit, then the MCO credit (MCO.credit()),
    then an optional mono version / "last updated" line. Full-viewport map
    apps carry no footer — it costs map height — and put MCO.credit() in the
    info modal's Data section and their exports instead. --text-muted on
@@ -785,13 +783,13 @@ a.nav-btn { text-decoration: none; }
 }
 .mco-footer p + p { margin-top: var(--space-1); }
 .mco-footer a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
-/* Wordmark (0.11.0, #27): the pair of fixed-color images, one per surface,
+/* Wordmark: the pair of fixed-color images, one per surface,
    so the theme picks. Both carry alt; the hidden one is display:none, out of
    the accessibility tree. Inline assets/mco-wordmark.svg instead to inherit
    currentColor. Keep it ≥ 40px tall.
      <img class="mco-wordmark is-on-dark"  src="…/assets/mco-wordmark-on-dark.svg"  alt="Montana Climate Office" height="48">
      <img class="mco-wordmark is-on-light" src="…/assets/mco-wordmark-on-light.svg" alt="Montana Climate Office" height="48">
-   The pair follows the PAGE theme, not a theme island (0.18.0): these are
+   The pair follows the PAGE theme, not a theme island: these are
    descendant selectors, so <html data-theme="light"> matches through an
    island. Inside an island, inline assets/mco-wordmark.svg (currentColor). */
 .mco-wordmark { display: block; width: auto; }
@@ -800,7 +798,7 @@ a.nav-btn { text-decoration: none; }
 [data-theme="light"] .mco-wordmark.is-on-dark { display: none; }
 .mco-footer-meta { font-family: var(--font-mono); font-size: var(--fs-xs); }
 
-/* Card (0.9.0): the IN-FLOW section shell — chart and table cards, sidebar
+/* Card: the IN-FLOW section shell — chart and table cards, sidebar
    blocks, sheet sections. .mco-panel is the over-map glass; this sits in the
    page. Surface background, so the text contract holds (muted/dim are
    allowed on surface, never raised). Collapsible with MCO.initCollapsible.
@@ -823,7 +821,7 @@ a.nav-btn { text-decoration: none; }
 /* On glass the surface guarantee is gone: facts labels step up to secondary. */
 .mco-card.is-glass .mco-facts dt, .mco-panel .mco-facts dt { color: var(--text-secondary); }
 
-/* Loading (0.9.0) — MCO.loading. A 3px bar pinned to the top of its
+/* Loading — MCO.loading. A 3px bar pinned to the top of its
    (positioned) container on the --z-map-progress tier: an indeterminate
    sweep, or determinate with aria-valuenow + --progress (0–100). Static
    under reduced motion. .mco-skeleton blocks are aria-hidden placeholders
@@ -852,7 +850,7 @@ a.nav-btn { text-decoration: none; }
   .mco-skeleton { animation: none; background: var(--bg-raised); }
 }
 
-/* Notice (0.8.0): the persistent, actionable twin of the toast — a load
+/* Notice: the persistent, actionable twin of the toast — a load
    failure with Retry, a data caveat, an outage. The toast is text-only and
    pointer-events: none, so it can't hold a button. Built by MCO.notice() or
    written in markup:
@@ -885,7 +883,7 @@ a.nav-btn { text-decoration: none; }
 .mco-notice[data-tone="warning"] { --notice-edge: var(--warning); --notice-tone: var(--warning); background: var(--warning-fill); color: var(--text-on-warning); }
 .mco-notice[data-tone="success"] { --notice-edge: var(--success); --notice-tone: var(--success); background: var(--success-fill); color: var(--text-on-success); }
 /* Over the map it keeps clear of both top corners' control columns (zoom,
-   top left since 1.0.0, or top right where an app keeps it): 7.5rem is
+   top left by default, or top right where an app puts it): 7.5rem is
    two ~44px groups and their margins. A narrow map's notice wraps instead
    of covering the zoom buttons. */
 .mco-notice[data-place="over"], .mco-empty[data-place="over"] {
@@ -935,8 +933,7 @@ a.nav-btn { text-decoration: none; }
    (backdrop click closes, focus restores to the opener). */
 .mco-modal { background: transparent; border: none; padding: 1rem; position: fixed; inset: 0; margin: auto; width: fit-content; height: fit-content; max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); }
 .mco-modal::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
-/* Long modals (0.8.0, back-ported from mesonet-explorer, the family's
-   tallest): the header sticks so the title and close button stay reachable
+/* Long modals: the header sticks so the title and close button stay reachable
    while the body scrolls, scrolling never chains to the page behind, and a
    soft shade at the bottom edge says "there's more". The shade is two
    layers: a --bg-surface cover attached to the END of the content (local)
@@ -979,6 +976,10 @@ a.nav-btn { text-decoration: none; }
    underlines don't count. */
 .info-section a { color: var(--accent-line); text-decoration: underline; text-underline-offset: 2px; }
 .info-section a:hover { text-decoration-thickness: 2px; }
+/* A "more" line: a <details> in the help. Its summary is a 40px target in
+   body-size text. A key or a code sample never breaks across lines. */
+.info-section summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); padding: 0.6rem 0; min-height: 40px; box-sizing: border-box; }
+.info-section code, .info-section kbd { white-space: nowrap; }
 .info-section kbd {
   font-family: var(--font-mono);
   font-size: 0.75em;
@@ -1032,7 +1033,7 @@ a.nav-btn { text-decoration: none; }
    points up ("expand upward"). */
 .mco-panel-toggle svg { transition: transform var(--transition); transform: rotate(180deg); }
 .mco-panel-toggle[aria-expanded="false"] svg { transform: none; }
-/* Collapse is animated (slide + fade — ported from mesonet-status), then
+/* Collapse is animated (slide + fade), then
    MCO.initCollapsible sets [hidden] so collapsed content leaves the tab
    order. The max-height cap comfortably fits house panels; raise it locally
    for an unusually tall one. Reduced motion clamps the transition. */
@@ -1044,11 +1045,11 @@ a.nav-btn { text-decoration: none; }
   transition: max-height var(--transition), opacity var(--transition);
 }
 .mco-panel-body.is-collapsing { max-height: 0; opacity: 0; }
-/* Height cap (0.21.2, a stopgap until 1.0.0). Core caps a bottom-anchored
-   panel that would rise past the room over its map, so its head, with the
+/* Height cap. Core caps a bottom-anchored panel that would rise past the
+   room over its map, so its head, with the
    collapse toggle, can always be reached: the panel scrolls inside and the
    head stays pinned on an opaque surface. Set only when it doesn't fit, so
-   a panel that fits looks exactly as before. */
+   a panel that fits is untouched. */
 .mco-panel.is-capped {
   max-height: var(--panel-max-h);
   overflow-y: auto; overscroll-behavior: contain;
@@ -1058,15 +1059,15 @@ a.nav-btn { text-decoration: none; }
   background: var(--bg-surface);
 }
 
-/* Legend rows (0.8.0) — click to show/hide a category, wired by
+/* Legend rows — click to show/hide a category, wired by
    MCO.initLegendToggles. aria-pressed is the styling source of truth (§5.7):
      <button class="mco-legend-row" aria-pressed="true" data-key="fresh">
        <span class="mco-legend-swatch" style="--swatch: #2a8a86" aria-hidden="true"></span>
        <span class="mco-legend-label">Fresh</span><span class="mco-legend-count">42</span>
      </button>
    The ROW never gets opacity: parent opacity composites the whole subtree,
-   so no child rule can restore the label's contrast (three apps shipped
-   `.legend-row.off { opacity: .4 }`, a 2.7:1 label). Off dims the swatch
+   so no child rule can restore the label's contrast (`opacity: .4` on the
+   row makes a 2.7:1 label). Off dims the swatch
    only and strikes the label through, a non-color cue. The label stays
    --text-secondary: the panel is glass over an arbitrary basemap, where
    --text-muted's surface-only guarantee doesn't hold.
@@ -1099,10 +1100,9 @@ a.nav-btn { text-decoration: none; }
 .mco-legend-row[aria-pressed="false"] .mco-legend-label { text-decoration: line-through; text-decoration-thickness: 1px; }
 @media (hover: none) { .mco-legend-row { min-height: 40px; } }
 
-/* Search combobox (0.8.0) — MCO.initSearchBox. Field, icon and listbox are
-   the kit's now; five apps carried ~90 lines each of this, plus the same
-   search-icon data URI stroked in a banned drift value (%237a8190). The icon
-   is a CSS mask, so it takes currentColor (--text-dim) in every theme.
+/* Search combobox — MCO.initSearchBox. Field, icon and listbox are the
+   kit's. The icon is a CSS mask, so it takes currentColor (--text-dim) in
+   every theme.
      .mco-search > .mco-search-icon + input.mco-search-input + .mco-search-list
    The active option is marked by an inset --accent-line bar as well as the
    tint, the current one by ✓ (alt text empty, so it isn't read), so neither
@@ -1151,7 +1151,7 @@ a.nav-btn { text-decoration: none; }
 .mco-search-option.is-current { font-weight: 600; }
 .mco-search-option.is-current > :first-child::before { content: "\2713\00a0"; content: "\2713\00a0" / ""; }
 /* The native clear (×) glyph is dark on every theme; flip it like the map
-   control icons (0.11.1). */
+   control icons. */
 .mco-search-input::-webkit-search-cancel-button { filter: var(--ctrl-icon-filter, none); }
 .mco-search-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
 .mco-search-note { padding: 6px 8px; font-size: 0.75rem; color: var(--text-secondary); cursor: default; }
@@ -1166,16 +1166,16 @@ a.nav-btn { text-decoration: none; }
    collapses into a disclosure button grouped with the other nav buttons and
    expands as a full-width overlay bar under the navbar.
 
-   The breakpoint is the ladder's existing 640px compact edge rather than a
+   The breakpoint is the ladder's 640px compact edge rather than a
    fifth number: compact is exactly where an inline field stops paying for
    itself. Deliberately width-only — unlike MCO.viewport.COMPACT_MQ it has no
    max-height clause, because a short landscape window is still wide enough for
-   an inline field. Raised from 460px in v0.6.0: at 460 a control-dense bar
-   (mesonet-status) still wrapped to a third row between 461 and 527px, and the
-   wrap point drifted with live data in the labels.
+   an inline field. A lower edge is not enough: at 460px a control-dense bar
+   wraps to a third row between 461 and 527px, and the wrap point drifts
+   with live data in the labels.
 
    This is the COLLAPSE mechanics only; the field is .mco-search +
-   MCO.initSearchBox above (0.8.0), or still an app's own. Add
+   MCO.initSearchBox above, or an app's own. Add
    .mco-search-collapse to the search wrapper and .mco-search-toggle to the
    button:
      <div class="mco-search mco-search-collapse" id="search-wrap"> … </div>
@@ -1216,10 +1216,9 @@ a.nav-btn { text-decoration: none; }
 /* Scrim behind off-canvas drawers on compact viewports. Pair with a panel at
    --z-drawer; the scrim sits one tier below it. Always aria-hidden="true"
    (it is a click target, not content); clicking it closes its owner.
-   data-scope="container" (0.8.0) fills its nearest positioned ancestor
+   data-scope="container" fills its nearest positioned ancestor
    instead of the viewport, so a drawer inside the map frame can dim the map
-   without dimming the navbar above it (explorer's #sidebar-scrim, and the
-   dashboard's compact drawer). */
+   without dimming the navbar above it. */
 .mco-scrim {
   position: fixed; inset: 0;
   background: var(--scrim);
@@ -1227,7 +1226,7 @@ a.nav-btn { text-decoration: none; }
 }
 .mco-scrim[data-scope="container"] { position: absolute; }
 
-/* Off-canvas drawer (0.9.0) — MCO.initDrawer. A labelled <aside> on the
+/* Off-canvas drawer — MCO.initDrawer. A labelled <aside> on the
    --z-drawer tier, sliding in from data-side (start | end). [hidden] after the
    slide-out, so nothing off-screen stays tabbable. data-scope="container"
    keeps it inside a positioned frame (with a scoped scrim) so the navbar
@@ -1245,13 +1244,13 @@ a.nav-btn { text-decoration: none; }
   transform: translateX(-100%);
   transition: transform var(--transition);
 }
-/* An end-side drawer stops at the right-hand rail (1.0.0): --rail-inset is
+/* An end-side drawer stops at the right-hand rail: --rail-inset is
    what the rail covers, unset (0) outside rail mode. */
 .mco-drawer[data-side="end"] { left: auto; right: var(--rail-inset, 0px); border-right: 0; border-left: 1px solid var(--border); transform: translateX(100%); }
 .mco-drawer[data-scope="container"] { position: absolute; }
 /* Inside its frame, which the rail's body padding already clears. */
 .mco-drawer[data-scope="container"][data-side="end"] { right: 0; }
-/* Over an on-screen keyboard (MCO.keyboard, 1.0.0). */
+/* Over an on-screen keyboard (MCO.keyboard). */
 .kb-open .mco-drawer:not([data-docked]) { bottom: var(--kb-inset, 0px); }
 .mco-drawer.is-open { transform: none; }
 .mco-drawer[data-docked] {
@@ -1272,9 +1271,8 @@ a.nav-btn { text-decoration: none; }
 .mco-drawer[data-side="end"] .mco-drawer-head,
 .mco-drawer[data-side="end"] .mco-drawer-body { padding-right: max(var(--space-4), env(safe-area-inset-right)); }
 
-/* Station panel (0.9.0; one state 1.0.0) — MCO.initSheet, after
-   mesonet-explorer's panel. Above compact it docks at the end edge, full
-   height under the bar, with the map live beside it. On compact (1.0.0) it
+/* Station panel — MCO.initSheet. Above compact it docks at the end edge,
+   full height under the bar, with the map live beside it. On compact it
    is a full-height panel under the bar: --sheet-top (the bar's bottom, 0
    beside a rail, measured by core) to the top of the bottom control bar
    (--tabbar-h), full width left of the rail (--rail-inset). One state: no
@@ -1282,7 +1280,7 @@ a.nav-btn { text-decoration: none; }
    the map controls. */
 .mco-sheet {
   position: fixed; z-index: var(--z-detail);
-  /* Above the bottom control bar wherever it is docked (1.0.0): a folded
+  /* Above the bottom control bar wherever it is docked: a folded
      tablet bar docks it under an end-docked panel too. */
   top: var(--sheet-top, var(--chrome-h, 0px)); bottom: var(--tabbar-h, 0px); right: 0;
   width: min(var(--sheet-w, 360px), 40vw);
@@ -1304,10 +1302,10 @@ a.nav-btn { text-decoration: none; }
 }
 .mco-sheet-title { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); color: var(--text-primary); }
 .mco-sheet-title:focus { outline: none; }          /* programmatic focus target; never reached by Tab */
-/* The close button (1.0.0): required, top right, 44px at every width, so the
+/* The close button: required, top right, 44px at every width, so the
    panel's header is identical on a phone, a tablet and a desktop. */
 .mco-sheet-head [data-close-sheet] { min-width: 44px; min-height: 44px; flex-shrink: 0; }
-/* No grip at any width (1.0.0). Old markup's grip stays out of sight and
+/* No grip at any width. Old markup's grip stays out of sight and
    out of the tab order. */
 .mco-sheet-grip { display: none !important; }
 .mco-sheet-body {
@@ -1325,24 +1323,24 @@ a.nav-btn { text-decoration: none; }
 /* A field in the panel stays reachable over an on-screen keyboard. */
 .kb-open .mco-sheet-body { padding-bottom: calc(var(--space-4) + var(--kb-inset, 0px)); }
 
-/* First-paint hold (0.9.0): see MCO.ready(). visibility, never display, so
+/* First-paint hold: see MCO.ready(). visibility, never display, so
    the reserved layout doesn't shift when the hold lifts. */
 html.mco-booting [data-hold] { visibility: hidden; }
 html:not(.mco-booting) [data-skeleton] { display: none; }
 
-/* Overlay metrics + auto-lift (0.9.0). --chrome-h / --sheet-h / --tabbar-h
+/* Overlay metrics + auto-lift. --chrome-h / --sheet-h / --tabbar-h
    are written on <html> by MCO.metrics (the sheet and the control bar
-   publish their own; --controlbar-h, --kb-inset and --vv-h are 1.0.0's).
+   publish their own, --controlbar-h included; MCO.keyboard writes
+   --kb-inset and --vv-h).
    Lifting the toast and MapLibre's bottom corners is opt-in via
-   html.mco-autolift, which a page with a kit control bar turns on (1.0.0).
-   The default is unchanged otherwise: the toast's position is an observable
-   default. */
+   html.mco-autolift, which a page with a kit control bar turns on. It is
+   opt-in because the toast's position is an observable default. */
 :root { --chrome-h: 0px; --sheet-h: 0px; --sheet-end: 0px; --tabbar-h: 0px; --controlbar-h: 0px; --kb-inset: 0px; --vv-h: 100dvh; --overlay-bottom: calc(var(--sheet-h) + var(--tabbar-h)); }
 html { scroll-padding-top: var(--chrome-h); }
-/* An end-docked sheet covers the map's right edge (0.21.1): MapLibre's right
-   corners (the attribution; zoom and fit too where an app keeps them top
-   right, since 1.0.0 puts them top left) step clear by --sheet-end, which the open
-   sheet publishes. Not opt-in: they were unreachable under it. A map that
+/* An end-docked sheet covers the map's right edge: MapLibre's right
+   corners (the attribution; zoom and fit too where an app puts them top
+   right) step clear by --sheet-end, which the open sheet publishes. Not
+   opt-in: they would be unreachable under it. A map that
    stops short of the viewport's right edge opts out with
    .maplibregl-map { --sheet-end: 0px; }. */
 html .maplibregl-ctrl-top-right,
@@ -1351,10 +1349,10 @@ html.mco-autolift .mco-toast { bottom: calc(1.5rem + var(--overlay-bottom) + env
 html.mco-autolift .maplibregl-ctrl-bottom-left,
 html.mco-autolift .maplibregl-ctrl-bottom-right { transform: translateY(calc(-1 * var(--lift, var(--overlay-bottom)))); transition: transform var(--transition); }
 /* An app's own bottom-corner panel (a legend, a scale) joins the lift with
-   [data-autolift] (0.13.0), so MapLibre's corner never rides up over it.
+   [data-autolift], so MapLibre's corner never rides up over it.
    It uses `translate`, not `transform`, so it composes with any transform
    the panel already has (a collapse, a slide-in). MCO.metrics caps each
-   element's lift at the room above it as --lift (0.13.1), so a tall panel
+   element's lift at the room above it as --lift, so a tall panel
    stops at the top of its container instead of riding off it. */
 html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--overlay-bottom))); transition: translate var(--transition); }
 
@@ -1390,7 +1388,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   .mco-navbar .nav-btn:has(> .btn-label) {
     padding: 0.4rem; min-width: 34px; justify-content: center;
   }
-  /* The freshness stamp keeps its time and sheds the word (0.21.0), the
+  /* The freshness stamp keeps its time and sheds the word, the
      .control-label way: visually, so "Updated" is still read. */
   .mco-navbar .refresh-status .refresh-word {
     position: absolute;
@@ -1419,10 +1417,9 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
    Consumers that keep branding at every width must restore BOTH the lockup's
    static position and the divider — see mesonet-status.
 
-   Scoped to the navbar (0.7.0): a lockup an app moves elsewhere — the top of
-   a compact drawer, say (mesonet-explorer) — has room and must stay visible.
-   :where() keeps the specificity at the old bare `.brand`, so an existing
-   consumer override still wins. */
+   Scoped to the navbar: a lockup an app moves elsewhere (the top of a
+   compact drawer, say) has room and must stay visible. :where() keeps the
+   specificity at a bare `.brand`, so a consumer override wins. */
 @media (max-width: 750px) {
   :where(.mco-navbar) .brand {
     position: absolute;
@@ -1458,26 +1455,27 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   .modal-close { min-width: 44px; min-height: 44px; }
   .maplibregl-popup-close-button { width: 44px; height: 44px; top: 0; right: 0; }
   .maplibregl-popup-content:has(.maplibregl-popup-close-button) .mco-popup { padding-right: 2.4rem; }
-  /* 40px, not 36 (0.9.0): the verify harness's touch-target audit caught it. */
+  /* 40px, not 36: the house floor on touch. */
   .mco-panel-toggle { width: 40px; height: 40px; }
   /* MapLibre's own controls are 29px (zoom/fit) and 24px (the compact
-     attribution ⓘ) — under the 40px floor on touch (0.9.0). */
+     attribution ⓘ) — under the 40px floor on touch. */
   .maplibregl-ctrl-group button { width: 40px; height: 40px; }
   .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 40px; padding-right: 40px; }
   .maplibregl-ctrl-attrib-button { width: 40px; height: 40px; border-radius: 20px; background-position: center; background-repeat: no-repeat; }
 }
 
-/* Short-landscape rail (0.10.0, #38; at the RIGHT edge from 1.0.0) —
+/* Short-landscape rail, at the RIGHT edge —
    opt-in: .mco-navbar[data-rail] + MCO.initNavRail. On a landscape phone
    the bar wraps to two rows and eats ~30% of the height, while width sits
    unused. In rail mode the bar is turned on its side: a 56px column at the
    right edge (fixed, so it works whether the body is a flex column or
    scrolls), clear of the right safe area, and the page is padded clear of
    it, so the map's right-hand controls (the attribution; zoom is top left
-   since 1.0.0) sit just left of it. Top to bottom: the logo badge, ☰, the search button, then the
-   app's time controls (.mco-rail's hot controls, then a .mco-controlbar at
+   by default) sit just left of it. Top to bottom: the logo badge, ☰, the
+   search button, then the app's time controls (.mco-rail's hot controls,
+   then a .mco-controlbar at
    the foot of the column). Everything else is in .mco-nav-drawer, which
-   opens from the right, beside the rail (Kyle, 2026-11-12: "Right rail").
+   opens from the right, beside the rail.
 
      <header class="mco-navbar" data-rail>
        <a class="logo-link" …>…</a>
@@ -1497,7 +1495,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
    KEEP IN SYNC with MCO.viewport.RAIL_MQ: the landscape half of the compact
    query, not a new number. Every rule is scoped to
    :where(html:not(.mco-bar-hold)) (no added specificity): while someone
-   types, core holds the folded bar rather than flip into the rail (K7).
+   types, core holds the folded bar rather than flip into the rail.
    --rail-inset (what the rail covers, unset so 0 outside rail mode) is a
    RIGHT-hand inset: the end-side drawer, the compact sheet and the toast's
    centre read it. Pitfalls this encodes: the closed drawer is display:none,
@@ -1507,7 +1505,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
    (--z-map-panel) dims the page beside the rail (--z-chrome-top). */
 .mco-rail { display: none; }
 .mco-nav-drawer { display: contents; }
-/* ☰ focuses the open drawer itself (0.21.2); it hugs the viewport edge, so
+/* ☰ focuses the open drawer itself; it hugs the viewport edge, so
    the ring goes inside. */
 .mco-nav-drawer:focus-visible { outline-offset: -2px; }
 @media (max-height: 560px) and (orientation: landscape) {
@@ -1576,9 +1574,9 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] .mco-nav-drawer .refresh-status { display: inline-flex; }
 
   /* The map's right-hand corners: the rail already sits over the right
-     safe area, so they don't pad for it again (Kyle: a thumb-width gap on
-     iPhone Safari in landscape). The body padding puts them just left of
-     the rail. */
+     safe area, so they don't pad for it again. Padding twice leaves a
+     thumb-width gap on iPhone Safari in landscape. The body padding puts
+     them just left of the rail. */
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) :is(.maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-right) { padding-right: 0; }
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) .mco-sheet-body { padding-right: var(--space-4); }
 
@@ -1611,7 +1609,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   }
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .nav-btn { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
   /* In the 44px column a readout stacks its parts (spans), each whole, in
-     the UI face (mono splits "12:00 PM"); from mesonet-photo-explorer. */
+     the UI face (mono splits "12:00 PM"). */
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .mco-controlbar-readout {
     max-width: 100%; text-align: center; white-space: normal; overflow-wrap: normal;
     font: var(--fw-medium) 0.66rem/1.25 var(--font-ui); color: var(--text-secondary);
@@ -1622,27 +1620,27 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
 @starting-style {
   .mco-navbar[data-rail] .mco-nav-drawer.is-open { transform: translateX(12px); opacity: 0; }
 }
-/* 44px rail buttons on a touch screen (1.0.0): the rail has the width. */
+/* 44px rail buttons on a touch screen: the rail has the width. */
 @media (max-height: 560px) and (orientation: landscape) and (hover: none) {
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] .mco-rail .nav-btn,
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar .nav-btn { width: 44px; min-width: 44px; min-height: 44px; }
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] > .mco-bar-tools .nav-btn { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
-  /* The badge matches (1.0.0): one 44px column. */
+  /* The badge matches: one 44px column. */
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] > .logo-link .logo-img { width: 44px; height: 44px; }
 }
 
-/* Compact nav drawer (0.21.0) — opt-in: .mco-navbar[data-rail="compact"] +
+/* Compact nav drawer — opt-in: .mco-navbar[data-rail="compact"] +
    MCO.initNavRail. The rail above still takes short landscape; this takes
    the rest of compact (portrait phones, narrow windows), where the bar
    would otherwise wrap. One row, ≤ 64px, in this order:
      logo · hot controls · search toggle · ☰ (.mco-rail's first child)
-   The badge always holds the left edge and ☰ the right (Kyle, 2026-11-03),
+   The badge always holds the left edge and ☰ the right,
    with .mco-rail flattened into the bar (display: contents) and
    .mco-search-toggle last in .mco-rail. .mco-nav-drawer becomes a fixed
    RIGHT drawer under the bar, opening from its button (core measures the
    bar into --nav-drawer-top), down to the bottom control bar or an
-   on-screen keyboard, whichever is higher (1.0.0);
-   the plain .mco-scrim dims the page below the bar.
+   on-screen keyboard, whichever is higher. The plain .mco-scrim dims the
+   page below the bar.
      <header class="mco-navbar" data-rail="compact">
        <a class="logo-link" …>…</a>
        <div class="mco-rail">
@@ -1697,12 +1695,12 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   .mco-navbar[data-rail="compact"] .mco-nav-drawer .mco-search-collapse { display: flex; position: relative; }
   .mco-navbar[data-rail="compact"] .mco-nav-drawer .mco-search > input { flex: 1; min-width: 0; }
   .mco-navbar[data-rail="compact"] .mco-nav-drawer .mco-search-toggle { display: none; }
-  /* The bar hides the stamp ≤640px; the drawer has the room (0.21.0). */
+  /* The bar hides the stamp ≤640px; the drawer has the room. */
   .mco-navbar[data-rail="compact"] .mco-nav-drawer .refresh-status { display: inline-flex; }
 }
 
-/* Fold-to-fit (0.21.1): the compact bar at ANY width. One row is the family
-   rule at every width (Kyle, 2026-11-04), so MCO.initNavRail — and core on
+/* Fold-to-fit: the compact bar at ANY width. One row is the family
+   rule at every width, so MCO.initNavRail — and core on
    load, for every .mco-navbar[data-rail="compact"] — sets .is-folded
    whenever the full bar would not fit one row (taller than 64px unfolded),
    and on portrait compact, where the @media block above already holds first
@@ -1714,10 +1712,10 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
 .mco-navbar[data-rail="compact"].is-folded > .nav-divider { display: none; }
 .mco-navbar[data-rail="compact"].is-folded .mco-rail { display: contents; }
 .mco-navbar[data-rail="compact"].is-folded .mco-rail > :first-child { order: 1; }
-/* The search button shows wherever the bar folds, not only ≤640px (0.21.2):
-   above 640px the plain .mco-search-toggle rule hid it, so nothing took the
-   auto margin and ☰ sat mid-bar. Its field is in the closed drawer, and the
-   button opens the drawer on it (MCO.initNavRail's search option). */
+/* The search button shows wherever the bar folds, not only ≤640px: above
+   640px the plain .mco-search-toggle rule hides it, and then nothing takes
+   the auto margin and ☰ sits mid-bar. Its field is in the closed drawer,
+   and the button opens the drawer on it (MCO.initNavRail's search option). */
 .mco-navbar[data-rail="compact"].is-folded .mco-rail > .mco-search-toggle { display: flex; margin-left: auto; }
 /* Bar tools sit between the search button and ☰. */
 .mco-navbar[data-rail="compact"].is-folded > .mco-bar-tools { margin-left: 0; }
@@ -1774,7 +1772,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   font-size: 0.6875rem; font-weight: var(--fw-medium); line-height: 1.2;
 }
 
-/* Bottom control bar (1.0.0) — .mco-controlbar, a direct child of <body>,
+/* Bottom control bar — .mco-controlbar, a direct child of <body>,
    wired by core (MCO.initControlBar). The phone's time controls: a date
    stepper, a direction. Hidden by default; docked at the bottom wherever
    the compact bar is folded (a CSS query on portrait compact for first
@@ -1806,7 +1804,7 @@ body:has(> .mco-navbar[data-rail="compact"].is-folded) > .mco-controlbar { displ
 }
 /* A readout in parts ("Nov 12," "2026," "12:00 PM" as spans) may break
    between them, never inside one, so a long one fits beside four buttons
-   at 320px (from mesonet-photo-explorer). */
+   at 320px. */
 .mco-controlbar-readout:has(> span) { white-space: normal; }
 .mco-controlbar-readout > span { white-space: nowrap; }
 @media (hover: none) {
@@ -1818,14 +1816,14 @@ body:has(> .mco-navbar[data-rail="compact"].is-folded) > .mco-controlbar { displ
   .mco-controlbar { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 
-/* Keyboard (1.0.0, MCO.keyboard): a search list open over an on-screen
+/* Keyboard (MCO.keyboard): a search list open over an on-screen
    keyboard keeps to the room above it (--list-room, measured by core; the
    visible height as a fallback), so every option can be reached. */
 .kb-open .mco-search-list { max-height: min(340px, var(--list-room, calc(var(--vv-h, 100dvh) / 2))); }
 /* Too little room under the field and more over it: the list opens upward. */
 .kb-open .mco-search-list.is-above { top: auto; bottom: calc(100% + 4px); }
 
-/* Legend in the drawer (1.0.0) — MCO.initLegendDrawer. On compact the
+/* Legend in the drawer — MCO.initLegendDrawer. On compact the
    floating legend moves into a "Legend" group in the ☰ drawer and loses its
    glass; a small "Legend" button holds its corner on the map. */
 .mco-legend-btn {
@@ -1848,13 +1846,13 @@ html .mco-panel.is-in-drawer {
 .mco-panel.is-in-drawer > .mco-panel-head { padding-left: 0; padding-right: 0; position: static; background: none; }
 .mco-panel.is-in-drawer > .mco-panel-body { padding-left: 0; padding-right: 0; max-height: none; }
 
-/* Glass is legible on its own (0.10.0, #37): --glass is near-opaque and the
+/* Glass is legible on its own: --glass is near-opaque and the
    backdrop blur is an enhancement on top, because an engine that drops it
    (headless WebKit, low-power modes) or a visitor who asks for Reduce
    Transparency gets the bare fill. Under that preference every glass surface
    goes solid: --glass becomes --bg-surface, and the blur is dropped.
    html:root outranks the [data-theme] blocks without matching their selector;
-   `html [data-theme]` (0,1,1) does the same inside a theme island (0.18.0),
+   `html [data-theme]` (0,1,1) does the same inside a theme island,
    which re-declares --glass and would otherwise keep its translucent one. */
 @media (prefers-reduced-transparency: reduce) {
   html:root, html [data-theme] { --glass: var(--bg-surface); }

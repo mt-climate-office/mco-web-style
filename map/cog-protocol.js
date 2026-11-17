@@ -118,10 +118,9 @@
   // ── Block fetcher with LRU cache ───────────────────────────────────────────
 
   // One block's bytes. The tile request's AbortSignal rides along, so a tile
-  // MapLibre cancels (panned away) stops its block fetches too (0.21.0). A
-  // short read is retried once, bypassing the HTTP cache, before it throws:
-  // the snowpack consumer logged "short read, 0 of 8875 bytes" for a block a
-  // second request served whole.
+  // MapLibre cancels (panned away) stops its block fetches too. A short read
+  // is retried once, bypassing the HTTP cache, before it throws: a second
+  // request can serve whole a block the first returned empty.
   async function fetchBlockBytes(cogUrl, blockIdx, start, len, signal) {
     const range = `bytes=${start}-${start + len - 1}`;
     for (let attempt = 0; ; attempt++) {
@@ -132,7 +131,7 @@
       if (!res.ok) throw new Error(`[cog] block ${blockIdx}: HTTP ${res.status}`);
       const bytes = new Uint8Array(await res.arrayBuffer());
       // A truncated range response would surface from fzstd as "unexpected
-      // EOF"; name it instead (0.11.3).
+      // EOF"; name it instead.
       if (bytes.byteLength >= len) return bytes;
       if (attempt >= 1 || (signal && signal.aborted)) {
         throw new Error(`[cog] block ${blockIdx}: short read, ${bytes.byteLength} of ${len} bytes`);
@@ -217,7 +216,7 @@
     if (!_emptyTile) {
       const c = new OffscreenCanvas(256, 256);
       // convertToBlob throws InvalidStateError on a canvas that never had a
-      // context (Chromium): every empty tile logged an error (0.11.3).
+      // context (Chromium), so get one first.
       c.getContext('2d');
       _emptyTile = await (await c.convertToBlob({ type: 'image/png' })).arrayBuffer();
     }

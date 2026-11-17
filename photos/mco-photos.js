@@ -1,5 +1,5 @@
 /* ============================================================================
-   mco-web-style · photos/mco-photos.js · v0.1.0
+   mco-web-style · photos/mco-photos.js
    Mesonet station photos for Montana Climate Office apps: the camera
    schedule, capture slots, frame URLs, the monthly manifests, and a thin
    date / time / direction control built on the kit's stepper and segmented
@@ -16,7 +16,7 @@
    time.ts, archive.ts, fetch.ts), merged with the slot rules
    mesonet-photo-explorer relies on (docs/app.js slotsForDate,
    resolveTimeForDate, dirsForSlot, computeMaxTimestep). Where the two
-   disagreed, the resolution is recorded at the function.
+   differ, the choice is recorded at the function.
 
    The data lives on data2, not the API (website DECISIONS D6):
      photos/schedule/schedule.json          what each camera shoots, when, since when
@@ -35,12 +35,11 @@
      and a public N or S frame from before it is never offered, even when an
      app widens the range with `since` (REAIMED). This is the website's
      photo hero.
-   - {fullHistory: true} (0.15.0, D16) is the public opt-in for tools that
-     show the whole archive (the Photo Explorer, the Station Dashboard): no
-     date floor and no REAIMED block, so pre-cutover N and S appear as
-     "North" and "South", as they always did there. It is still public:
-     the allowlist below applies unchanged. An explicit `since` still sets
-     the floor.
+   - {fullHistory: true} (D16) is the public opt-in for tools that show the
+     whole archive (the Photo Explorer, the Station Dashboard): no date
+     floor and no REAIMED block, so pre-cutover N and S appear as "North"
+     and "South". It is still public: the allowlist below applies
+     unchanged. An explicit `since` still sets the floor.
    - Snow, North Snow, South Snow, Pluvio and Solar are staff-only, behind
      {internal: true}. The sky views (NS, SS) are retired history. PARK is the
      camera's rest position and is never a view.
@@ -63,7 +62,7 @@
   // Camera slots are Mountain wall-clock times. Same value as MCO.TZ.
   P.ZONE = 'America/Denver';
 
-  // Fallback when schedule.json omits `patterns` (the layout as of 2026-10).
+  // Fallback when schedule.json omits `patterns`.
   P.DEFAULT_PATTERNS = Object.freeze({
     jpg: 'photos/jpg/{station}/{station}_{token}_{captured_utc}.jpg',
     webp_large: 'photos/webp/large/{station}/{station}_{token}_{slot_utc}.webp',
@@ -276,12 +275,12 @@
      `since` says. fullHistory never widens the audience: with internal it
      changes nothing.
 
-     Resolved between the two consumers:
-     - The dashboard kept a station with no current views (hasCamera false);
-       the Photo Explorer dropped it. Dropped here; hasCamera is still false.
-     - The Photo Explorer gated slots on `first_month` by date string; here
-       the window starts at that month's first Mountain midnight. Same answer.
-     - A missing `schema` is accepted (the dashboard never checked); any
+     Where the dashboard and the Photo Explorer differ:
+     - A station with no current views is dropped (the Photo Explorer's
+       rule), and hasCamera is false for it.
+     - A window starts at the first Mountain midnight of `first_month`. The
+       Photo Explorer compares date strings and gets the same answer.
+     - A missing `schema` is accepted (the dashboard does not check); any
        other schema than 1 throws (the Photo Explorer's guard). */
   P.parseSchedule = function (doc, opts) {
     opts = opts || {};
@@ -693,9 +692,9 @@
   // whose WebP exists, so the path is derived from `slot_utc`, or from the
   // capture snapped to the nearest hour, and the frame is flagged `derived`;
   // a capture farther than snapMaxMs from that slot has no WebP and is
-  // skipped. As of 2026-10 most blank rows really have no WebP (ad-hoc and
-  // instrument captures), so confirm derived frames (confirmDerived) before
-  // showing them. o: {base, patterns, snapMaxMs, labels, allow}.
+  // skipped. Most blank rows really have no WebP (ad-hoc and instrument
+  // captures), so confirm derived frames (confirmDerived) before showing
+  // them. o: {base, patterns, snapMaxMs, labels, allow}.
   P.parseManifest = function (csv, station, o) {
     o = o || {};
     var lines = String(csv || '').replace(/\r/g, '').trim().split('\n');
@@ -859,8 +858,8 @@
          date: dateInput,                // <input type="date"> with a <label>
          time: timeSelect,               // <select> with a <label>
          steppers: [{prev, next}],       // optional day steppers (.nav-btn.mco-step);
-                                         // {prev, next, arrowKeys} per pair (1.0.0)
-         arrowKeys: false,               // 1.0.0: ← / → step the day (MCO.initStepper)
+                                         // {prev, next, arrowKeys} per pair
+         arrowKeys: false,               // ← / → step the day (MCO.initStepper)
          views: {group, select},         // .seg-btns.is-radio <fieldset> with a
                                          // <legend>, and its fallback <select>
          mq,                             // the views' fallback query (default 1060)
@@ -1100,7 +1099,7 @@
     steppers = pairs.map(function (p) {
       return MCO.initStepper({
         prev: p.prev, next: p.next, canStep: canStep,
-        // ← / → step the day (core 1.0.0): per pair, or for all with opts.arrowKeys.
+        // ← / → step the day: per pair, or for all with opts.arrowKeys.
         arrowKeys: p.arrowKeys != null ? p.arrowKeys : !!opts.arrowKeys, unit: 'day',
         onStep: function (d) {
           var rolls = [];
