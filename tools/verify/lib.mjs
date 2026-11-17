@@ -59,11 +59,22 @@ export async function config(path) {
   return (await import(pathToFileURL(resolve(path)).href)).default || {};
 }
 
-const MIME = {
+export const MIME = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.json': 'application/json', '.geojson': 'application/geo+json', '.png': 'image/png',
   '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.webp': 'image/webp', '.parquet': 'application/octet-stream',
 };
+
+/** Launch `engine` (chromium | webkit) with the harness's flags, plus `opts`. */
+export function launchBrowser(pw, engine, opts = {}) {
+  if (!pw[engine]) throw new Error(`unknown browser ${engine}`);
+  return pw[engine].launch(engine === 'chromium' ? {
+    channel: process.env.VERIFY_CHANNEL || undefined,
+    // MapLibre needs WebGL2; GPU-less machines only get it from SwiftShader.
+    args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'],
+    ...opts,
+  } : opts);
+}
 
 /**
  * Serve `root` statically on 127.0.0.1 and launch `engine` (chromium |
@@ -88,11 +99,7 @@ export async function start({ root = '.', page = 'index.html', engine = 'chromiu
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const pw = await load('playwright');
   if (!pw[engine]) throw new Error(`unknown browser ${engine}`);
-  const launch = () => pw[engine].launch(engine === 'chromium' ? {
-    channel: process.env.VERIFY_CHANNEL || undefined,
-    // MapLibre needs WebGL2; GPU-less machines only get it from SwiftShader.
-    args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'],
-  } : {});
+  const launch = () => launchBrowser(pw, engine);
   const pageDir = page.includes('/') ? page.slice(0, page.lastIndexOf('/') + 1) : '';
   const base = `http://127.0.0.1:${server.address().port}/${pageDir}`;
   const env = {
