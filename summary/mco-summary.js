@@ -1,5 +1,5 @@
 /* ============================================================================
-   mco-web-style · summary/mco-summary.js · v0.1.0
+   mco-web-style · summary/mco-summary.js
    The plain-language conditions line for Montana Climate Office apps:
    "Partly cloudy tonight, calm, no precipitation in 3 days." One sentence
    from the NWS forecast's current period (the sky), the station's latest
@@ -14,8 +14,8 @@
    A port of mesonet-dashboard's tested web/src/core/overview/summary.ts, with
    the pieces of hero.ts (currentPeriod), series.ts (peakGust, hourlyPrecip),
    precip.ts (precipSummary) and conditions.ts (the wind columns) that feed
-   it (website DECISIONS D9, extraction #3). The sentence is the same, word
-   for word, for the same inputs.
+   it (website DECISIONS D9). The sentence is the same, word for word, for
+   the same inputs.
 
    Times. The dashboard reads Mountain wall-clock strings
    ("2026-10-02 12:00:00-06:00", the API's CSV); the API's JSON sends epoch
@@ -159,7 +159,8 @@
   };
 
   // Degrees → one of the 16 compass points ("SSE"); '—' when not finite.
-  // The legacy int(deg / 22.5 + 0.5), so boundary values land as they always did.
+  // Rounds as int(deg / 22.5 + 0.5), so a boundary value (11.25°) goes to the
+  // next point.
   S.compassWord = function (deg) {
     if (deg === null || deg === undefined || !isFinite(deg)) return '—';
     var d = ((deg % 360) + 360) % 360;

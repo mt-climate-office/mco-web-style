@@ -4,6 +4,32 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [1.1.1] — 2026-11-16
+
+PATCH: three fixes and a comment clean-up. Every published file's hash
+changes, because the comments changed in all eight. Nothing to migrate.
+
+- **Help "more" lines**: `.info-section summary` is a 40px target in
+  body-size text, and `code` and `kbd` in the help never wrap. Explorer,
+  photos, status, maintenance and snowpack delete their `kit-override` for
+  this when they re-pin. The demo's help has one.
+- **Fix: attribution under a bottom-left legend.** An end-docked station
+  panel moves the map's right-hand corners left. On a tablet that put the
+  open attribution text over a `.mco-panel` legend (UMRB at 768×1024 and
+  1024×768, both engines). Where it would, the attribution now folds to its
+  ⓘ button, as MapLibre folds it on the first map move.
+- **Fix: the map's bottom corners get their lift when the map is made.**
+  With `html.mco-autolift`, a map created after the bars had published
+  their heights kept the uncapped CSS fallback until the next window
+  resize.
+- **Comments** in the eight published files follow CODE-STYLE: no version
+  tags, dates or names, and the stale notes the code audit listed are
+  corrected (core's contents list, the theme's layer list, the Esc order,
+  the palette's deprecation lines). A tokenizer comparison shows no code
+  changed in that pass.
+- **Not in 1.1.1:** the WebKit search list that kept a stale height with a
+  simulated keyboard. It did not reproduce in 45 loads of the demo.
+
 ## [1.1.0] — 2026-11-16
 
 ### Bar tools
