@@ -1173,9 +1173,22 @@
     });
     return best;
   }
+  // A map made after the bars have published their heights has no corners
+  // to clamp yet. Watch for the first one, clamp once it is there, and stop.
+  var _cornerMO = null;
+  function _awaitCorners() {
+    if (_cornerMO || typeof MutationObserver === 'undefined') return;
+    _cornerMO = new MutationObserver(function () {
+      if (!document.querySelector('.maplibregl-ctrl-bottom-right')) return;
+      _cornerMO.disconnect();
+      _clampLift();
+    });
+    _cornerMO.observe(document.documentElement, { childList: true, subtree: true });
+  }
   function _clampLift() {
     var root = document.documentElement;
     if (!root.classList.contains('mco-autolift')) return;
+    if (!document.querySelector('.maplibregl-ctrl-bottom-right')) _awaitCorners();
     var lift = MCO.metrics.get('--sheet-h') + MCO.metrics.get('--tabbar-h');
     var els = document.querySelectorAll(_LIFTED), room = [], i;
     for (i = 0; i < els.length; i++) {
