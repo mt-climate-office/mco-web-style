@@ -103,7 +103,7 @@ hash table are in the kit README (§ "SRI hashes"); pin exactly that version.
 - Skip link first in `<body>`; wrap the app surface in
   `<main id="main" tabindex="-1">`; add the sr-only `<table>` twin.
 
-**JS** (extract inline module → classic-IIFE `app.js`), swapping duplicates
+**JS** (extract inline code → an ES-module `app.js` shaped by [CODE-STYLE.md](CODE-STYLE.md)), swapping duplicates
 for kit calls:
 
 | App had | Use instead |

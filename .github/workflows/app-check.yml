@@ -1,0 +1,85 @@
+# Format, lint, syntax, HTML and kit conformance for an MCO app.
+# An app calls this at a kit release tag. The config, the tool versions and
+# the conformance tool all come from that tag. Caller: tools/style/check.yml.
+name: app-check
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: Folder that holds the app, relative to the repository root.
+        type: string
+        default: .
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: app/${{ inputs.directory }}
+    env:
+      STYLE: ${{ github.workspace }}/kit/tools/style
+    steps:
+      # job.workflow_sha is the commit this file was called at: the tag in the
+      # caller's `uses:`. The github context describes the caller, not the kit.
+      # Left empty, the kit checkout below would fetch the app instead.
+      - name: Find the kit ref
+        working-directory: ${{ github.workspace }}
+        env:
+          KIT_REPOSITORY: ${{ job.workflow_repository }}
+          KIT_REF: ${{ job.workflow_ref }}
+          KIT_SHA: ${{ job.workflow_sha }}
+        run: |
+          echo "kit: $KIT_REF at $KIT_SHA"
+          test -n "$KIT_REPOSITORY" && test -n "$KIT_SHA"
+
+      - name: Check out the app
+        uses: actions/checkout@v5
+        with:
+          path: app
+          persist-credentials: false
+
+      - name: Check out the kit at the ref the app called
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: kit
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the kit's pinned tools
+        run: npm ci --prefix "$STYLE" --no-audit --no-fund
+
+      - name: Format
+        run: >-
+          "$STYLE/node_modules/.bin/prettier" --config "$STYLE/.prettierrc.json"
+          --ignore-path "$STYLE/.prettierignore" --check .
+
+      - name: Lint
+        run: '"$STYLE/node_modules/.bin/eslint" --config "$STYLE/eslint.config.mjs" .'
+
+      - name: Syntax-check JS
+        run: git ls-files -z '*.js' '*.mjs' | xargs -0 -r -n1 node --check
+
+      - name: Validate HTML
+        run: git ls-files -z '*.html' | xargs -0 -r "$STYLE/node_modules/.bin/html-validate"
+
+      # Reports and never fails the job; read its output in the log.
+      - name: Kit conformance
+        working-directory: ${{ github.workspace }}
+        env:
+          DIRECTORY: ${{ inputs.directory }}
+        run: |
+          if [ "$DIRECTORY" = . ]; then
+            node kit/tools/conformance.mjs app
+          else
+            node kit/tools/conformance.mjs app "$DIRECTORY/index.html"
+          fi

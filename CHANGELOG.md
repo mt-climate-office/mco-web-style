@@ -6,7 +6,26 @@ policy in README.md.
 
 ## [Unreleased]
 
-(Nothing yet.)
+Docs and tooling only. No published file changes.
+
+- **CODE-STYLE.md**: how app code is written. Section order and banners,
+  fixed names, `state`/`data`/`els`, app CSS in `app.css`, comment rules.
+- **tools/style/**: shared Prettier 3.9.10 and ESLint 10.14.0 config and a
+  dev-tools `package.json` with its lockfile.
+- **app-check.yml**: a reusable workflow that runs format, lint, syntax,
+  HTML and conformance on an app with that config. An app calls it at a
+  release tag (`tools/style/check.yml`) and copies no config. CI runs it on
+  the exemplar.
+- **Exemplar** rewritten to CODE-STYLE: an ES module, CSS in `app.css`,
+  `stationPaint` for every station (AgriMet markers and its legend swatch
+  now draw like HydroMet's), `flyToAndOpen`, `initInfoModal({intro})`,
+  `MCO.loading().fail` with Retry, and an `<h1>` brand.
+- **conformance.mjs**: advisory code-style checks (section banners in
+  order, no history in comments, `app.css`, a workflow that calls
+  `app-check.yml` at a release tag), shown as ⚠ and not scored.
+  It now reads local stylesheets, checks keys in a `STORAGE` object, finds
+  `docs/index.html` by itself, and reads `?kbd=off` and peek use from the
+  app's own scripts only.
 
 ## [1.0.0] — 2026-11-13
 

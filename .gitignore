@@ -2,5 +2,6 @@
 node_modules/
 # The kit is zero-dependency by policy (see AGENTS.md). CI installs test
 # tooling ephemerally; a committed manifest would invite runtime deps.
-package.json
-package-lock.json
+# tools/style/ holds the apps' dev-tool manifest and lockfile, which are kept.
+/package.json
+/package-lock.json

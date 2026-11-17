@@ -9,6 +9,7 @@ Explorer, and friends).
 files — the same way the apps already load MapLibre.**
 
 - 📐 **[HOUSE-STYLE.md](HOUSE-STYLE.md)** — brand, UX, accessibility, and dev conventions (the rules)
+- ✍️ **[CODE-STYLE.md](CODE-STYLE.md)** — how app code is written; shared Prettier and ESLint config in `tools/style/`
 - 🤖 **[AGENTS.md](AGENTS.md)** — guardrails for developers, human or AI (the sideboards)
 - 🗺 **[CONSUMERS.md](CONSUMERS.md)** — which MCO properties use the kit, per-app migration intel
 - 🚚 **[MIGRATING.md](MIGRATING.md)** — the migration playbook (start here when converting an existing app)

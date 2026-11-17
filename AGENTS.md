@@ -2,12 +2,14 @@
 
 Instructions for anyone — human or AI agent — changing this repo or consuming
 it from an app. The reasoning behind each rule is in
-[HOUSE-STYLE.md](HOUSE-STYLE.md); this file is just the rails.
+[HOUSE-STYLE.md](HOUSE-STYLE.md); this file is just the rails. Code is written to
+[CODE-STYLE.md](CODE-STYLE.md).
 
 ## The kit's constitution
 
-1. **Zero build, zero runtime dependencies. Ever.** No package.json (it is
-   gitignored on purpose), no bundler, no framework, no TypeScript, no
+1. **Zero build, zero runtime dependencies. Ever.** No package.json at the
+   root (it is gitignored on purpose; `tools/style/` holds the dev-tool
+   manifest the apps' checks install from), no bundler, no framework, no TypeScript, no
    preprocessor. Published files are hand-written CSS and classic-script JS
    that run as-committed. CI tooling installs ephemerally and is never a
    runtime dependency.
@@ -85,6 +87,8 @@ The rules below apply to any consumer, migrated or new.
   app wants the same override, it's a kit change.
 - Style fixes land in the kit first, then flow to apps by version bump
   (HOUSE-STYLE §8).
+- Call the kit's check workflow at a release tag, never a branch; do not copy
+  its config into the app (CODE-STYLE.md, Tools).
 - Add this block to the consuming repo's CLAUDE.md / AGENTS.md:
 
   ```markdown

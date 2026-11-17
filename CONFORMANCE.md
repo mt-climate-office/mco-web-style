@@ -92,5 +92,6 @@ pass's job. Each item cites the rule it checks.
 
 The checker is deliberately conservative. A false ✗ costs one look, and a
 false ✓ hides a shipped failure. When it is wrong, fix the regex here, not the
-app. It reads the entry HTML, its inline `<style>`, and the local scripts the
-page loads, so app CSS in separate files is not checked yet.
+app. It reads the entry HTML, its inline `<style>`, and the local scripts and
+stylesheets the page loads. Its code-style checks ([CODE-STYLE.md](CODE-STYLE.md))
+are advisory: ⚠, not scored.
