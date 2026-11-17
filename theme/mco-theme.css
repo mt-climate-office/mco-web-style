@@ -979,6 +979,10 @@ a.nav-btn { text-decoration: none; }
    underlines don't count. */
 .info-section a { color: var(--accent-line); text-decoration: underline; text-underline-offset: 2px; }
 .info-section a:hover { text-decoration-thickness: 2px; }
+/* A "more" line: a <details> in the help. Its summary is a 40px target in
+   body-size text. A key or a code sample never breaks across lines. */
+.info-section summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); padding: 0.6rem 0; min-height: 40px; box-sizing: border-box; }
+.info-section code, .info-section kbd { white-space: nowrap; }
 .info-section kbd {
   font-family: var(--font-mono);
   font-size: 0.75em;

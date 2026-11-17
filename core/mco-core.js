@@ -1080,8 +1080,10 @@
        MCO.metrics.get('--sheet-h')                  // → 212 */
   MCO.metrics = {
     set: function (name, px) {
+      var was = name === '--sheet-end' ? MCO.metrics.get(name) : 0;
       document.documentElement.style.setProperty(name, Math.max(0, Math.round(px || 0)) + 'px');
       if (name === '--sheet-h' || name === '--tabbar-h') _clampLift();
+      if (name === '--sheet-end') _foldAttrib(MCO.metrics.get(name) - was);
     },
     get: function (name) {
       return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
@@ -1109,6 +1111,32 @@
      a ceiling, so an attribution or panel under a zoom group on the same
      side stops 8px below it instead of riding over it (mesonet-explorer carried an
      --attrib-lift-max override for exactly this). */
+  // An end-docked panel moves the map's right-hand corners left by its
+  // width. On a tablet that can put the open attribution text over a
+  // bottom-left legend. Where it would, the attribution folds to its ⓘ
+  // button, as MapLibre folds it on the first map move. `shift` is how far
+  // the corner is about to move: its CSS transition has not run yet. The
+  // text can wrap taller once it has less room, which only the settled
+  // layout shows, so the check runs again after the transition.
+  var _foldTid = 0;
+  function _foldAttrib(shift) {
+    if (shift > 0) { clearTimeout(_foldTid); _foldTid = setTimeout(function () { _foldAttrib(0); }, 300); }
+    if (shift < 0) return;
+    var open = document.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact.maplibregl-compact-show');
+    if (!open.length) return;
+    var panels = document.querySelectorAll('.mco-panel');
+    Array.prototype.forEach.call(open, function (a) {
+      var ar = a.getBoundingClientRect();
+      var hit = Array.prototype.some.call(panels, function (p) {
+        if (!p.getClientRects().length) return false;
+        var pr = p.getBoundingClientRect();
+        return ar.left - shift < pr.right && ar.right - shift > pr.left && ar.top < pr.bottom && ar.bottom > pr.top;
+      });
+      if (!hit) return;
+      a.classList.remove('maplibregl-compact-show');
+      a.removeAttribute('open');
+    });
+  }
   var _LIFTED = '[data-autolift], .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right';
   var _CEILINGS = '.maplibregl-ctrl-top-left, .maplibregl-ctrl-top-right';
   var _liftRO = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(function () { _clampLift(); }) : null;
