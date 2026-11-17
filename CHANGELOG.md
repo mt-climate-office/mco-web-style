@@ -4,7 +4,7 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
-## [Unreleased]
+## [1.1.0] — 2026-11-16
 
 ### Bar tools
 
