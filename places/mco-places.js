@@ -1,5 +1,5 @@
 /* ============================================================================
-   mco-web-style · places/mco-places.js · v0.1.0
+   mco-web-style · places/mco-places.js
    Place search for Montana Climate Office apps: a typed county, reservation,
    tribe, town or ZIP code resolves to a point, and a point to the Mesonet
    stations nearest it, with great-circle distances. "Near me" asks the
@@ -7,12 +7,12 @@
 
    Classic script, zero dependencies, no build. Lands on window.MCO.places.
    Load it AFTER core/mco-core.js: initPlaceSearch is MCO.initSearchBox with
-   places added (its `section` and `queryOnly` items, 0.16.0), and the
+   places added (its `section` and `queryOnly` items), and the
    loaders use MCO.promiseCache and MCO.announce. The pure helpers need
    nothing from core.
 
    A port of mesonet-dashboard's tested web/src/core/places/index.ts and
-   web/src/core/stations/nearest.ts (website DECISIONS D9, extraction #2).
+   web/src/core/stations/nearest.ts (website DECISIONS D9).
 
    The data ships with the kit, at the same pinned tag as this file:
      places/mt-places.json                     the gazetteer (47 KB, 15 KB gzipped)
@@ -70,7 +70,7 @@
   P.AREAS_PATH = 'map/data/mt_reservations_simple.geojson';
   P.AREAS_INTEGRITY = 'sha384-6Oi36TjjPc+YzdMhrXk9rWmnmCv4Oz9jD1q2B+VbmguUMx59hHDTHUVzr5vliDsy';
 
-  // The kit root this file was loaded from ("…/mco-web-style@0.16.0/"), so
+  // The kit root this file was loaded from ("…/mco-web-style@X.Y.Z/"), so
   // the data comes from the same tag. Null when it cannot be known (a module
   // bundle, node:vm): pass {url} to load() and loadAreas() then.
   P.KIT_BASE = (function () {
