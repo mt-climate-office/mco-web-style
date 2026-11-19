@@ -6,7 +6,7 @@
 // in tools/verify/README.md, then:
 //
 //   node tools/verify/family-audit.mjs                       # every consumer, production
-//   node tools/verify/family-audit.mjs --only status,umrb
+//   node tools/verify/family-audit.mjs --only status,build
 //   node tools/verify/family-audit.mjs --url status=http://127.0.0.1:8000/
 //   node tools/verify/family-audit.mjs --out /tmp/audit --no-sheets
 //   node tools/verify/family-audit.mjs --fold-repeats 10      # fold determinism (0 skips)
@@ -39,7 +39,7 @@ const SITES = {
   photos:      { url: 'https://mesonet.climate.umt.edu/photos/',      station: 'station', map: true, allow404: true },
   status:      { url: 'https://mesonet.climate.umt.edu/status/',      station: 'station', map: true },
   maintenance: { url: 'https://mesonet.climate.umt.edu/maintenance/', station: 'station', map: true },
-  umrb:        { url: 'https://mesonet.climate.umt.edu/umrb/',        station: 'station', map: true },
+  build:       { url: 'https://mesonet.climate.umt.edu/build/',       station: 'station', map: true },
   snowpack:    { url: 'https://snow.climate.umt.edu/',                station: null,      map: true },
   aq:          { url: 'https://mesonet2.climate.umt.edu/air/',        station: null,      map: true },
   website:     { url: 'https://next.climate.umt.edu/',                station: null,      map: false },
