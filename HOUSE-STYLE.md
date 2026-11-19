@@ -553,8 +553,10 @@ open from a no-detail state, replace while it stays open; §4).
   Don't shrink a field back under 16 px on a phone.
 - **`viewport-fit=cover` is required** for the safe-area insets in the kit CSS
   to be live — without the meta, `env()` silently resolves to 0 (two apps
-  shipped exactly this bug). Use `max(1rem, env(safe-area-inset-*))` padding on
-  edge-hugging chrome.
+  shipped exactly this bug). Use `max(1rem, env(safe-area-inset-top|bottom))`
+  padding on edge-hugging chrome, and `var(--safe-l)` / `var(--safe-r)` for
+  the sides: iOS reports both side insets in landscape, and the kit zeroes the
+  one away from the camera.
 - Segmented button groups that don't fit under 1060 px get a `<select>`
   fallback via `MCO.initSegmentedFallback` (0.9.0; the photo explorer
   pattern). Single-choice groups are `.seg-btns.is-radio` radio fieldsets,

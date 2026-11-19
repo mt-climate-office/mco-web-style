@@ -4,6 +4,24 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [1.2.0] — 2026-11-19
+
+MINOR: two landscape-phone fixes to the rail. They add two tokens and two
+`<html>` classes. Theme and core change; nothing to migrate.
+
+- **Fix: no gap on the side away from the camera.** iOS reports equal left
+  and right safe areas in landscape, so the rail at the right padded for a
+  camera on the left. The new metrics **`--safe-l` / `--safe-r`** are the
+  side insets, and every side padding in the theme reads them. Core sets
+  **`html.mco-cam-left`** or **`.mco-cam-right`** from `window.orientation`
+  when the two insets are equal, and the inset away from the camera is then
+  0. Pages padding their own chrome for the sides should use the tokens.
+- **Fix: the rail's top group no longer clips or scrolls.** On an iPhone the
+  search button was cut off and ☰ and search scrolled as well as the control
+  bar. The top group is now measured in fractional pixels with one to spare,
+  and the control bar's max-height is `100%` of the box the rail is fixed
+  to, not `100dvh`.
+
 ## [1.1.1] — 2026-11-16
 
 PATCH: three fixes and a comment clean-up. Every published file's hash
