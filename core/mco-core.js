@@ -248,6 +248,38 @@
       try { fn(); } catch (e) { console.error(e); }
     });
   }
+  /* The camera's side, for the side safe areas (--safe-l / --safe-r in
+     mco-theme.css). iOS reports equal left and right insets in landscape
+     wherever the camera is, so only when the two are equal and non-zero is
+     the side read from window.orientation: 90 is the phone turned
+     anticlockwise, camera on the left; -90 the other way. Unequal insets are
+     already real; then neither class is set. */
+  var _safeProbe = null;
+  function _camSide() {
+    var root = document.documentElement;
+    var side = null;
+    var o = window.orientation;
+    if (document.body && (o === 90 || o === -90)) {
+      if (!_safeProbe) {
+        _safeProbe = document.createElement('div');
+        _safeProbe.setAttribute('aria-hidden', 'true');
+        _safeProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+          'padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)';
+      }
+      document.body.appendChild(_safeProbe);
+      var cs = getComputedStyle(_safeProbe);
+      var l = parseFloat(cs.paddingLeft) || 0, r = parseFloat(cs.paddingRight) || 0;
+      _safeProbe.remove();
+      if (l > 0 && Math.abs(l - r) < 1) side = o === 90 ? 'left' : 'right';
+    }
+    root.classList.toggle('mco-cam-left', side === 'left');
+    root.classList.toggle('mco-cam-right', side === 'right');
+  }
+  _camSide();
+  // iOS fires orientationchange before the insets settle; resize after.
+  window.addEventListener('orientationchange', function () { setTimeout(_camSide, 0); });
+  window.addEventListener('resize', _camSide);
+
   _compactMq.addEventListener('change', _emitViewport);
   _touchMq.addEventListener('change', _emitViewport);
   _railMq.addEventListener('change', _emitViewport);
@@ -2040,11 +2072,14 @@
       var cs = getComputedStyle(nav), rail = nav.querySelector('.mco-rail');
       var logo = nav.querySelector(':scope > .logo-link');
       var h = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0), n = 0;
-      if (logo && logo.getClientRects().length) { h += logo.offsetHeight; n++; }
-      if (rail && rail.getClientRects().length) { h += rail.scrollHeight; n++; }
+      // Fractional heights, then a pixel spare: offsetHeight and
+      // scrollHeight round, and a group short by half a pixel clips its
+      // last button and scrolls (iPhone, 3x).
+      if (logo && logo.getClientRects().length) { h += logo.getBoundingClientRect().height; n++; }
+      if (rail && rail.getClientRects().length) { h += Math.max(rail.scrollHeight, rail.getBoundingClientRect().height); n++; }
       var tools = nav.querySelector(':scope > .mco-bar-tools');
-      if (tools && tools.getClientRects().length) { h += tools.offsetHeight + (parseFloat(getComputedStyle(tools).marginTop) || 0); n++; }
-      return Math.ceil(h + (parseFloat(cs.rowGap) || 0) * Math.max(0, n - 1));
+      if (tools && tools.getClientRects().length) { h += tools.getBoundingClientRect().height + (parseFloat(getComputedStyle(tools).marginTop) || 0); n++; }
+      return Math.ceil(h + (parseFloat(cs.rowGap) || 0) * Math.max(0, n - 1)) + 1;
     }
     // What the column's contents need. Not scrollHeight: for a frame after
     // the readouts come back, WebKit reports the clamped height, and the bar
@@ -2066,7 +2101,10 @@
         return;
       }
       document.documentElement.style.setProperty('--rail-top-h', top + 'px');
-      var room = window.innerHeight - top;
+      // The room is measured in the box the rail and bar are fixed to (the
+      // bar sits at its bottom), as the CSS max-height is. Not innerHeight
+      // or 100dvh: iOS Safari's can differ from it.
+      var room = bar.getBoundingClientRect().bottom - top;
       bar.classList.remove('is-tight', 'is-scroll');
       if (need() > room) bar.classList.add('is-tight');
       if (need() > room) bar.classList.add('is-scroll');

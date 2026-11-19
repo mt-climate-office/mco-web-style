@@ -557,8 +557,8 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
 .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right {
   padding-bottom: env(safe-area-inset-bottom);
 }
-.maplibregl-ctrl-top-left, .maplibregl-ctrl-bottom-left { padding-left: env(safe-area-inset-left); }
-.maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-right { padding-right: env(safe-area-inset-right); }
+.maplibregl-ctrl-top-left, .maplibregl-ctrl-bottom-left { padding-left: var(--safe-l); }
+.maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-right { padding-right: var(--safe-r); }
 
 /* ── 5. Component shells ──────────────────────────────────────────────────── */
 
@@ -574,7 +574,7 @@ input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"], 
   display: flex; align-items: center; gap: var(--nav-gap);
   /* Left padding matches the vertical padding so the 40px logo badge sits
      with square margins in the 52px bar (≈6px on all three sides). */
-  padding: 0.4rem max(1rem, env(safe-area-inset-right)) 0.4rem max(0.4rem, env(safe-area-inset-left));
+  padding: 0.4rem max(1rem, var(--safe-r)) 0.4rem max(0.4rem, var(--safe-l));
   min-height: 52px;
   background: var(--glass);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
@@ -776,7 +776,7 @@ a.nav-btn { text-decoration: none; }
    info modal's Data section and their exports instead. --text-muted on
    --bg-deep; links underlined (1.4.1). */
 .mco-footer {
-  padding: var(--space-4) max(var(--space-5), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left));
+  padding: var(--space-4) max(var(--space-5), var(--safe-r)) max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-5), var(--safe-l));
   border-top: 1px solid var(--border);
   background: var(--bg-deep);
   font-size: var(--fs-sm); line-height: 1.5; color: var(--text-muted); text-align: center;
@@ -1194,8 +1194,8 @@ a.nav-btn { text-decoration: none; }
     position: absolute;
     top: 100%; left: 0; right: 0;
     z-index: var(--z-flyout);
-    padding: 0.5rem max(0.75rem, env(safe-area-inset-right))
-             0.5rem max(0.75rem, env(safe-area-inset-left));
+    padding: 0.5rem max(0.75rem, var(--safe-r))
+             0.5rem max(0.75rem, var(--safe-l));
     background: var(--glass);
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
@@ -1210,7 +1210,7 @@ a.nav-btn { text-decoration: none; }
      sit on top of the text being typed. */
   .mco-navbar .mco-search-collapse.is-open kbd { display: none; }
   /* The overlay's padding moves the field in; the kit icon follows it. */
-  .mco-navbar .mco-search-collapse.is-open .mco-search-icon { left: calc(max(0.75rem, env(safe-area-inset-left)) + 9px); }
+  .mco-navbar .mco-search-collapse.is-open .mco-search-icon { left: calc(max(0.75rem, var(--safe-l)) + 9px); }
 }
 
 /* Scrim behind off-canvas drawers on compact viewports. Pair with a panel at
@@ -1261,15 +1261,15 @@ a.nav-btn { text-decoration: none; }
 .mco-drawer[data-docked] [data-close-drawer] { display: none; }
 .mco-drawer-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
-  padding: var(--space-3) var(--space-3) var(--space-3) max(var(--space-4), env(safe-area-inset-left));
+  padding: var(--space-3) var(--space-3) var(--space-3) max(var(--space-4), var(--safe-l));
   border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .mco-drawer-body {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  padding: var(--space-4) var(--space-4) var(--space-4) max(var(--space-4), env(safe-area-inset-left));
+  padding: var(--space-4) var(--space-4) var(--space-4) max(var(--space-4), var(--safe-l));
 }
 .mco-drawer[data-side="end"] .mco-drawer-head,
-.mco-drawer[data-side="end"] .mco-drawer-body { padding-right: max(var(--space-4), env(safe-area-inset-right)); }
+.mco-drawer[data-side="end"] .mco-drawer-body { padding-right: max(var(--space-4), var(--safe-r)); }
 
 /* Station panel — MCO.initSheet. Above compact it docks at the end edge,
    full height under the bar, with the map live beside it. On compact it
@@ -1310,7 +1310,7 @@ a.nav-btn { text-decoration: none; }
 .mco-sheet-grip { display: none !important; }
 .mco-sheet-body {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right)) var(--space-4) var(--space-4);
+  padding: var(--space-4) max(var(--space-4), var(--safe-r)) var(--space-4) var(--space-4);
 }
 .is-compact .mco-sheet {
   top: var(--sheet-top, var(--chrome-h, 0px)); bottom: var(--tabbar-h, 0px);
@@ -1318,8 +1318,8 @@ a.nav-btn { text-decoration: none; }
   border-left: 0; border-top: 1px solid var(--border);
 }
 .is-compact .mco-sheet.is-entering, .is-compact .mco-sheet.is-leaving { transform: translateY(100%); }
-.is-compact .mco-sheet-head { padding-left: max(var(--space-4), env(safe-area-inset-left)); }
-.is-compact .mco-sheet-body { padding-left: max(var(--space-4), env(safe-area-inset-left)); }
+.is-compact .mco-sheet-head { padding-left: max(var(--space-4), var(--safe-l)); }
+.is-compact .mco-sheet-body { padding-left: max(var(--space-4), var(--safe-l)); }
 /* A field in the panel stays reachable over an on-screen keyboard. */
 .kb-open .mco-sheet-body { padding-bottom: calc(var(--space-4) + var(--kb-inset, 0px)); }
 
@@ -1335,6 +1335,16 @@ html:not(.mco-booting) [data-skeleton] { display: none; }
    Lifting the toast and MapLibre's bottom corners is opt-in via
    html.mco-autolift, which a page with a kit control bar turns on. It is
    opt-in because the toast's position is an observable default. */
+/* Side safe areas. iOS reports the same left and right inset in landscape,
+   whichever side the camera is on, so padding for both leaves an empty
+   strip on the side away from it. MCO.viewport finds the camera's side and
+   sets html.mco-cam-left or .mco-cam-right; the other side's inset is then
+   0. Without either class (core not loaded yet, no side insets, an Android
+   phone that reports only the real side) these are the plain insets. Use
+   them, not env(safe-area-inset-left/right), for side padding. */
+:root { --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px); }
+html.mco-cam-left { --safe-r: 0px; }
+html.mco-cam-right { --safe-l: 0px; }
 :root { --chrome-h: 0px; --sheet-h: 0px; --sheet-end: 0px; --tabbar-h: 0px; --controlbar-h: 0px; --kb-inset: 0px; --vv-h: 100dvh; --overlay-bottom: calc(var(--sheet-h) + var(--tabbar-h)); }
 html { scroll-padding-top: var(--chrome-h); }
 /* An end-docked sheet covers the map's right edge: MapLibre's right
@@ -1511,17 +1521,17 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
 @media (max-height: 560px) and (orientation: landscape) {
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) {
     --rail-w: 56px;
-    --rail-inset: calc(var(--rail-w) + env(safe-area-inset-right));
+    --rail-inset: calc(var(--rail-w) + var(--safe-r));
     padding-right: var(--rail-inset);
   }
   /* The rail isn't above anything: nothing needs scroll padding for it. */
   html:not(.mco-bar-hold):has(> body > .mco-navbar[data-rail]) { --chrome-h: 0px !important; }
   :where(html:not(.mco-bar-hold)) .mco-navbar[data-rail] {
     position: fixed; top: 0; bottom: var(--controlbar-h, 0px); left: auto; right: 0;
-    width: calc(var(--rail-w, 56px) + env(safe-area-inset-right));
+    width: calc(var(--rail-w, 56px) + var(--safe-r));
     min-height: 0;
     flex-direction: column; flex-wrap: nowrap; justify-content: flex-start;
-    padding: max(0.4rem, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right))
+    padding: max(0.4rem, env(safe-area-inset-top)) max(6px, var(--safe-r))
              0.4rem 6px;
     border-bottom: 0; border-left: 1px solid var(--border);
   }
@@ -1548,7 +1558,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
     display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
     position: absolute; top: 0; bottom: calc(-1 * var(--controlbar-h, 0px)); left: auto; right: 100%;
     width: min(var(--drawer-w, 300px), calc(100vw - var(--rail-inset, 56px)));
-    padding: max(0.75rem, env(safe-area-inset-top)) 0.9rem max(0.75rem, env(safe-area-inset-bottom)) max(0.9rem, env(safe-area-inset-left));
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.9rem max(0.75rem, env(safe-area-inset-bottom)) max(0.9rem, var(--safe-l));
     overflow-y: auto; overscroll-behavior: contain;
     background: var(--bg-surface); border-left: 1px solid var(--border); box-shadow: var(--shadow);
     transition: transform 0.18s ease-out, opacity 0.18s ease-out;
@@ -1584,12 +1594,14 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   :where(html:not(.mco-bar-hold)) body:has(> .mco-navbar[data-rail]) > .mco-controlbar {
     display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.35rem;
     position: fixed; left: auto; right: 0; bottom: 0; top: auto;
-    width: calc(var(--rail-w, 56px) + env(safe-area-inset-right));
+    width: calc(var(--rail-w, 56px) + var(--safe-r));
     /* Never over the rail's top group (badge, ☰, search): core measures it
-       into --rail-top-h. What doesn't fit scrolls here (.is-scroll). */
-    max-height: calc(100dvh - var(--rail-top-h, 9.5rem)); overflow-y: auto; scrollbar-width: none;
+       into --rail-top-h. 100%, not 100dvh: the box the rail is fixed to,
+       which iOS Safari can size differently. What doesn't fit scrolls
+       here (.is-scroll). */
+    max-height: calc(100% - var(--rail-top-h, 9.5rem)); overflow-y: auto; scrollbar-width: none;
     justify-content: safe flex-end;
-    padding: 0.35rem max(6px, env(safe-area-inset-right)) max(0.4rem, env(safe-area-inset-bottom)) 6px;
+    padding: 0.35rem max(6px, var(--safe-r)) max(0.4rem, env(safe-area-inset-bottom)) 6px;
     border-top: 0; border-left: 1px solid var(--border); box-shadow: none;
   }
   /* Short of room the readouts go first (visually: still read), then the
@@ -1674,7 +1686,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
     display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
     position: fixed; top: var(--nav-drawer-top, 0px); bottom: max(var(--tabbar-h, 0px), var(--kb-inset, 0px)); right: 0;
     width: min(var(--drawer-w, 300px), 88vw);
-    padding: 0.75rem max(0.9rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) 0.9rem;
+    padding: 0.75rem max(0.9rem, var(--safe-r)) max(0.75rem, env(safe-area-inset-bottom)) 0.9rem;
     overflow-y: auto; overscroll-behavior: contain;
     background: var(--bg-surface); border-left: 1px solid var(--border); box-shadow: var(--shadow);
     transition: transform 0.18s ease-out, opacity 0.18s ease-out;
@@ -1725,7 +1737,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   display: none; flex-direction: column; align-items: stretch; gap: 0.9rem;
   position: fixed; top: var(--nav-drawer-top, 0px); bottom: max(var(--tabbar-h, 0px), var(--kb-inset, 0px)); right: 0;
   width: min(var(--drawer-w, 300px), 88vw);
-  padding: 0.75rem max(0.9rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) 0.9rem;
+  padding: 0.75rem max(0.9rem, var(--safe-r)) max(0.75rem, env(safe-area-inset-bottom)) 0.9rem;
   overflow-y: auto; overscroll-behavior: contain;
   background: var(--bg-surface); border-left: 1px solid var(--border); box-shadow: var(--shadow);
   transition: transform 0.18s ease-out, opacity 0.18s ease-out;
@@ -1786,7 +1798,7 @@ html.mco-autolift [data-autolift] { translate: 0 calc(-1 * var(--lift, var(--ove
   display: none; align-items: center; justify-content: center; gap: var(--space-3);
   position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-chrome);
   min-height: 52px;
-  padding: var(--space-2) max(var(--space-4), env(safe-area-inset-right)) max(var(--space-2), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+  padding: var(--space-2) max(var(--space-4), var(--safe-r)) max(var(--space-2), env(safe-area-inset-bottom)) max(var(--space-4), var(--safe-l));
   background: var(--glass);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--border);
