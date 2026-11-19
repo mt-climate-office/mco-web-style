@@ -19,8 +19,10 @@ are on it.** In landscape on an iPhone the rail pads only the side the
 camera is on (`--safe-l` / `--safe-r`, `html.mco-cam-left` / `.mco-cam-right`),
 and its top group (☰, search) no longer clips or scrolls. Only the theme
 and core hashes changed. After the merges, all seven live pages returned
-200 and served only `@1.2.0` (mesonet2 `/dash/` from origin; its CloudFront
-edge held the 1.1.1 page for up to `max-age=600`). Not yet seen on a real phone. App-owned side
+200 and served only `@1.2.0`, except mesonet2 `/dash/`: CloudFront kept
+its 17 Nov copy of that one path (1.1.1) well past the page's `max-age=600`,
+though `/dash/index.html` and the Pages origin were on 1.2.0. Invalidate
+`/dash/*` or let it expire. Not yet seen on a real phone. App-owned side
 paddings still read `env(safe-area-inset-left/right)` directly: explorer
 `index.html:310`, and the dashboard's `app.css`, `picker.css` and
 `drawer.css`.
