@@ -877,6 +877,13 @@ schedule and manifests on data2. Rules every app inherits from it:
   never offered, a slot not in yet, a direction nobody shot. The kit
   returns the reason; the app announces or toasts it once, after stepping
   settles.
+- **Directions follow the slot, unless the view leads** (1.3.0). By default
+  only the views shot at the selected time are offered. A staff tool whose
+  views keep different hours (the sky views are 9:00 only) may pass
+  `allViews` to `initPhotoControls`: every view is offered at every time,
+  and picking one moves the time to the nearest slot that day that shot
+  it, said in words like any other move. Picking a time still wins over
+  the view: one that did not shoot it falls back to North.
 - Times are Mountain wall-clock times everywhere a person reads them;
   archive keys are UTC. Convert with `MCO.photos.toUtcMs` / `toWallClock`,
   never with the viewer's zone.
