@@ -4,6 +4,25 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [1.3.0] — 2026-11-23
+
+MINOR: one opt-in option on the photo controls. Only `photos/mco-photos.js`
+changes; nothing to migrate.
+
+- **`initPhotoControls({allViews: true})`**: every view of the audience is
+  offered at every slot, instead of only the views shot at the selected one.
+  Picking a view the slot did not shoot moves the time to the nearest ready
+  slot that day that did, as a time roll: "No Snow photos at 12:00 PM.
+  Showing 9:00 AM." Picking a time that did not shoot the view still falls
+  back to North. For the Photo Explorer's staff view, whose sky views are
+  shot at 9:00 only. The default is unchanged.
+- **`MCO.photos.nearestSlotFor(schedule, date, token, hhmm, opts)`**: the
+  ready slot that day nearest `hhmm` that shot `token` (the earlier of two
+  equally near), or null.
+- `rollMessage` words the new `{kind: 'time', reason: 'view'}` roll.
+- The demo's Photos card runs the staff audience with `allViews`.
+  HOUSE-STYLE § Station photos has the rule.
+
 ## [1.2.0] — 2026-11-19
 
 MINOR: two landscape-phone fixes to the rail. They add two tokens and two
