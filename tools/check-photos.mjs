@@ -445,6 +445,91 @@ test('slots: roll messages are plain and carry the limit', () => {
   }
 });
 
+test('slots: nearestSlotFor finds the nearest ready slot that shot a view', () => {
+  const now = P.toUtcMs('2026-10-23', '17:00');
+  assert.equal(P.nearestSlotFor(STAFF, '2026-10-23', 'SNOW', '15:00', { now }), '09:00');
+  assert.equal(P.nearestSlotFor(STAFF, '2026-10-23', 'N', '15:00', { now }), '15:00');
+  assert.equal(P.nearestSlotFor(STAFF, '2026-10-23', 'N', '10:00', { now }), '09:00');
+  // Equally near: the earlier. (skycam's NS is at 9 and 15.)
+  assert.equal(P.nearestSlotFor(STAFF, '2026-10-23', 'NS', '12:00', { now }), '09:00');
+  // Retired, or not shot by the stations placed.
+  assert.equal(P.nearestSlotFor(STAFF, '2026-10-23', 'SS', '12:00', { now }), null);
+  assert.equal(P.nearestSlotFor(STAFF, '2026-10-23', 'SNOW', '12:00', { now, stations: ['acebrady'] }), null);
+  // A slot not in yet does not count.
+  assert.equal(P.nearestSlotFor(STAFF, '2026-10-23', 'SNOW', '12:00', { now: P.toUtcMs('2026-10-23', '09:10') }), null);
+  assert.equal(P.rollMessage({ kind: 'time', reason: 'view', from: '12:00', to: '09:00', view: 'SNOW' }),
+    'No Snow photos at 12:00 PM. Showing 9:00 AM.');
+});
+
+/* ── initPhotoControls ───────────────────────────────────────────────────── */
+
+// Just enough of a date input, a <select> and their change events.
+function control() {
+  const on = {};
+  return {
+    value: '', min: '', max: '', options: [], on,
+    addEventListener(t, f) { on[t] = f; }, removeEventListener(t) { delete on[t]; },
+    replaceChildren(...c) { this.options = c; },
+    change(v) { this.value = v; on.change(); },
+  };
+}
+function controls(opts) {
+  const els = { date: control(), time: control(), select: control() };
+  const seen = [];
+  const c = P.initPhotoControls({
+    schedule: STAFF, date: els.date, time: els.time, views: { select: els.select },
+    params: new URLSearchParams(), now: () => P.toUtcMs('2026-10-23', '17:00'), onRoll: false,
+    initial: { date: '2026-10-23', time: '12:00' },
+    onChange: (st, ch) => seen.push({ st: plain(st), ch: plain(ch) }),
+    ...opts,
+  });
+  const last = () => seen[seen.length - 1];
+  const offered = () => plain(c.views());
+  return { c, els, last, offered };
+}
+
+test('controls: by default only the views the slot shot are offered', () => {
+  const { els, last, offered } = controls();
+  eq(offered(), ['N', 'E', 'S', 'W']);
+  els.time.change('09:00');
+  eq(offered(), ['N', 'E', 'S', 'W', 'SNOW', 'NSNOW', 'SSNOW', 'PLUVIO', 'SOLAR', 'NS']);
+  els.select.change('SNOW');
+  eq([last().st.time, last().st.view, last().ch.rolls], ['09:00', 'SNOW', []]);
+  els.time.change('12:00');
+  eq(offered(), ['N', 'E', 'S', 'W']);
+  eq([last().st.view, last().ch.rolls], ['N', [{ kind: 'view', from: 'SNOW', to: 'N' }]]);
+});
+
+test('controls: allViews offers every view; a view picked moves the time to it', () => {
+  const { c, els, last, offered } = controls({ allViews: true });
+  const all = plain(STAFF.tokens);
+  eq(offered(), all);
+  assert.ok(all.includes('SNOW') && !all.includes('PARK'));
+  // SNOW at noon: the time follows it to 9:00.
+  els.select.change('SNOW');
+  eq(last().st, { date: '2026-10-23', time: '09:00', view: 'SNOW', ms: P.toUtcMs('2026-10-23', '09:00') });
+  eq(last().ch, { source: 'view', rolls: [
+    { kind: 'time', reason: 'view', from: '12:00', to: '09:00', view: 'SNOW', date: '2026-10-23' }] });
+  assert.equal(els.time.value, '09:00');
+  eq(c.params(), { date: '2026-10-23', time: '9', dir: 'SNOW' });
+  eq(offered(), all, 'the list does not shrink');
+  // A time picked away from it: North, as without the option.
+  els.time.change('15:00');
+  eq([last().st.time, last().st.view, last().ch.rolls],
+    ['15:00', 'N', [{ kind: 'view', from: 'SNOW', to: 'N' }]]);
+  // A view shot at the slot: no move.
+  els.select.change('W');
+  eq([last().st.time, last().st.view, last().ch.rolls], ['15:00', 'W', []]);
+  // A view nobody shot that day: the time stays and the view falls back.
+  els.select.change('SS');
+  eq([last().st.time, last().st.view, last().ch.rolls],
+    ['15:00', 'N', [{ kind: 'view', from: 'SS', to: 'N' }]]);
+  // Stepping days keeps the time the view moved to.
+  els.select.change('PLUVIO');
+  els.date.change('2026-10-22');
+  eq([last().st.date, last().st.time, last().st.view], ['2026-10-22', '09:00', 'PLUVIO']);
+});
+
 /* ── Paths ───────────────────────────────────────────────────────────────── */
 
 test('paths: patterns, frame URLs, manifest URL', () => {

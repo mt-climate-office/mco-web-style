@@ -534,6 +534,22 @@
     };
   };
 
+  // The ready slot on `date` nearest `hhmm` at which `token` was shot (the
+  // earlier of two equally near), or null when none was. {stations, now,
+  // lagMinutes} as for viewsForSlot and readySlots. (initPhotoControls'
+  // allViews: picking a 9:00-only view at noon moves the time to 9:00.)
+  P.nearestSlotFor = function (schedule, date, token, hhmm, opts) {
+    opts = opts || {};
+    var want = hhmm ? minutesOf(hhmm) : 0, best = null, gap = Infinity;
+    P.readySlots(schedule, date, opts).forEach(function (s) {
+      if (!s.ready) return;
+      if (P.viewsForSlot(schedule, date, s.time, opts).indexOf(token) === -1) return;
+      var d = Math.abs(minutesOf(s.time) - want);
+      if (d < gap) { gap = d; best = s.time; }
+    });
+    return best;
+  };
+
   // Which view to show: the wanted one if offered, else the default (North),
   // else the first offered. {view, moved}.
   P.resolveView = function (offered, wanted, fallback) {
@@ -546,12 +562,17 @@
   // Plain words for a move the visitor did not ask for. Apps may toast it,
   // announce it, or write their own from the same fields.
   //   {kind: 'time', reason: 'pending' | 'unscheduled', from, to, date}
+  //   {kind: 'time', reason: 'view', from, to, view}   (allViews: time followed a view)
   //   {kind: 'date', reason: 'too-early' | 'too-late', from, to}
   //   {kind: 'view', from, to}
   P.rollMessage = function (r) {
     var fmt = function (d) { return MCO.formatDateStr ? MCO.formatDateStr(d) : d; };
     if (r.kind === 'view') {
       return 'No ' + P.label(r.from) + ' photos at this time. Showing ' + P.label(r.to) + '.';
+    }
+    if (r.kind === 'time' && r.reason === 'view') {
+      return 'No ' + P.label(r.view) + ' photos at ' + P.slotLabel(r.from) + '. Showing ' +
+        P.slotLabel(r.to) + '.';
     }
     if (r.kind === 'date') {
       return r.reason === 'too-early'
@@ -864,6 +885,7 @@
                                          // <legend>, and its fallback <select>
          mq,                             // the views' fallback query (default 1060)
          stations,                       // optional ids that limit the views offered
+         allViews: false,                // true: offer every view at every slot
          onChange: function (state, change) { render(state); writeUrl(); },
        });
      state:  {date, time, view, ms}      ms = the slot's UTC instant
@@ -872,6 +894,13 @@
      Initial state: {initial} > URL (?date= ?time= ?dir=, validated) > the
      latest slot, North. Wanted time and view are sticky: stepping through
      days re-resolves from what was asked for, not from what one day forced.
+
+     By default the views offered are those shot at the selected slot. With
+     allViews (1.3.0; the Photo Explorer's staff view, whose sky views are
+     shot at 9:00 only), every view of the audience is offered at every
+     slot: picking one the slot did not shoot moves the time to the nearest
+     slot that day that did (nearestSlotFor), and picking a time that did not
+     shoot the view falls back to North, as without it.
 
      Moves the visitor did not ask for (a time that day never offered, a
      slot not in yet, a view nobody shot) come back as `rolls` and, after
@@ -894,6 +923,7 @@
     var names = Object.assign({ date: 'date', time: 'time', view: 'dir' }, opts.paramNames || {});
     var minDate = opts.minDate || sch.minDate;
     var limit = opts.stations || null;
+    var allViews = !!opts.allViews;
     var radioName = 'mco-photo-view-' + (++_seq);
     var onRoll = opts.onRoll === false ? null
       : (opts.onRoll || function (r) { MCO.announce(P.rollMessage(r)); });
@@ -978,15 +1008,20 @@
       }, 250);
     }
 
-    function offeredViews() {
+    // shotViews: what the slot shot; offeredViews: what the control lists.
+    // They differ only with allViews, which lists the audience's every view.
+    function shotViews() {
       var list = state.time ? P.viewsForSlot(sch, state.date, state.time, { stations: limit }) : [];
       return list.length ? list : sch.tokens.slice();
+    }
+    function offeredViews() {
+      return allViews && sch.tokens.length ? sch.tokens.slice() : shotViews();
     }
     function syncViews(rolls) {
       var list = offeredViews();
       if (list.join() !== shown.join()) buildViews(list);
       var from = state.view;
-      var r = P.resolveView(list, wantedView, defView);
+      var r = P.resolveView(shotViews(), wantedView, defView);
       state.view = r.view;
       if (seg) seg.set(r.view || '');
       else if (select) select.value = r.view || '';
@@ -1061,15 +1096,30 @@
     var initRolls = [];
     state.date = pDate;
     buildViews(sch.tokens.length ? sch.tokens : [defView]);
+    // A view picked from the control. With allViews it may not have been shot
+    // at the selected slot: move the time to the nearest slot that day that
+    // shot it, else resolve as usual (North, with a roll).
+    function pickView(v) {
+      var rolls = [];
+      wantedView = state.view = v;
+      if (allViews && state.date && shotViews().indexOf(v) === -1) {
+        var to = P.nearestSlotFor(sch, state.date, v, state.time,
+          { stations: limit, now: nowFn(), lagMinutes: lag });
+        if (to) {
+          rolls.push({ kind: 'time', reason: 'view', from: state.time, to: to, view: v, date: state.date });
+          wantedTime = state.time = to;
+          timeEl.value = to;
+        }
+        syncViews(rolls);
+      }
+      emit('view', rolls);
+    }
     var seg = group && select ? MCO.initSegmentedFallback({
       group: group, select: select, mq: opts.mq,
-      onChange: function (v) {
-        wantedView = v; state.view = v;
-        emit('view', []);
-      },
+      onChange: pickView,
     }) : null;
     if (!seg && select) {
-      var onSel = function () { wantedView = state.view = select.value; emit('view', []); };
+      var onSel = function () { pickView(select.value); };
       select.addEventListener('change', onSel);
       cleanup.push(function () { select.removeEventListener('change', onSel); });
     }
