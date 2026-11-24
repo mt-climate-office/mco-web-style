@@ -1,0 +1,188 @@
+# Deploy an MCO map app to GitHub Pages with a live social preview.
+# Each run screenshots the live app, validates the picture, puts it in the
+# site as a JPEG and stamps the og:image URL with ?v=<UTC time>. Then it
+# deploys. The image never enters git, so the run frequency doesn't grow
+# the repo. Caller template: tools/preview/pages.yml.
+#
+# An invalid screenshot falls back to the image live now, then the kit card
+# at this tag. The site still deploys, and a scheduled run then fails so
+# someone hears about it.
+name: og-preview
+
+on:
+  workflow_call:
+    inputs:
+      site_dir:
+        description: Folder Pages serves, relative to the repository root.
+        type: string
+        default: .
+      url:
+        description: Live page to screenshot, query included.
+        type: string
+        required: true
+      image_path:
+        description: Where the card goes, relative to site_dir. Must end in .jpg.
+        type: string
+        default: assets/og-card.jpg
+      image_url:
+        description: The card's production URL. It is the first fallback.
+        type: string
+        required: true
+      html:
+        description: HTML files whose og:image tags are stamped, relative to site_dir, one per line.
+        type: string
+        default: index.html
+      mode:
+        description: screenshot, or download to keep the app's own PNG export.
+        type: string
+        default: screenshot
+      width:
+        type: number
+        default: 1200
+      height:
+        type: number
+        default: 630
+      scale:
+        description: Device pixel ratio. The output is width×scale by height×scale.
+        type: string
+        default: '2'
+      ready_selector:
+        description: Wait for this element before the screenshot.
+        type: string
+        default: ''
+      ready_text:
+        description: Regex that ready_selector's text must match.
+        type: string
+        default: ''
+      fail_selector:
+        description: If this is visible, the screenshot is invalid. A kit danger notice always is.
+        type: string
+        default: ''
+      seen_keys:
+        description: localStorage keys set to '1' first, comma list, so intro dialogs stay shut.
+        type: string
+        default: ''
+      settle_ms:
+        description: Wait after ready so tiles finish painting.
+        type: number
+        default: 3000
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      actions: write      # the monthly keepalive below
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      # job.workflow_sha is the kit tag in the caller's `uses:` (see app-check.yml).
+      - name: Find the kit ref
+        env:
+          KIT_REPOSITORY: ${{ job.workflow_repository }}
+          KIT_SHA: ${{ job.workflow_sha }}
+        run: |
+          echo "kit: $KIT_REPOSITORY at $KIT_SHA"
+          test -n "$KIT_REPOSITORY" && test -n "$KIT_SHA"
+
+      - name: Check out the app
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: app
+          persist-credentials: false
+
+      - name: Check out the kit at the ref the app called
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: kit
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install Playwright chromium (cached)
+        timeout-minutes: 10
+        uses: ./kit/.github/actions/playwright
+        with:
+          engines: chromium
+          packages: ' '
+
+      - name: Screenshot the live app
+        id: shoot
+        env:
+          OG_URL: ${{ inputs.url }}
+          OG_OUT: app/${{ inputs.site_dir }}/${{ inputs.image_path }}
+          OG_MODE: ${{ inputs.mode }}
+          OG_WIDTH: ${{ inputs.width }}
+          OG_HEIGHT: ${{ inputs.height }}
+          OG_SCALE: ${{ inputs.scale }}
+          OG_READY_SELECTOR: ${{ inputs.ready_selector }}
+          OG_READY_TEXT: ${{ inputs.ready_text }}
+          OG_FAIL_SELECTOR: ${{ inputs.fail_selector }}
+          OG_SEEN_KEYS: ${{ inputs.seen_keys }}
+          OG_SETTLE_MS: ${{ inputs.settle_ms }}
+          IMAGE_URL: ${{ inputs.image_url }}
+          KIT_REPOSITORY: ${{ job.workflow_repository }}
+          KIT_SHA: ${{ job.workflow_sha }}
+        run: |
+          mkdir -p "$(dirname "$OG_OUT")"
+          export OG_FALLBACKS="$IMAGE_URL
+          https://cdn.jsdelivr.net/gh/$KIT_REPOSITORY@$KIT_SHA/assets/og-card.png"
+          set +e
+          node kit/tools/preview/og-preview.mjs shoot
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = 3 ]; then echo "::warning::Live preview INVALID; deployed a fallback image. See the log above."; fi
+          # Nothing usable at all: deploying would publish a broken og:image.
+          [ "$code" = 0 ] || [ "$code" = 3 ]
+
+      - name: Stamp the og:image URL
+        working-directory: app/${{ inputs.site_dir }}
+        env:
+          OG_HTML: ${{ inputs.html }}
+          IMAGE_PATH: ${{ inputs.image_path }}
+        run: |
+          OG_IMAGE="$(basename "$IMAGE_PATH")" OG_STAMP="$(date -u +%Y%m%d%H%M)" \
+            node "$GITHUB_WORKSPACE/kit/tools/preview/og-preview.mjs" stamp
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: app/${{ inputs.site_dir }}
+
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      # GitHub disables a schedule after 60 days with no repo activity, and
+      # these runs no longer commit. Re-enabling the caller once a month
+      # counts as activity.
+      - name: Keep the schedule alive
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CALLER: ${{ github.workflow_ref }}
+        run: |
+          [ "$(date -u +%d)" = 01 ] && [ "$(date -u +%H)" -lt 6 ] || exit 0
+          file="$(basename "${CALLER%%@*}")"
+          gh api -X PUT "repos/$REPO/actions/workflows/$file/enable" && echo "re-enabled $file"
+
+      - name: Fail a scheduled run that used a fallback
+        if: github.event_name == 'schedule' && steps.shoot.outputs.code == '3'
+        run: |
+          echo "::error::The live preview was invalid; the site deployed with a fallback card."
+          exit 1
