@@ -68,20 +68,17 @@ on:
         default: 3000
 
 jobs:
-  deploy:
+  # No environment here: a Pages environment rejects a whole job from a
+  # branch other than main, so keeping the build apart lets a branch run
+  # test everything but the deploy.
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
-      pages: write
-      id-token: write
       actions: write      # the monthly keepalive below
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    outputs:
+      code: ${{ steps.shoot.outputs.code }}
     steps:
       # job.workflow_sha is the kit tag in the caller's `uses:` (see app-check.yml).
       - name: Find the kit ref
@@ -156,15 +153,9 @@ jobs:
           OG_IMAGE="$(basename "$IMAGE_PATH")" OG_STAMP="$(date -u +%Y%m%d%H%M)" \
             node "$GITHUB_WORKSPACE/kit/tools/preview/og-preview.mjs" stamp
 
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: app/${{ inputs.site_dir }}
-
-      - name: Deploy
-        id: deploy
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
       # GitHub disables a schedule after 60 days with no repo activity, and
       # these runs no longer commit. Re-enabling the caller once a month
@@ -181,8 +172,28 @@ jobs:
           file="$(basename "${CALLER%%@*}")"
           gh api -X PUT "repos/$REPO/actions/workflows/$file/enable" && echo "re-enabled $file"
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
       - name: Fail a scheduled run that used a fallback
-        if: github.event_name == 'schedule' && steps.shoot.outputs.code == '3'
+        if: github.event_name == 'schedule' && needs.build.outputs.code == '3'
         run: |
           echo "::error::The live preview was invalid; the site deployed with a fallback card."
           exit 1
