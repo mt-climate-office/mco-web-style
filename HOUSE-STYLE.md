@@ -106,11 +106,12 @@ writes `og:site_name` as the long family alone.
 
 **Head assets** (decided 2026-10-08): favicons and the social card's
 `og-card.png` are **hot-linked from the pinned kit tag**, so they version with
-the kit and can't drift. **One exception (2026-10-09):** an app with its own
-live preview bot (`preview.yml`, a nightly screenshot of the live map:
-status, maintenance, umrb, photos) keeps that image as `og:image`. A real
-map beats the generic card. The kit card is the default for every app
-without one. The navbar logo stays vendored. The canonical URL is
+the kit and can't drift. **Map apps use a live card instead (1.4.0):** the
+kit's `og-preview.yml` workflow screenshots the live map every 6 hours and
+deploys it as `assets/og-card.jpg`, stamped `?v=<time>`. A real map beats the
+generic card. The image never goes into git. Caller:
+`tools/preview/pages.yml`. The kit card is the default for every other app,
+and the fallback when a screenshot fails. The navbar logo stays vendored. The canonical URL is
 the production host, never github.io.
 
 Target titles per app live in CONSUMERS.md; apply on migration.
