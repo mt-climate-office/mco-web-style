@@ -4,6 +4,23 @@ All notable changes to mco-web-style. Format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows the SemVer
 policy in README.md.
 
+## [1.4.0] — 2026-11-24
+
+MINOR: a live social card for map apps. No published CSS or JS changes; the
+SRI hashes are those of 1.3.0.
+
+- **`.github/workflows/og-preview.yml`** (`workflow_call`): screenshots the
+  live app, checks the image (size, dimensions, not blank, no danger
+  notice), writes `assets/og-card.jpg`, stamps the `og:image` URLs with
+  `?v=<UTC time>`, and deploys to Pages. The image is never committed. A bad
+  screenshot falls back to the live card, then the kit card. A scheduled
+  run that falls back still deploys, then fails.
+- **`tools/preview/og-preview.mjs`**: the screenshot and stamp tool.
+- **`tools/preview/pages.yml`**: the caller. Every 6 hours, on push, and by
+  hand. The repo's Pages source must be "GitHub Actions".
+- Replaces each app's nightly `preview.yml`, which committed a 2.5–3.4 MB
+  PNG to `main` every night.
+
 ## [1.3.0] — 2026-11-23
 
 MINOR: one opt-in option on the photo controls. Only `photos/mco-photos.js`

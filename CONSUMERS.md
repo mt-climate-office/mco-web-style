@@ -385,6 +385,27 @@ to its own title, which is what that field is not for.
 
 ⛔ `mco-drought-dashboard` is **excluded** — hands-off, see its row above.
 
+## Live social cards (1.4.0)
+
+Map apps deploy through the kit's `og-preview.yml`, which puts a fresh
+screenshot in `assets/og-card.jpg` every 6 hours (HOUSE-STYLE §1). Adopting
+it, per app:
+
+1. Copy `tools/preview/pages.yml` to `.github/workflows/pages.yml` and fill
+   in the URL, `image_url`, ready selector and intro key.
+2. Point the `og:image`, `og:image:secure_url` and `twitter:image` tags at
+   `og-card.jpg`, with `og:image:type` set to `image/jpeg`.
+3. Delete the old `preview.yml`, `scripts/generate_preview.py` and the
+   committed PNG.
+4. Before the merge, check for files starting with `_`. Branch deploys run
+   Jekyll, which hides them; an Actions deploy publishes them.
+5. After the merge, set Pages to deploy from Actions
+   (`gh api -X PUT repos/<repo>/pages -f build_type=workflow`), then run the
+   workflow and check the live card.
+
+Not on it: mesonet-dashboard (its card is a manual `npm run og-card`),
+mesonet-aq (hands-off) and mco-website-next (a content site).
+
 ## Cutover to mesonet.climate.umt.edu
 
 Every Mesonet dashboard and API link derives from one `MESONET_ORIGIN` constant
